@@ -1,0 +1,65 @@
+name: Bird API Rate Limits
+description: Bird enforces per-workspace rate limits on all API endpoints. Default
+  limits apply to all plans; enterprise customers can negotiate higher limits. Exceeded
+  limits return HTTP 429 and requests are safe to retry. Channel-level provider limits
+  trigger internal buffering with exponential backoff retries.
+url: https://docs.bird.com/api/channels-api/rate-limit
+created: '2026-06-13'
+modified: '2026-06-13'
+rate_limits:
+  default:
+    scope: Per workspace, per API key
+    get_requests:
+      limit: 50
+      unit: requests per second
+    post_requests:
+      limit: 500
+      unit: requests per second
+    burst_capacity:
+      limit: 250
+      notes: Short burst above base rate permitted before throttling
+    exceeded_response:
+      http_status: 429
+      message: Too Many Requests
+      retry_safe: true
+      notes: A 429 response means the request was not processed and can be safely
+        retried
+  enterprise:
+    scope: Per workspace, negotiated per contract
+    get_requests:
+      limit: Up to 10000
+      unit: requests per second
+    post_requests:
+      limit: Up to 10000
+      unit: requests per second
+    notes: Contact Bird support to increase rate limits beyond defaults
+  channel_provider_limits:
+    description: Individual channel providers (e.g. WhatsApp, SMS carriers) impose
+      their own throughput limits independent of workspace API rate limits
+    behavior: When channel-level limits are reached, Bird buffers the traffic internally
+      and retries delivery automatically
+    retry_policy:
+      max_retries: 10
+      backoff: Exponential
+      success_outcome: Message transitions to SENT status upon successful retry
+constraints:
+  max_request_body_size:
+    value: 200
+    unit: KB
+  list_pagination:
+    max_results_per_request: 1000
+    pagination_type: Cursor-based
+  message_scheduling:
+    min_lead_time: 10 minutes ahead of send time
+    max_lead_time: 35 days ahead of send time
+  tags_per_message:
+    max: 10
+headers:
+  notes: Rate limit response headers (X-RateLimit-Remaining, X-RateLimit-Reset) are
+    included in API responses to help clients track usage
+authentication:
+  method: Access Key
+  header: Authorization
+  format: 'AccessKey <access-key>'
+  management_url: https://app.bird.com/settings/security/access-keys
+  notes: Access keys are scoped to roles; always assign minimum required permissions

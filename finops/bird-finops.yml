@@ -1,0 +1,93 @@
+name: Bird FinOps
+description: Financial operations guidance for managing Bird API costs across email,
+  SMS, WhatsApp, RCS, push notifications, voice, and flow automation. Covers cost
+  visibility, optimization strategies, and governance recommendations for teams operating
+  at scale.
+url: https://bird.com/en-us/pricing
+created: '2026-06-13'
+modified: '2026-06-13'
+cost_model:
+  type: Consumption-based with optional bundles
+  billing_dimensions:
+    - dimension: Messages sent
+      applies_to:
+        - Email
+        - SMS
+        - WhatsApp
+        - RCS
+        - Push Notifications
+    - dimension: Minutes consumed
+      applies_to:
+        - Voice
+    - dimension: Flow invocations
+      applies_to:
+        - Automation Flows
+    - dimension: Contacts in bundle
+      applies_to:
+        - Monthly Targeted Contacts plans
+  passthrough_fees:
+    description: Carrier and vendor passthrough fees are added on top of Bird base
+      rates for SMS and WhatsApp. These vary by country and carrier and are billed
+      at cost.
+    affected_channels:
+      - SMS (carrier fees vary by country)
+      - WhatsApp (Meta vendor fees)
+      - RCS (carrier passthrough costs)
+unit_economics:
+  email:
+    base_rate: '$1.50 per 1,000 messages'
+    cost_per_message: '$0.0015'
+  whatsapp:
+    base_rate: '$0.005 per message'
+    notes: Plus Meta vendor passthrough fees
+  push_notifications:
+    base_rate: '$0.0005 per notification'
+  rcs:
+    base_rate: '$0.005 per message'
+    notes: Plus carrier passthrough costs
+  flow_invocations:
+    base_rate: '$0.05 per unit'
+cost_optimization:
+  strategies:
+    - name: Use Monthly Contacts Bundle for predictable workloads
+      description: For organizations sending to 50K+ contacts consistently, the bundle
+        plan offers lower per-message rates compared to pay-as-you-go
+      threshold: 50,000 contacts per month minimum
+    - name: Channel selection optimization
+      description: Push notifications ($0.0005/msg) are significantly cheaper than
+        WhatsApp or SMS for users who have a mobile app. Route notifications appropriately
+        by channel cost.
+    - name: Frequency capping
+      description: Use Bird's built-in frequency capping feature on message sends
+        to prevent over-messaging, which reduces unnecessary spend and improves deliverability
+    - name: Suppress unengaged contacts
+      description: Regularly clean contact lists by suppressing unsubscribes and
+        bounces to avoid paying for undeliverable messages
+    - name: Template-based messaging
+      description: Use pre-approved WhatsApp templates to reduce rejection rates
+        and avoid paying for failed messages
+    - name: Monitor flow invocations
+      description: Flow invocations at $0.05/unit can accumulate; audit automation
+        flows for unnecessary triggers or loops that inflate invocation counts
+    - name: Tag messages for cost attribution
+      description: Apply up to 10 tags per message to segment spend by campaign,
+        team, or product line for accurate cost attribution
+governance:
+  access_key_management:
+    recommendation: Create separate access keys per application or environment with
+      minimum required role permissions
+    management_url: https://app.bird.com/settings/security/access-keys
+  workspace_isolation:
+    recommendation: Use separate Bird workspaces per product or business unit to
+      isolate spend and apply per-workspace rate limits
+  budget_alerts:
+    recommendation: Monitor usage via Bird analytics dashboard and configure budget
+      thresholds; contact Bird support for enterprise spend reporting integrations
+  vendor_passthrough_visibility:
+    recommendation: For SMS and WhatsApp, request itemized carrier and vendor fee
+      breakdowns from Bird support to accurately forecast total cost of ownership
+reporting:
+  analytics_url: https://app.bird.com
+  notes: Bird provides campaign performance analytics and contact activity tracking
+    in the dashboard. API-level spend breakdowns require contacting Bird support for
+    enterprise plans.

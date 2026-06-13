@@ -1,0 +1,162 @@
+name: Bird
+description: Bird (formerly MessageBird) is an omnichannel customer communications
+  platform offering REST APIs for email, SMS, WhatsApp, RCS, push notifications,
+  voice, and data management. Trusted by more than 450,000 developers, Bird provides
+  enterprise-grade connectivity through a global carrier network alongside a full
+  customer engagement and marketing automation suite.
+image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+url: https://raw.githubusercontent.com/api-evangelist/bird/refs/heads/main/apis.yml
+version: '0.19'
+aid: bird
+type: Index
+tags:
+  - Communications
+  - SMS
+  - Email
+  - WhatsApp
+  - Voice
+  - Messaging
+  - Omnichannel
+  - Customer Engagement
+created: '2026-06-13'
+modified: '2026-06-13'
+specificationVersion: '0.19'
+apis:
+  - name: Bird Channels API
+    description: Send and receive messages across SMS, WhatsApp, RCS, email, push
+      notifications, and other channels via a unified REST API. Supports templated
+      messages, media attachments, scheduling, link tracking, and frequency capping.
+    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
+    baseURL: https://api.bird.com
+    tags:
+      - Messaging
+      - SMS
+      - WhatsApp
+      - Email
+      - Push Notifications
+      - RCS
+    properties:
+      - type: Documentation
+        url: https://docs.bird.com/api/channels-api/api-reference/messaging
+      - type: OpenAPI
+        url: https://github.com/messagebird/openapi-specs
+    contact:
+      - FN: Bird Support
+        url: https://bird.com/en-us/contact
+  - name: Bird Customer Data API
+    description: Sync customer data from multiple sources in real time to build a
+      360-degree customer view. Manage contacts, lists, segmentation, and profile
+      enrichment programmatically.
+    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    humanURL: https://docs.bird.com/api
+    baseURL: https://api.bird.com
+    tags:
+      - Customer Data
+      - CDP
+      - Contacts
+      - Segmentation
+    properties:
+      - type: Documentation
+        url: https://docs.bird.com/api
+    contact:
+      - FN: Bird Support
+        url: https://bird.com/en-us/contact
+  - name: Bird Phone Numbers API
+    description: Search, purchase, and manage phone numbers inventory programmatically.
+      Supports number search by country and capability, number porting, and inventory
+      management at scale.
+    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    humanURL: https://docs.bird.com/api
+    baseURL: https://api.bird.com
+    tags:
+      - Phone Numbers
+      - Voice
+      - SMS
+      - Numbers
+    properties:
+      - type: Documentation
+        url: https://docs.bird.com/api
+    contact:
+      - FN: Bird Support
+        url: https://bird.com/en-us/contact
+  - name: Bird Identity Verification API
+    description: Verify the identity of your customers programmatically to enable
+      additional services such as two-factor authentication and fraud prevention
+      across SMS and voice channels.
+    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    humanURL: https://docs.bird.com/api
+    baseURL: https://api.bird.com
+    tags:
+      - Identity Verification
+      - Authentication
+      - Two-Factor Authentication
+      - Fraud Prevention
+    properties:
+      - type: Documentation
+        url: https://docs.bird.com/api
+    contact:
+      - FN: Bird Support
+        url: https://bird.com/en-us/contact
+  - name: Bird Touchpoints API
+    description: Create and manage dynamic customer interactions across multiple channels.
+      Build customer journeys, flows, and automated sequences that adapt to customer
+      actions.
+    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    humanURL: https://docs.bird.com/api
+    baseURL: https://api.bird.com
+    tags:
+      - Customer Journeys
+      - Automation
+      - Flows
+      - Engagement
+    properties:
+      - type: Documentation
+        url: https://docs.bird.com/api
+    contact:
+      - FN: Bird Support
+        url: https://bird.com/en-us/contact
+  - name: Bird Accounts API
+    description: Programmatically manage your Bird organization, workspaces, users,
+      roles, and access keys. Configure SSO and manage multi-workspace enterprise
+      deployments.
+    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    humanURL: https://docs.bird.com/api
+    baseURL: https://api.bird.com
+    tags:
+      - Accounts
+      - Organizations
+      - Workspaces
+      - Users
+    properties:
+      - type: Documentation
+        url: https://docs.bird.com/api
+    contact:
+      - FN: Bird Support
+        url: https://bird.com/en-us/contact
+common:
+  - type: Website
+    url: https://bird.com
+  - type: Documentation
+    url: https://docs.bird.com/api
+  - type: GitHubOrg
+    url: https://github.com/messagebird
+  - type: LinkedIn
+    url: https://www.linkedin.com/company/birdhq/
+  - type: Blog
+    url: https://bird.com/blog
+  - type: Pricing
+    url: https://bird.com/en-us/pricing
+  - type: StatusPage
+    url: https://status.bird.com
+  - type: X
+    url: https://x.com/messagebird
+  - type: Plans
+    url: plans/bird-plans-pricing.yml
+  - type: RateLimits
+    url: rate-limits/bird-rate-limits.yml
+  - type: FinOps
+    url: finops/bird-finops.yml
+maintainers:
+  - FN: Kin Lane
+    email: kin@apievangelist.com
