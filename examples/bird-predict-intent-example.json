@@ -1,0 +1,25 @@
+{
+  "summary": "Predict an intent for a customer phrase using Bird Intent API",
+  "description": "Example of a POST request to /api/v1/datasets/{datasetId}/predict to classify an incoming phrase.",
+  "request": {
+    "method": "POST",
+    "url": "https://intent.messagebird.com/api/v1/datasets/dde4eeae-7652-4bc8-8be1-1cd6ac898dc7/predict",
+    "headers": {
+      "Authorization": "AccessKey YOUR_ACCESS_KEY",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "phrase": "I'd like to order something"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "intent": "order",
+      "intentPredicted": true
+    }
+  }
+}

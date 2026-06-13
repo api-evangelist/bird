@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/bird/main/json-schema/bird-message-schema.json",
+  "title": "BirdMessage",
+  "description": "Schema for a Bird (MessageBird) SMS message object.",
+  "type": "object",
+  "required": ["originator", "body", "recipients"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique random ID that identifies a message.",
+      "example": "49e40bae0b374f1ca5e3d04d46edc7c1"
+    },
+    "href": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the created message object.",
+      "example": "https://rest.messagebird.com/messages/49e40bae0b374f1ca5e3d04d46edc7c1"
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["mt", "mo"],
+      "description": "Tells if the message is mobile terminated (mt, sent to a phone) or mobile originated (mo, received from a phone)."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["sms", "binary", "flash"],
+      "default": "sms",
+      "description": "The type of message. Values can be: sms, binary, or flash."
+    },
+    "originator": {
+      "type": "string",
+      "description": "The sender of the message. A telephone number (including country code) or alphanumeric string (max 11 characters).",
+      "example": "MessageBird"
+    },
+    "body": {
+      "type": "string",
+      "description": "The body of the SMS message.",
+      "example": "Hello World!"
+    },
+    "reference": {
+      "type": "string",
+      "description": "A client reference string."
+    },
+    "validity": {
+      "type": "integer",
+      "description": "The duration in seconds that the message is valid. Default value is 604800 (one week).",
+      "example": 604800
+    },
+    "gateway": {
+      "type": "integer",
+      "description": "The SMS route that is used to send the message."
+    },
+    "typeDetails": {
+      "type": "object",
+      "description": "A hash with extra information for specific message types.",
+      "additionalProperties": true
+    },
+    "datacoding": {
+      "type": "string",
+      "enum": ["plain", "unicode", "auto"],
+      "default": "plain",
+      "description": "The datacoding used: plain (GSM 03.38), unicode, or auto."
+    },
+    "mclass": {
+      "type": "integer",
+      "enum": [0, 1],
+      "description": "Indicated the message class for flash SMS. Value can be 0 or 1."
+    },
+    "scheduledDatetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The scheduled date and time of the message in RFC 3339 format.",
+      "example": "2023-10-01T12:00:00+00:00"
+    },
+    "createdDatetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The date and time of the creation of the message in RFC 3339 format.",
+      "example": "2023-09-28T10:00:00+00:00"
+    },
+    "recipients": {
+      "type": "object",
+      "description": "The collection of recipients and their statuses.",
+      "properties": {
+        "totalCount": {
+          "type": "integer",
+          "description": "The total count of recipients.",
+          "example": 1
+        },
+        "totalSentCount": {
+          "type": "integer",
+          "description": "The count of recipients where the message is sent to.",
+          "example": 1
+        },
+        "totalDeliveredCount": {
+          "type": "integer",
+          "description": "The count of recipients where the message is delivered to.",
+          "example": 1
+        },
+        "totalDeliveryFailedCount": {
+          "type": "integer",
+          "description": "The count of recipients where the delivery has failed.",
+          "example": 0
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "recipient": {
+                "type": "integer",
+                "description": "The msisdn of the recipient.",
+                "example": 31612345678
+              },
+              "originator": {
+                "type": "string",
+                "description": "The sender of the message."
+              },
+              "status": {
+                "type": "string",
+                "enum": ["scheduled", "sent", "buffered", "delivered", "expired", "delivery_failed"],
+                "description": "The status of the message sent to the recipient."
+              },
+              "statusDatetime": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The date and time of the last status update for the message in RFC 3339 format."
+              },
+              "messagePartCount": {
+                "type": "integer",
+                "description": "The count of message parts (used for multi-part SMS)."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

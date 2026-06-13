@@ -1,0 +1,28 @@
+{
+  "summary": "Detect the language of a phrase using Bird Language Detection API",
+  "description": "Example of a POST request to /api/v1/predict-language to detect the language of an incoming phrase.",
+  "request": {
+    "method": "POST",
+    "url": "https://language-detection.messagebird.com/api/v1/predict-language",
+    "headers": {
+      "Authorization": "AccessKey YOUR_ACCESS_KEY",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "phrase": "Dit is iets in het Nederlands"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "language": {
+        "iso6393Code": "nld",
+        "languageCode": "NLD",
+        "name": "Dutch"
+      }
+    }
+  }
+}

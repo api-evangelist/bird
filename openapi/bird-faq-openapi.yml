@@ -1,0 +1,332 @@
+openapi: 3.0.0
+info:
+  title: Bird FAQ API
+  description: >
+    The MessageBird FAQ API enables answering questions from an FAQ dataset.
+    Datasets can be created and managed using the dataset section of the
+    MessageBird Dashboard. FAQ datasets are created by giving multiple
+    variations of questions that correspond to an answer. The API applies
+    machine learning to generalize from the questions and answers so that
+    unseen questions are automatically mapped to the right answer.
+  version: 1.0.0
+  contact:
+    name: Bird Support
+    url: https://bird.com/en-us/contact
+externalDocs:
+  description: Find our official documentation in the MessageBird Docs
+  url: https://developers.messagebird.com/api
+servers:
+  - url: https://faq.messagebird.com
+security:
+  - AccessKey: []
+components:
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      name: Authorization
+      in: header
+      description: >
+        Use the word "AccessKey" followed by your API Key.
+        Example: "AccessKey w223tVQTcLO4ufBTuJxjvzwJ22"
+  schemas:
+    Answer:
+      type: object
+      description: An answer which corresponds to one or more example questions in the dataset.
+      properties:
+        text:
+          type: string
+          example: Messagebird was founded by Robert Vis in 2011.
+          description: The text containing the answer.
+        url:
+          type: string
+          example: https://messagebird.com/en/about
+          description: The URL with additional information for this answer.
+        title:
+          type: string
+          example: MessageBird Founder
+          description: The short title representing the answer.
+    Dataset:
+      type: object
+      description: A collection of answers with matching questions.
+      properties:
+        datasetId:
+          type: string
+          format: uuid
+          example: dde4eeae-7652-4bc8-8be1-1cd6ac898dc7
+          description: The unique ID for the dataset.
+          readOnly: true
+        name:
+          type: string
+          example: MessageBird FAQ
+          description: The name of the dataset.
+        createdAt:
+          type: string
+          format: date-time
+          example: "2021-08-24T12:04:32Z"
+          description: The timestamp of dataset creation (ISO-8601).
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2021-08-24T12:04:32Z"
+          description: The timestamp of last update (ISO-8601).
+          readOnly: true
+        isTemplate:
+          type: boolean
+          example: false
+          description: Whether this dataset is a template dataset or not.
+          readOnly: true
+        description:
+          type: string
+          example: This dataset has a list of frequently asked questions about MessageBird.
+          description: The optional description of the dataset.
+        lastTrainedAt:
+          type: string
+          format: date-time
+          example: "2021-08-24T12:04:32Z"
+          description: The timestamp of last model that completed training (ISO-8601).
+          readOnly: true
+    ListDatasetsResponse:
+      type: object
+      description: A response containing the FAQ datasets that were queried.
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+          description: The paginated collection of datasets.
+        limit:
+          type: integer
+          example: 20
+          description: The effective limit for the maximum number of datasets returned.
+        nextCursor:
+          type: string
+          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
+          description: The cursor to query the next paginated collection of results.
+    PredictAnswerRequest:
+      type: object
+      description: A request for predicting an answer from a phrase and a dataset ID.
+      required:
+        - phrase
+      properties:
+        phrase:
+          type: string
+          example: Who founded MessageBird?
+          description: The phrase that might contain a question to be answered.
+    PredictAnswerResponse:
+      type: object
+      description: >
+        A response that contains the answer and its related metadata. If the
+        FAQ API could not find a corresponding answer, the answer field will
+        not be populated.
+      properties:
+        answer:
+          $ref: '#/components/schemas/Answer'
+          description: >
+            The answer that is predicted for the given phrase. Not populated
+            if no matching answer was found.
+        answerPredicted:
+          type: boolean
+          example: false
+          description: >
+            Indicates if an answer was predicted. If false, the phrase could
+            not be matched with an answer.
+    Language:
+      type: object
+      description: Language supported by the FAQ API.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+tags:
+  - name: FAQ
+    description: FAQ dataset management and answer prediction operations.
+paths:
+  /api/v1/datasets:
+    get:
+      tags:
+        - FAQ
+      summary: List datasets
+      description: >
+        Lists datasets containing answers and corresponding questions. You can
+        choose to list only your own datasets, template datasets, or both.
+        Results may be paginated.
+      operationId: FAQ_ListDatasets
+      security:
+        - AccessKey: []
+      parameters:
+        - name: listMode
+          in: query
+          required: false
+          description: The list mode indicating which datasets to query.
+          schema:
+            type: string
+            enum:
+              - LIST_MODE_UNDEFINED
+              - ALL
+              - ONLY_TEMPLATE
+              - ONLY_USER
+            default: LIST_MODE_UNDEFINED
+        - name: limit
+          in: query
+          required: false
+          description: The maximum number of datasets to return.
+          schema:
+            type: integer
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          description: The cursor to view the next paginated collection of datasets.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDatasetsResponse'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{datasetId}:
+    get:
+      tags:
+        - FAQ
+      summary: Get dataset
+      description: Retrieves the dataset for the given dataset ID.
+      operationId: FAQ_GetDataset
+      security:
+        - AccessKey: []
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          description: The unique ID for the dataset.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{datasetId}/predict-answer:
+    post:
+      tags:
+        - FAQ
+      summary: Predict answer
+      description: >
+        Predicts an answer corresponding to a question which is possibly
+        contained in the given phrase. The FAQ API uses machine learning to
+        generalize from the questions and answers in the dataset to infer the
+        answer. Requires the active model to be trained (usually ~1 minute
+        after dataset creation or update).
+      operationId: FAQ_PredictAnswer
+      security:
+        - AccessKey: []
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          description: The unique ID that identifies the dataset for which a question should be answered.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictAnswerRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictAnswerResponse'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/supported-languages:
+    get:
+      tags:
+        - FAQ
+      summary: Get supported languages
+      description: Lists the languages supported by the FAQ API.
+      operationId: FAQ_ListSupportedLanguages
+      security:
+        - AccessKey: []
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LanguageList'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

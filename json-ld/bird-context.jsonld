@@ -1,0 +1,99 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "schema": "https://schema.org/",
+    "bird": "https://bird.com/ontology#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+
+    "name": "schema:name",
+    "description": "schema:description",
+    "url": "schema:url",
+    "identifier": "schema:identifier",
+    "dateCreated": {
+      "@id": "schema:dateCreated",
+      "@type": "xsd:dateTime"
+    },
+    "dateModified": {
+      "@id": "schema:dateModified",
+      "@type": "xsd:dateTime"
+    },
+
+    "Message": "schema:Message",
+    "id": "@id",
+    "href": "schema:url",
+    "direction": "bird:direction",
+    "type": "schema:additionalType",
+    "originator": "schema:sender",
+    "body": "schema:text",
+    "reference": "bird:reference",
+    "validity": "bird:validity",
+    "gateway": "bird:gateway",
+    "datacoding": "bird:datacoding",
+    "mclass": "bird:messageClass",
+    "scheduledDatetime": {
+      "@id": "schema:scheduledTime",
+      "@type": "xsd:dateTime"
+    },
+    "createdDatetime": {
+      "@id": "schema:dateCreated",
+      "@type": "xsd:dateTime"
+    },
+    "recipients": "schema:recipient",
+
+    "Contact": "schema:Person",
+    "workspaceId": "bird:workspaceId",
+    "identifiers": "schema:identifier",
+    "attributes": "bird:attributes",
+
+    "Channel": "bird:Channel",
+    "Workspace": "bird:Workspace",
+    "Dataset": "bird:Dataset",
+    "datasetId": "bird:datasetId",
+    "intents": "bird:intents",
+    "isTemplate": "bird:isTemplate",
+    "lastTrainedAt": {
+      "@id": "bird:lastTrainedAt",
+      "@type": "xsd:dateTime"
+    },
+
+    "Intent": "bird:Intent",
+    "intent": "bird:intentValue",
+    "intentPredicted": "bird:intentPredicted",
+    "phrase": "bird:phrase",
+
+    "Answer": "bird:Answer",
+    "text": "schema:text",
+    "title": "schema:name",
+    "answer": "bird:answer",
+    "answerPredicted": "bird:answerPredicted",
+
+    "Entity": "bird:Entity",
+    "entityType": "bird:entityType",
+    "startIndex": "bird:startIndex",
+    "endIndex": "bird:endIndex",
+    "values": "bird:values",
+
+    "Language": "schema:Language",
+    "iso6393Code": "bird:iso6393Code",
+    "languageCode": "bird:languageCode",
+    "language": "bird:language",
+    "languages": "bird:languages",
+    "languageName": "bird:languageName",
+    "supportedEntityTypes": "bird:supportedEntityTypes",
+
+    "Recipient": "bird:Recipient",
+    "recipient": "bird:recipientMSISDN",
+    "status": "bird:deliveryStatus",
+    "statusDatetime": {
+      "@id": "bird:statusDatetime",
+      "@type": "xsd:dateTime"
+    },
+    "messagePartCount": "bird:messagePartCount",
+
+    "Organization": "schema:Organization",
+    "provider": {
+      "@id": "schema:provider",
+      "@type": "@id"
+    }
+  }
+}

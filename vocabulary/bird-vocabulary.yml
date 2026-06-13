@@ -1,0 +1,112 @@
+vocabulary:
+  provider: Bird (formerly MessageBird)
+  description: >
+    Domain vocabulary for Bird APIs — covering SMS, omnichannel messaging,
+    AI language services (intent, FAQ, NER, language detection), and
+    customer data platform concepts.
+  terms:
+    - term: AccessKey
+      definition: >
+        The API authentication credential used in the Authorization header.
+        Format: "AccessKey <your_api_key>".
+    - term: Channel
+      definition: >
+        A communication medium such as SMS, WhatsApp, RCS, email, push
+        notification, or voice through which messages are sent and received.
+    - term: Conversation
+      definition: >
+        A thread of messages exchanged between a business and a contact
+        across one or more channels.
+    - term: Contact
+      definition: >
+        A customer profile in Bird's Customer Data Platform, identified by
+        one or more identifiers (phone number, email, external ID).
+    - term: Dataset
+      definition: >
+        A collection of training data (intents + phrases, or questions +
+        answers) used by Bird's AI APIs (Intent, FAQ) to train machine
+        learning models.
+    - term: DatasetId
+      definition: >
+        The unique UUID identifier for a dataset in the Intent or FAQ API.
+    - term: Direction
+      definition: >
+        Indicates message flow: "mt" (mobile terminated — sent to a device)
+        or "mo" (mobile originated — received from a device).
+    - term: Entity
+      definition: >
+        A piece of structured information extracted from a phrase by the
+        Named Entity Recognition API, such as a person name, location,
+        date/time, or amount of money.
+    - term: EntityType
+      definition: >
+        The category of a recognized named entity (e.g., LOCATION, DATE_TIME,
+        PERSON, AMOUNT_OF_MONEY).
+    - term: FAQ
+      definition: >
+        Frequently Asked Questions — the Bird FAQ API enables mapping
+        incoming questions to pre-defined answers using machine learning.
+    - term: Flow
+      definition: >
+        An automated customer journey or conversation script in Bird's
+        Touchpoints product.
+    - term: Gateway
+      definition: >
+        The SMS routing gateway ID used to deliver an SMS message.
+    - term: Intent
+      definition: >
+        A classification of the purpose or meaning behind a customer's
+        phrase (e.g., "order", "greeting", "cancel").
+    - term: LanguageCode
+      definition: >
+        An ISO-639-3 three-letter language code (e.g., ENG for English,
+        NLD for Dutch, SPA for Spanish).
+    - term: MessagePart
+      definition: >
+        A segment of a multi-part SMS message. Long SMS messages are split
+        into multiple parts (each up to 153 characters for concatenated SMS).
+    - term: MSISDN
+      definition: >
+        Mobile Station Integrated Services Digital Network number — the
+        international phone number format used to identify mobile subscribers.
+    - term: NER
+      definition: >
+        Named Entity Recognition — the process of extracting structured
+        entities (names, dates, locations, etc.) from unstructured text.
+    - term: Omnichannel
+      definition: >
+        A communications approach that provides a unified customer experience
+        across multiple channels (SMS, email, WhatsApp, voice, etc.).
+    - term: Originator
+      definition: >
+        The sender identifier for an outbound SMS message — either a phone
+        number (including country code) or an alphanumeric string up to
+        11 characters.
+    - term: Phrase
+      definition: >
+        The input text string submitted to Bird's AI APIs (Intent, FAQ, NER,
+        Language Detection) for analysis.
+    - term: Recipient
+      definition: >
+        The destination phone number (MSISDN) for an outbound SMS message.
+    - term: RCS
+      definition: >
+        Rich Communication Services — a protocol for enhanced messaging
+        beyond traditional SMS, supporting rich media and interactive features.
+    - term: Template
+      definition: >
+        A pre-approved message format used for outbound messaging on
+        channels such as WhatsApp Business.
+    - term: Workspace
+      definition: >
+        A logical organizational unit within a Bird account, used to
+        separate resources, API keys, and settings.
+    - term: Datacoding
+      definition: >
+        The character encoding used for SMS message content: "plain" (GSM
+        03.38, 160 chars), "unicode" (UCS-2, 70 chars), or "auto" (detect
+        automatically).
+    - term: Touchpoint
+      definition: >
+        A customer interaction point within Bird's automation platform,
+        representing a channel-specific action in a customer journey flow.

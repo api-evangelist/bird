@@ -1,0 +1,54 @@
+{
+  "summary": "Send an SMS message via Bird (MessageBird) SMS API",
+  "description": "Example of a POST request to /messages to send an SMS to a single recipient.",
+  "request": {
+    "method": "POST",
+    "url": "https://rest.messagebird.com/messages",
+    "headers": {
+      "Authorization": "AccessKey YOUR_ACCESS_KEY",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "originator": "MessageBird",
+      "body": "Hello! This is a test message from Bird.",
+      "recipients": [31612345678]
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "id": "49e40bae0b374f1ca5e3d04d46edc7c1",
+      "href": "https://rest.messagebird.com/messages/49e40bae0b374f1ca5e3d04d46edc7c1",
+      "direction": "mt",
+      "type": "sms",
+      "originator": "MessageBird",
+      "body": "Hello! This is a test message from Bird.",
+      "reference": null,
+      "validity": null,
+      "gateway": 10,
+      "typeDetails": {},
+      "datacoding": "plain",
+      "mclass": 1,
+      "scheduledDatetime": null,
+      "createdDatetime": "2023-09-28T10:00:00+00:00",
+      "recipients": {
+        "totalCount": 1,
+        "totalSentCount": 1,
+        "totalDeliveredCount": 0,
+        "totalDeliveryFailedCount": 0,
+        "items": [
+          {
+            "recipient": 31612345678,
+            "originator": "MessageBird",
+            "status": "sent",
+            "statusDatetime": "2023-09-28T10:00:01+00:00",
+            "messagePartCount": 1
+          }
+        ]
+      }
+    }
+  }
+}

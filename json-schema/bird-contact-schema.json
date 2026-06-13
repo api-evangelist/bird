@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/bird/main/json-schema/bird-contact-schema.json",
+  "title": "BirdContact",
+  "description": "Schema for a Bird customer contact / profile object.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the contact.",
+      "example": "3a6f1c2d-9b4e-4f6a-8c3d-1e2b3c4d5e6f"
+    },
+    "workspaceId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The workspace this contact belongs to."
+    },
+    "identifiers": {
+      "type": "array",
+      "description": "List of identifiers (phone numbers, emails, etc.) for the contact.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["phone", "email", "externalId", "whatsapp"],
+            "description": "The type of identifier."
+          },
+          "value": {
+            "type": "string",
+            "description": "The identifier value.",
+            "example": "+31612345678"
+          }
+        }
+      }
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Custom attributes for the contact (key-value pairs).",
+      "additionalProperties": true,
+      "example": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "country": "NL"
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The timestamp when this contact was created.",
+      "example": "2023-09-28T10:00:00Z"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The timestamp when this contact was last updated.",
+      "example": "2023-09-28T12:00:00Z"
+    }
+  }
+}
