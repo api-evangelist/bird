@@ -4,7 +4,7 @@ description: Bird (formerly MessageBird) is an omnichannel customer communicatio
   voice, and data management. Trusted by more than 450,000 developers, Bird provides
   enterprise-grade connectivity through a global carrier network alongside a full
   customer engagement and marketing automation suite.
-image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
 url: https://raw.githubusercontent.com/api-evangelist/bird/refs/heads/main/apis.yml
 version: '0.19'
 aid: bird
@@ -26,7 +26,7 @@ apis:
     description: Send and receive messages across SMS, WhatsApp, RCS, email, push
       notifications, and other channels via a unified REST API. Supports templated
       messages, media attachments, scheduling, link tracking, and frequency capping.
-    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
     humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
     baseURL: https://api.bird.com
     tags:
@@ -48,7 +48,7 @@ apis:
     description: Sync customer data from multiple sources in real time to build a
       360-degree customer view. Manage contacts, lists, segmentation, and profile
       enrichment programmatically.
-    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
     humanURL: https://docs.bird.com/api
     baseURL: https://api.bird.com
     tags:
@@ -66,7 +66,7 @@ apis:
     description: Search, purchase, and manage phone numbers inventory programmatically.
       Supports number search by country and capability, number porting, and inventory
       management at scale.
-    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
     humanURL: https://docs.bird.com/api
     baseURL: https://api.bird.com
     tags:
@@ -84,7 +84,7 @@ apis:
     description: Verify the identity of your customers programmatically to enable
       additional services such as two-factor authentication and fraud prevention
       across SMS and voice channels.
-    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
     humanURL: https://docs.bird.com/api
     baseURL: https://api.bird.com
     tags:
@@ -102,7 +102,7 @@ apis:
     description: Create and manage dynamic customer interactions across multiple channels.
       Build customer journeys, flows, and automated sequences that adapt to customer
       actions.
-    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
     humanURL: https://docs.bird.com/api
     baseURL: https://api.bird.com
     tags:
@@ -120,7 +120,7 @@ apis:
     description: Programmatically manage your Bird organization, workspaces, users,
       roles, and access keys. Configure SSO and manage multi-workspace enterprise
       deployments.
-    image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+    image: https://kinlane-images.s3.amazonaws.com/shared/apis-json/apis-json-logo.jpg
     humanURL: https://docs.bird.com/api
     baseURL: https://api.bird.com
     tags:
