@@ -1,0 +1,21 @@
+generated: '2026-07-11'
+method: derived
+source: openapi/bird-faq-openapi.yml, openapi/bird-intent-openapi.yml, openapi/bird-language-detection-openapi.yml,
+  openapi/bird-ner-openapi.yml, openapi/bird-sms-openapi.yml
+summary:
+  types:
+  - apiKey
+  api_key_in:
+  - header
+schemes:
+- name: AccessKey
+  type: apiKey
+  in: header
+  parameter: Authorization
+  description: 'Use the word "AccessKey" followed by your API Key. Example: "AccessKey w223tVQTcLO4ufBTuJxjvzwJ22"'
+  sources:
+  - openapi/bird-faq-openapi.yml
+  - openapi/bird-intent-openapi.yml
+  - openapi/bird-language-detection-openapi.yml
+  - openapi/bird-ner-openapi.yml
+  - openapi/bird-sms-openapi.yml

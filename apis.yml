@@ -135,6 +135,14 @@ apis:
       - FN: Bird Support
         url: https://bird.com/en-us/contact
 common:
+  - type: TrustCenter
+    url: security/bird-trust-center.yml
+  - type: VulnerabilityDisclosure
+    url: security/bird-vulnerability-disclosure.yml
+  - type: DomainSecurity
+    url: security/bird-domain-security.yml
+  - type: Authentication
+    url: authentication/bird-authentication.yml
   - type: Website
     url: https://bird.com
   - type: Documentation
