@@ -135,6 +135,8 @@ apis:
       - FN: Bird Support
         url: https://bird.com/en-us/contact
 common:
+  - type: AgenticAccess
+    url: agentic-access/bird-agentic-access.yml
   - type: TrustCenter
     url: security/bird-trust-center.yml
   - type: VulnerabilityDisclosure
