@@ -1,0 +1,162 @@
+openapi: 3.0.0
+info:
+  title: Bird FAQ LanguageDetection API
+  description: 'The MessageBird FAQ API enables answering questions from an FAQ dataset. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. FAQ datasets are created by giving multiple variations of questions that correspond to an answer. The API applies machine learning to generalize from the questions and answers so that unseen questions are automatically mapped to the right answer.
+
+    '
+  version: 1.0.0
+  contact:
+    name: Bird Support
+    url: https://bird.com/en-us/contact
+servers:
+- url: https://faq.messagebird.com
+security:
+- AccessKey: []
+tags:
+- name: LanguageDetection
+  description: Language detection operations.
+paths:
+  /api/v1/predict-language:
+    post:
+      tags:
+      - LanguageDetection
+      summary: Predict language
+      description: 'Predicts the language for a given phrase. If the language could not be determined, it returns LANGUAGE_UNDETERMINED. Uses the ISO-639-3 standard.
+
+        '
+      operationId: LanguageDetection_PredictLanguage
+      security:
+      - AccessKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictLanguageRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictLanguageResponse'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/supported-languages:
+    get:
+      tags:
+      - LanguageDetection
+      summary: Get supported languages
+      description: Lists the languages supported by the Language Detection API.
+      operationId: LanguageDetection_ListSupportedLanguages
+      security:
+      - AccessKey: []
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LanguageList'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    PredictLanguageResponse:
+      type: object
+      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
+
+        '
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
+
+            '
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    LanguageList:
+      type: object
+      description: List of supported languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+          example:
+          - iso6393Code: nld
+            languageCode: NLD
+            name: Dutch
+          - iso6393Code: eng
+            languageCode: ENG
+            name: English
+          - iso6393Code: spa
+            languageCode: SPA
+            name: Spanish
+          - iso6393Code: zho
+            languageCode: ZHO
+            name: Chinese
+    Language:
+      type: object
+      description: Language that was detected from the given phrase.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
+    PredictLanguageRequest:
+      type: object
+      description: A request for predicting the language from a phrase.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: Dit is iets in het Nederlands
+          description: The phrase for which to predict the language.
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      name: Authorization
+      in: header
+      description: 'Use the word "AccessKey" followed by your API Key. Example: "AccessKey w223tVQTcLO4ufBTuJxjvzwJ22"
+
+        '
+externalDocs:
+  description: Find our official documentation in the MessageBird Docs
+  url: https://developers.messagebird.com/api
