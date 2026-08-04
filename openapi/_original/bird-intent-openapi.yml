@@ -1,0 +1,329 @@
+openapi: 3.0.0
+info:
+  title: Bird Intent API
+  description: >
+    The MessageBird Intent API enables predicting intents from a given phrase
+    using a machine learning model trained on your datasets. Datasets can be
+    created and managed using the dataset section of the MessageBird Dashboard.
+    Intent recognition groups phrases from incoming messages — for example "hi"
+    and "hello" both express a greeting intent. The API applies machine learning
+    to generalize from phrases so that unseen phrases are automatically mapped
+    to the right intent.
+  version: 1.0.0
+  contact:
+    name: Bird Support
+    url: https://bird.com/en-us/contact
+externalDocs:
+  description: Find our official documentation in the MessageBird Docs
+  url: https://developers.messagebird.com/api
+servers:
+  - url: https://intent.messagebird.com
+security:
+  - AccessKey: []
+components:
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      name: Authorization
+      in: header
+      description: >
+        Use the word "AccessKey" followed by your API Key.
+        Example: "AccessKey w223tVQTcLO4ufBTuJxjvzwJ22"
+  schemas:
+    Dataset:
+      type: object
+      description: >
+        A collection of phrases with the corresponding intents. There can be
+        multiple matching phrases per intent.
+      properties:
+        datasetId:
+          type: string
+          format: uuid
+          example: dde4eeae-7652-4bc8-8be1-1cd6ac898dc7
+          description: The unique ID for the dataset.
+          readOnly: true
+        intents:
+          type: array
+          items:
+            type: string
+          example:
+            - order
+            - reservation
+          description: The collection of intents that were added to this dataset.
+        isTemplate:
+          type: boolean
+          example: false
+          description: Describes if this dataset is a template dataset or not.
+          readOnly: true
+        name:
+          type: string
+          example: My awesome dataset
+          description: The name of the dataset.
+        createdAt:
+          type: string
+          format: date-time
+          example: "2021-08-24T12:04:32Z"
+          description: The timestamp of dataset creation (ISO-8601).
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2021-08-24T12:04:32Z"
+          description: The timestamp of last update (ISO-8601).
+          readOnly: true
+        description:
+          type: string
+          example: This dataset is clearly some awesome dataset.
+          description: The optional description of the dataset.
+        lastTrainedAt:
+          type: string
+          format: date-time
+          example: "2021-08-24T12:04:32Z"
+          description: >
+            The timestamp of last model that completed training (ISO-8601).
+            Not populated if no model has been trained yet.
+          readOnly: true
+    ListDatasetsResponse:
+      type: object
+      description: A response containing the Intent datasets that were queried.
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+          description: The paginated collection of datasets.
+        limit:
+          type: integer
+          example: 20
+          description: The effective limit of the maximum number of datasets returned.
+        nextCursor:
+          type: string
+          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
+          description: The cursor to obtain the next paginated collection of datasets.
+    PredictIntentRequest:
+      type: object
+      description: A request for predicting an intent from a phrase and a dataset ID.
+      required:
+        - phrase
+      properties:
+        phrase:
+          type: string
+          example: I'd like to order something
+          description: The phrase that might contain an intent.
+    PredictIntentResponse:
+      type: object
+      description: A response for predicting an intent from a phrase and a dataset ID.
+      properties:
+        intent:
+          type: string
+          example: order
+          description: The intent that is predicted for the given phrase.
+        intentPredicted:
+          type: boolean
+          example: true
+          description: >
+            Boolean indicating an intent was predicted. If false the phrase
+            could not be matched with an intent.
+    Language:
+      type: object
+      description: Language that was detected from the given phrase.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+tags:
+  - name: Intent
+    description: Intent recognition and dataset management operations.
+paths:
+  /api/v1/datasets:
+    get:
+      tags:
+        - Intent
+      summary: List datasets
+      description: >
+        Lists datasets containing intents and corresponding phrases. You can
+        choose to list only your own datasets, template datasets, or both.
+        Results are paginated.
+      operationId: Intent_ListDatasets
+      security:
+        - AccessKey: []
+      parameters:
+        - name: listMode
+          in: query
+          required: false
+          description: List mode indicating which datasets to query.
+          schema:
+            type: string
+            enum:
+              - ALL
+              - ONLY_TEMPLATE
+              - ONLY_USER
+            default: ALL
+        - name: limit
+          in: query
+          required: false
+          description: The maximum number of datasets to return.
+          schema:
+            type: integer
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          description: >
+            The cursor to view the next paginated collection as provided by
+            nextCursor in the ListDatasetsResponse.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDatasetsResponse'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{datasetId}:
+    get:
+      tags:
+        - Intent
+      summary: Get dataset
+      description: >
+        Retrieves the dataset for the given dataset ID. Only displays metadata
+        corresponding to the dataset.
+      operationId: Intent_GetDataset
+      security:
+        - AccessKey: []
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          description: >
+            Unique ID for the dataset. Obtainable from the dashboard or by
+            listing datasets.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{datasetId}/predict:
+    post:
+      tags:
+        - Intent
+      summary: Predict intent
+      description: >
+        Predicts an intent for a phrase given a dataset ID. The Intent API uses
+        machine learning to infer the intent of the given phrase. Requires the
+        active model for the dataset to be trained (usually takes ~1 minute
+        after dataset creation or update).
+      operationId: Intent_PredictIntent
+      security:
+        - AccessKey: []
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          description: The unique ID that identifies the dataset for prediction.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictIntentRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictIntentResponse'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/supported-languages:
+    get:
+      tags:
+        - Intent
+      summary: Get supported languages
+      description: Lists the languages supported by the Intent API.
+      operationId: Intent_ListSupportedLanguages
+      security:
+        - AccessKey: []
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LanguageList'
+        '401':
+          description: Returned when the user is not authorized.
+        '404':
+          description: Returned when the resource does not exist.
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

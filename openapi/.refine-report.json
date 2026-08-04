@@ -1,0 +1,22 @@
+{
+  "provider": "bird",
+  "sources": [
+    "bird-faq-api-openapi.yml",
+    "bird-intent-api-openapi.yml",
+    "bird-languagedetection-api-openapi.yml",
+    "bird-namedentityrecognition-api-openapi.yml",
+    "bird-sms-messaging-api-openapi.yml"
+  ],
+  "outputs": [
+    "bird-faq-api-openapi.yml",
+    "bird-intent-api-openapi.yml",
+    "bird-languagedetection-api-openapi.yml",
+    "bird-namedentityrecognition-api-openapi.yml",
+    "bird-sms-messaging-api-openapi.yml"
+  ],
+  "archived": [],
+  "errors": [],
+  "warnings": [],
+  "notes": [],
+  "skipped": []
+}
