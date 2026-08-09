@@ -1,0 +1,762 @@
+openapi: 3.0.1
+info:
+  title: Bird API
+  description: >-
+    REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform
+    APIs at https://api.bird.com cover Channels/Messaging (send and receive across
+    SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The
+    legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify,
+    Lookup) is documented here for existing integrations. All endpoints authenticate
+    with an AccessKey token via the Authorization header.
+  termsOfService: https://bird.com/legal/terms-of-service
+  contact:
+    name: Bird Support
+    url: https://docs.bird.com/
+  version: '1.0'
+servers:
+  - url: https://api.bird.com
+    description: Bird platform API
+  - url: https://rest.messagebird.com
+    description: Legacy MessageBird REST API
+security:
+  - AccessKey: []
+tags:
+  - name: Messaging
+    description: Send and receive messages across channels.
+  - name: Channels
+    description: Manage workspace channels and channel media.
+  - name: Contacts
+    description: Manage workspace contacts and lists.
+  - name: Conversations
+    description: Manage threaded omnichannel conversations.
+  - name: Numbers
+    description: Discover, purchase, and manage phone numbers.
+  - name: Legacy MessageBird
+    description: Predecessor MessageBird REST API (rest.messagebird.com).
+paths:
+  /workspaces/{workspaceId}/channels/{channelId}/messages:
+    post:
+      operationId: sendChannelMessage
+      tags:
+        - Messaging
+      summary: Send a message
+      description: >-
+        Send a message over an active channel. The request must include a
+        receiver and either an inline body or a template. Max request size is
+        200 KB total, 100 KB per inline attachment.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ChannelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessage'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+    get:
+      operationId: listChannelMessages
+      tags:
+        - Messaging
+      summary: List messages by channel
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ChannelId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [incoming, outgoing]
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: startAt
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endAt
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageList'
+  /workspaces/{workspaceId}/channel-media/presigned-upload:
+    post:
+      operationId: createPresignedUpload
+      tags:
+        - Channels
+      summary: Create a presigned media upload
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePresignedUpload'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUpload'
+  /workspaces/{workspaceId}/channels:
+    get:
+      operationId: listChannels
+      tags:
+        - Channels
+      summary: List workspace channels
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelList'
+  /workspaces/{workspaceId}/channels/{channelId}:
+    get:
+      operationId: getChannel
+      tags:
+        - Channels
+      summary: Get a workspace channel
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ChannelId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+  /workspaces/{workspaceId}/contacts:
+    post:
+      operationId: createContact
+      tags:
+        - Contacts
+      summary: Create a contact
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContact'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    get:
+      operationId: listContacts
+      tags:
+        - Contacts
+      summary: List contacts
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+  /workspaces/{workspaceId}/contacts/{contactId}:
+    get:
+      operationId: getContact
+      tags:
+        - Contacts
+      summary: Get a contact
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    patch:
+      operationId: updateContact
+      tags:
+        - Contacts
+      summary: Update a contact
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContact'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    delete:
+      operationId: deleteContact
+      tags:
+        - Contacts
+      summary: Delete a contact
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '204':
+          description: No Content
+  /workspaces/{workspaceId}/conversations:
+    post:
+      operationId: createConversation
+      tags:
+        - Conversations
+      summary: Create a conversation
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversation'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+  /workspaces/{workspaceId}/conversations/{conversationId}/messages:
+    post:
+      operationId: createConversationMessage
+      tags:
+        - Conversations
+      summary: Send a conversation message
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessage'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /workspaces/{workspaceId}/conversations/{conversationId}/messages/{messageId}:
+    get:
+      operationId: getConversationMessage
+      tags:
+        - Conversations
+      summary: Get a conversation message
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ConversationId'
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /workspaces/{workspaceId}/numbers:
+    get:
+      operationId: listNumbers
+      tags:
+        - Numbers
+      summary: List your numbers
+      description: >-
+        List long-code numbers assigned to a workspace, filterable by country
+        code, capabilities (sms, mms, voice, whatsapp), and leading digits.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - name: countryCode
+          in: query
+          schema:
+            type: string
+        - name: capabilities
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumberList'
+  /workspaces/{workspaceId}/network-lookup:
+    post:
+      operationId: numberLookup
+      tags:
+        - Numbers
+      summary: Network/country information for a phone number
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phoneNumber:
+                  type: string
+              required:
+                - phoneNumber
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumberLookup'
+  /messages:
+    post:
+      operationId: legacyCreateMessage
+      tags:
+        - Legacy MessageBird
+      summary: (Legacy) Send an SMS message
+      description: Send an outbound SMS via the legacy MessageBird REST API (rest.messagebird.com).
+      servers:
+        - url: https://rest.messagebird.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyCreateMessage'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+    get:
+      operationId: legacyListMessages
+      tags:
+        - Legacy MessageBird
+      summary: (Legacy) List SMS messages
+      servers:
+        - url: https://rest.messagebird.com
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /messages/{id}:
+    get:
+      operationId: legacyGetMessage
+      tags:
+        - Legacy MessageBird
+      summary: (Legacy) Get an SMS message
+      servers:
+        - url: https://rest.messagebird.com
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+  /lookup/{phoneNumber}:
+    get:
+      operationId: legacyLookup
+      tags:
+        - Legacy MessageBird
+      summary: (Legacy) Request a Lookup
+      servers:
+        - url: https://rest.messagebird.com
+      parameters:
+        - name: phoneNumber
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /verify:
+    post:
+      operationId: legacyCreateVerify
+      tags:
+        - Legacy MessageBird
+      summary: (Legacy) Send a verification token
+      servers:
+        - url: https://rest.messagebird.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient:
+                  type: string
+                originator:
+                  type: string
+              required:
+                - recipient
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+  /voicemessages:
+    get:
+      operationId: legacyListVoiceMessages
+      tags:
+        - Legacy MessageBird
+      summary: (Legacy) List voice messages
+      servers:
+        - url: https://rest.messagebird.com
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >-
+        AccessKey token. Send as the Authorization header value
+        "AccessKey {your-access-key}".
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      description: Channel identifier within the workspace.
+      schema:
+        type: string
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    CreateMessage:
+      type: object
+      required:
+        - receiver
+      properties:
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        template:
+          type: object
+          description: Template reference and variables (required when body is absent).
+        tags:
+          type: array
+          items:
+            type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
+    MessageBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [text, image, file, html]
+        text:
+          type: object
+          properties:
+            text:
+              type: string
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        direction:
+          type: string
+          enum: [incoming, outgoing]
+        sender:
+          type: object
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        createdAt:
+          type: string
+          format: date-time
+    MessageList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        nextPageToken:
+          type: string
+    CreatePresignedUpload:
+      type: object
+      required:
+        - contentType
+      properties:
+        contentType:
+          type: string
+    PresignedUpload:
+      type: object
+      properties:
+        mediaUrl:
+          type: string
+        uploadUrl:
+          type: string
+        uploadMethod:
+          type: string
+        uploadFormData:
+          type: object
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+        connectorId:
+          type: string
+    ChannelList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+        nextPageToken:
+          type: string
+    CreateContact:
+      type: object
+      properties:
+        displayName:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+        attributes:
+          type: object
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+        attributes:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+    ContactList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        nextPageToken:
+          type: string
+    CreateConversation:
+      type: object
+      properties:
+        channelId:
+          type: string
+        participants:
+          type: array
+          items:
+            type: object
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        channelId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Number:
+      type: object
+      properties:
+        number:
+          type: string
+        country:
+          type: string
+        type:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+    NumberList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Number'
+        nextPageToken:
+          type: string
+    NumberLookup:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+        countryCode:
+          type: string
+        network:
+          type: string
+        type:
+          type: string
+    LegacyCreateMessage:
+      type: object
+      required:
+        - originator
+        - recipients
+        - body
+      properties:
+        originator:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        body:
+          type: string
+    LegacyMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        href:
+          type: string
+        direction:
+          type: string
+        originator:
+          type: string
+        body:
+          type: string
+        createdDatetime:
+          type: string
+          format: date-time

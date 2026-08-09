@@ -1,0 +1,178 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird API",
+    "version": "1.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "apikey": {
+        "key": "Authorization",
+        "value": "AccessKey {{accessKey}}",
+        "in": "header"
+      }
+    }
+  },
+  "items": [
+    {
+      "info": {"name": "Messaging", "type": "folder"},
+      "items": [
+        {
+          "info": {"name": "Send a message", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/channels/{channelId}/messages",
+            "body": {"type": "json", "data": "{\"receiver\":{\"contacts\":[{\"identifierValue\":\"+15551234567\",\"identifierKey\":\"phonenumber\"}]},\"body\":{\"type\":\"text\",\"text\":{\"text\":\"Hello from Bird\"}}}"}
+          },
+          "docs": "Send a message over an active channel."
+        },
+        {
+          "info": {"name": "List messages by channel", "type": "http"},
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/channels/{channelId}/messages"
+          },
+          "docs": "List messages for a channel."
+        },
+        {
+          "info": {"name": "Create presigned media upload", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/channel-media/presigned-upload",
+            "body": {"type": "json", "data": "{\"contentType\":\"image/png\"}"}
+          },
+          "docs": "Create a presigned upload for channel media."
+        }
+      ]
+    },
+    {
+      "info": {"name": "Channels", "type": "folder"},
+      "items": [
+        {
+          "info": {"name": "List workspace channels", "type": "http"},
+          "http": {"method": "GET", "url": "https://api.bird.com/workspaces/{workspaceId}/channels"},
+          "docs": "List the channels configured for a workspace."
+        },
+        {
+          "info": {"name": "Get a workspace channel", "type": "http"},
+          "http": {"method": "GET", "url": "https://api.bird.com/workspaces/{workspaceId}/channels/{channelId}"},
+          "docs": "Retrieve a specific workspace channel."
+        }
+      ]
+    },
+    {
+      "info": {"name": "Contacts", "type": "folder"},
+      "items": [
+        {
+          "info": {"name": "Create a contact", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/contacts",
+            "body": {"type": "json", "data": "{\"displayName\":\"Jane Doe\",\"identifiers\":[{\"key\":\"phonenumber\",\"value\":\"+15551234567\"}]}"}
+          },
+          "docs": "Create a workspace contact."
+        },
+        {
+          "info": {"name": "List contacts", "type": "http"},
+          "http": {"method": "GET", "url": "https://api.bird.com/workspaces/{workspaceId}/contacts"},
+          "docs": "List workspace contacts."
+        },
+        {
+          "info": {"name": "Get a contact", "type": "http"},
+          "http": {"method": "GET", "url": "https://api.bird.com/workspaces/{workspaceId}/contacts/{contactId}"},
+          "docs": "Retrieve a contact."
+        },
+        {
+          "info": {"name": "Update a contact", "type": "http"},
+          "http": {
+            "method": "PATCH",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/contacts/{contactId}",
+            "body": {"type": "json", "data": "{\"displayName\":\"Jane Smith\"}"}
+          },
+          "docs": "Update a contact."
+        },
+        {
+          "info": {"name": "Delete a contact", "type": "http"},
+          "http": {"method": "DELETE", "url": "https://api.bird.com/workspaces/{workspaceId}/contacts/{contactId}"},
+          "docs": "Delete a contact."
+        }
+      ]
+    },
+    {
+      "info": {"name": "Conversations", "type": "folder"},
+      "items": [
+        {
+          "info": {"name": "Create a conversation", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/conversations",
+            "body": {"type": "json", "data": "{\"channelId\":\"<string>\",\"participants\":[]}"}
+          },
+          "docs": "Create a conversation."
+        },
+        {
+          "info": {"name": "Send a conversation message", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/conversations/{conversationId}/messages",
+            "body": {"type": "json", "data": "{\"receiver\":{},\"body\":{\"type\":\"text\",\"text\":{\"text\":\"Reply text\"}}}"}
+          },
+          "docs": "Send a message within a conversation."
+        },
+        {
+          "info": {"name": "Get a conversation message", "type": "http"},
+          "http": {"method": "GET", "url": "https://api.bird.com/workspaces/{workspaceId}/conversations/{conversationId}/messages/{messageId}"},
+          "docs": "Retrieve a specific message from a conversation."
+        }
+      ]
+    },
+    {
+      "info": {"name": "Numbers", "type": "folder"},
+      "items": [
+        {
+          "info": {"name": "List your numbers", "type": "http"},
+          "http": {"method": "GET", "url": "https://api.bird.com/workspaces/{workspaceId}/numbers"},
+          "docs": "List numbers assigned to a workspace."
+        },
+        {
+          "info": {"name": "Network/country lookup", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/{workspaceId}/network-lookup",
+            "body": {"type": "json", "data": "{\"phoneNumber\":\"+15551234567\"}"}
+          },
+          "docs": "Network/country information for a phone number."
+        }
+      ]
+    },
+    {
+      "info": {"name": "Legacy MessageBird", "type": "folder"},
+      "items": [
+        {
+          "info": {"name": "(Legacy) Send an SMS message", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://rest.messagebird.com/messages",
+            "body": {"type": "json", "data": "{\"originator\":\"Bird\",\"recipients\":[\"+15551234567\"],\"body\":\"Hello from MessageBird\"}"}
+          },
+          "docs": "Send an outbound SMS via the legacy MessageBird REST API."
+        },
+        {
+          "info": {"name": "(Legacy) Request a lookup", "type": "http"},
+          "http": {"method": "GET", "url": "https://rest.messagebird.com/lookup/{phoneNumber}"},
+          "docs": "Request a number lookup."
+        },
+        {
+          "info": {"name": "(Legacy) Send a verification token", "type": "http"},
+          "http": {
+            "method": "POST",
+            "url": "https://rest.messagebird.com/verify",
+            "body": {"type": "json", "data": "{\"recipient\":\"+15551234567\",\"originator\":\"Bird\"}"}
+          },
+          "docs": "Send a one-time verification token."
+        }
+      ]
+    }
+  ]
+}

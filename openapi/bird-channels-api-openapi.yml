@@ -1,0 +1,143 @@
+openapi: 3.0.1
+info:
+  title: Bird Channels API
+  description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
+  termsOfService: https://bird.com/legal/terms-of-service
+  contact:
+    name: Bird Support
+    url: https://docs.bird.com/
+  version: '1.0'
+servers:
+- url: https://api.bird.com
+  description: Bird platform API
+- url: https://rest.messagebird.com
+  description: Legacy MessageBird REST API
+security:
+- AccessKey: []
+tags:
+- name: Channels
+  description: Manage workspace channels and channel media.
+paths:
+  /workspaces/{workspaceId}/channel-media/presigned-upload:
+    post:
+      operationId: createPresignedUpload
+      tags:
+      - Channels
+      summary: Create a presigned media upload
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePresignedUpload'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUpload'
+  /workspaces/{workspaceId}/channels:
+    get:
+      operationId: listChannels
+      tags:
+      - Channels
+      summary: List workspace channels
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: platform
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelList'
+  /workspaces/{workspaceId}/channels/{channelId}:
+    get:
+      operationId: getChannel
+      tags:
+      - Channels
+      summary: Get a workspace channel
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ChannelId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+components:
+  parameters:
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      description: Channel identifier within the workspace.
+      schema:
+        type: string
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+  schemas:
+    ChannelList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+        nextPageToken:
+          type: string
+    PresignedUpload:
+      type: object
+      properties:
+        mediaUrl:
+          type: string
+        uploadUrl:
+          type: string
+        uploadMethod:
+          type: string
+        uploadFormData:
+          type: object
+    CreatePresignedUpload:
+      type: object
+      required:
+      - contentType
+      properties:
+        contentType:
+          type: string
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+        connectorId:
+          type: string
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: AccessKey token. Send as the Authorization header value "AccessKey {your-access-key}".

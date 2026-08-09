@@ -1,0 +1,180 @@
+openapi: 3.0.1
+info:
+  title: Bird Channels Legacy MessageBird API
+  description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
+  termsOfService: https://bird.com/legal/terms-of-service
+  contact:
+    name: Bird Support
+    url: https://docs.bird.com/
+  version: '1.0'
+servers:
+- url: https://api.bird.com
+  description: Bird platform API
+- url: https://rest.messagebird.com
+  description: Legacy MessageBird REST API
+security:
+- AccessKey: []
+tags:
+- name: Legacy MessageBird
+  description: Predecessor MessageBird REST API (rest.messagebird.com).
+paths:
+  /messages:
+    post:
+      operationId: legacyCreateMessage
+      tags:
+      - Legacy MessageBird
+      summary: (Legacy) Send an SMS message
+      description: Send an outbound SMS via the legacy MessageBird REST API (rest.messagebird.com).
+      servers:
+      - url: https://rest.messagebird.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyCreateMessage'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+    get:
+      operationId: legacyListMessages
+      tags:
+      - Legacy MessageBird
+      summary: (Legacy) List SMS messages
+      servers:
+      - url: https://rest.messagebird.com
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /messages/{id}:
+    get:
+      operationId: legacyGetMessage
+      tags:
+      - Legacy MessageBird
+      summary: (Legacy) Get an SMS message
+      servers:
+      - url: https://rest.messagebird.com
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+  /lookup/{phoneNumber}:
+    get:
+      operationId: legacyLookup
+      tags:
+      - Legacy MessageBird
+      summary: (Legacy) Request a Lookup
+      servers:
+      - url: https://rest.messagebird.com
+      parameters:
+      - name: phoneNumber
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /verify:
+    post:
+      operationId: legacyCreateVerify
+      tags:
+      - Legacy MessageBird
+      summary: (Legacy) Send a verification token
+      servers:
+      - url: https://rest.messagebird.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient:
+                  type: string
+                originator:
+                  type: string
+              required:
+              - recipient
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+  /voicemessages:
+    get:
+      operationId: legacyListVoiceMessages
+      tags:
+      - Legacy MessageBird
+      summary: (Legacy) List voice messages
+      servers:
+      - url: https://rest.messagebird.com
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  schemas:
+    LegacyMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        href:
+          type: string
+        direction:
+          type: string
+        originator:
+          type: string
+        body:
+          type: string
+        createdDatetime:
+          type: string
+          format: date-time
+    LegacyCreateMessage:
+      type: object
+      required:
+      - originator
+      - recipients
+      - body
+      properties:
+        originator:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        body:
+          type: string
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: AccessKey token. Send as the Authorization header value "AccessKey {your-access-key}".

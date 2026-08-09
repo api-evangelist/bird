@@ -1,0 +1,119 @@
+openapi: 3.0.1
+info:
+  title: Bird Channels Numbers API
+  description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
+  termsOfService: https://bird.com/legal/terms-of-service
+  contact:
+    name: Bird Support
+    url: https://docs.bird.com/
+  version: '1.0'
+servers:
+- url: https://api.bird.com
+  description: Bird platform API
+- url: https://rest.messagebird.com
+  description: Legacy MessageBird REST API
+security:
+- AccessKey: []
+tags:
+- name: Numbers
+  description: Discover, purchase, and manage phone numbers.
+paths:
+  /workspaces/{workspaceId}/numbers:
+    get:
+      operationId: listNumbers
+      tags:
+      - Numbers
+      summary: List your numbers
+      description: List long-code numbers assigned to a workspace, filterable by country code, capabilities (sms, mms, voice, whatsapp), and leading digits.
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: countryCode
+        in: query
+        schema:
+          type: string
+      - name: capabilities
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumberList'
+  /workspaces/{workspaceId}/network-lookup:
+    post:
+      operationId: numberLookup
+      tags:
+      - Numbers
+      summary: Network/country information for a phone number
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phoneNumber:
+                  type: string
+              required:
+              - phoneNumber
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumberLookup'
+components:
+  schemas:
+    NumberLookup:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+        countryCode:
+          type: string
+        network:
+          type: string
+        type:
+          type: string
+    NumberList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Number'
+        nextPageToken:
+          type: string
+    Number:
+      type: object
+      properties:
+        number:
+          type: string
+        country:
+          type: string
+        type:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: AccessKey token. Send as the Authorization header value "AccessKey {your-access-key}".

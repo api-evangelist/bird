@@ -1,0 +1,174 @@
+openapi: 3.0.1
+info:
+  title: Bird Channels Contacts API
+  description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
+  termsOfService: https://bird.com/legal/terms-of-service
+  contact:
+    name: Bird Support
+    url: https://docs.bird.com/
+  version: '1.0'
+servers:
+- url: https://api.bird.com
+  description: Bird platform API
+- url: https://rest.messagebird.com
+  description: Legacy MessageBird REST API
+security:
+- AccessKey: []
+tags:
+- name: Contacts
+  description: Manage workspace contacts and lists.
+paths:
+  /workspaces/{workspaceId}/contacts:
+    post:
+      operationId: createContact
+      tags:
+      - Contacts
+      summary: Create a contact
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContact'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    get:
+      operationId: listContacts
+      tags:
+      - Contacts
+      summary: List contacts
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: pageToken
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+  /workspaces/{workspaceId}/contacts/{contactId}:
+    get:
+      operationId: getContact
+      tags:
+      - Contacts
+      summary: Get a contact
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    patch:
+      operationId: updateContact
+      tags:
+      - Contacts
+      summary: Update a contact
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContact'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    delete:
+      operationId: deleteContact
+      tags:
+      - Contacts
+      summary: Delete a contact
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ContactId'
+      responses:
+        '204':
+          description: No Content
+components:
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    ContactList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        nextPageToken:
+          type: string
+    CreateContact:
+      type: object
+      properties:
+        displayName:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+        attributes:
+          type: object
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+        attributes:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: AccessKey token. Send as the Authorization header value "AccessKey {your-access-key}".

@@ -1,0 +1,183 @@
+openapi: 3.0.1
+info:
+  title: Bird Channels Messaging API
+  description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
+  termsOfService: https://bird.com/legal/terms-of-service
+  contact:
+    name: Bird Support
+    url: https://docs.bird.com/
+  version: '1.0'
+servers:
+- url: https://api.bird.com
+  description: Bird platform API
+- url: https://rest.messagebird.com
+  description: Legacy MessageBird REST API
+security:
+- AccessKey: []
+tags:
+- name: Messaging
+  description: Send and receive messages across channels.
+paths:
+  /workspaces/{workspaceId}/channels/{channelId}/messages:
+    post:
+      operationId: sendChannelMessage
+      tags:
+      - Messaging
+      summary: Send a message
+      description: Send a message over an active channel. The request must include a receiver and either an inline body or a template. Max request size is 200 KB total, 100 KB per inline attachment.
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ChannelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessage'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+    get:
+      operationId: listChannelMessages
+      tags:
+      - Messaging
+      summary: List messages by channel
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ChannelId'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: pageToken
+        in: query
+        schema:
+          type: string
+      - name: direction
+        in: query
+        schema:
+          type: string
+          enum:
+          - incoming
+          - outgoing
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: startAt
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: endAt
+        in: query
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageList'
+components:
+  parameters:
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      description: Channel identifier within the workspace.
+      schema:
+        type: string
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+  schemas:
+    CreateMessage:
+      type: object
+      required:
+      - receiver
+      properties:
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        template:
+          type: object
+          description: Template reference and variables (required when body is absent).
+        tags:
+          type: array
+          items:
+            type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        direction:
+          type: string
+          enum:
+          - incoming
+          - outgoing
+        sender:
+          type: object
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        createdAt:
+          type: string
+          format: date-time
+    MessageList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        nextPageToken:
+          type: string
+    MessageBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+          - image
+          - file
+          - html
+        text:
+          type: object
+          properties:
+            text:
+              type: string
+  securitySchemes:
+    AccessKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: AccessKey token. Send as the Authorization header value "AccessKey {your-access-key}".

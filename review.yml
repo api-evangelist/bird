@@ -1,0 +1,106 @@
+aid: bird-com
+name: Bird
+review:
+  question: Does Bird expose a documented public WebSocket / streaming API, and is this the correct Bird company?
+  answer: false
+  date: '2026-06-20'
+  reviewer: API Evangelist
+  asyncapiSpecCreated: false
+  asyncapiScopeNote: |
+    No AsyncAPI document was authored. Bird's real-time inbound delivery is
+    handled via HTTP webhooks (subscriptions that POST events to a customer
+    URL), not via a documented public WebSocket (ws:// / wss://) or
+    Server-Sent Events streaming surface. Webhooks are an HTTP callback
+    pattern and are not modeled as AsyncAPI in this artifact; revisit if Bird
+    publishes a streaming/WebSocket transport.
+disambiguation:
+  company: >-
+    This catalog covers Bird (bird.com), the omnichannel CRM for marketing,
+    service, and payments formerly known as MessageBird, headquartered in
+    Amsterdam. It is NOT Bird Rides (the e-scooter / micromobility company at
+    bird.co) and NOT Birdeye (the reputation, reviews, and customer-experience
+    platform at birdeye.com).
+  formerName: MessageBird
+  primaryDomains:
+  - bird.com
+  - api.bird.com
+  - docs.bird.com
+  - rest.messagebird.com (legacy)
+  - developers.messagebird.com (legacy docs)
+findings:
+  summary: |
+    Bird publishes documented REST APIs at https://api.bird.com using AccessKey
+    authentication (Authorization: AccessKey {token}). Surfaces include the
+    Channels/Messaging API (send/receive across SMS, WhatsApp, email and more),
+    Contacts API, Conversations API, and Numbers API, all scoped under
+    /workspaces/{workspaceId}. The predecessor MessageBird REST API at
+    https://rest.messagebird.com remains documented for SMS, voice, verify, and
+    lookup. Real-time inbound events are delivered through HTTP webhooks; no
+    public WebSocket or SSE streaming transport is documented.
+  transports:
+    - protocol: REST
+      scheme: https
+      baseURL: https://api.bird.com
+      documented: true
+    - protocol: REST
+      scheme: https
+      baseURL: https://rest.messagebird.com
+      documented: true
+      note: Legacy MessageBird REST API.
+    - protocol: Webhooks
+      scheme: https
+      documented: true
+      note: Inbound messages and status events delivered via HTTP POST callbacks to subscriber URLs.
+    - protocol: WebSocket
+      scheme: wss
+      documented: false
+      note: No public WebSocket endpoint documented for Channels, Conversations, or legacy MessageBird APIs as of the review date.
+  endpointsConfirmedRest:
+    - POST   https://api.bird.com/workspaces/{workspaceId}/channels/{channelId}/messages
+    - GET    https://api.bird.com/workspaces/{workspaceId}/channels/{channelId}/messages
+    - POST   https://api.bird.com/workspaces/{workspaceId}/channel-media/presigned-upload
+    - GET    https://api.bird.com/workspaces/{workspaceId}/channels
+    - GET    https://api.bird.com/workspaces/{workspaceId}/channels/{channelId}
+    - POST   https://api.bird.com/workspaces/{workspaceId}/contacts
+    - GET    https://api.bird.com/workspaces/{workspaceId}/contacts
+    - GET    https://api.bird.com/workspaces/{workspaceId}/contacts/{contactId}
+    - PATCH  https://api.bird.com/workspaces/{workspaceId}/contacts/{contactId}
+    - DELETE https://api.bird.com/workspaces/{workspaceId}/contacts/{contactId}
+    - POST   https://api.bird.com/workspaces/{workspaceId}/conversations
+    - POST   https://api.bird.com/workspaces/{workspaceId}/conversations/{conversationId}/messages
+    - GET    https://api.bird.com/workspaces/{workspaceId}/conversations/{conversationId}/messages/{messageId}
+    - GET    https://api.bird.com/workspaces/{workspaceId}/numbers
+    - POST   https://api.bird.com/workspaces/{workspaceId}/network-lookup
+    - POST   https://rest.messagebird.com/messages
+    - GET    https://rest.messagebird.com/messages
+    - GET    https://rest.messagebird.com/messages/{id}
+    - GET    https://rest.messagebird.com/lookup/{phoneNumber}
+    - POST   https://rest.messagebird.com/verify
+    - GET    https://rest.messagebird.com/voicemessages
+sources:
+  - url: https://docs.bird.com/api/channels-api/api-reference/messaging
+    type: APIReference
+    note: Channels send/list message endpoints; AccessKey auth; base URL https://api.bird.com.
+  - url: https://docs.bird.com/api/contacts-api/api-reference/manage-workspace-contacts
+    type: APIReference
+    note: Contact CRUD under /workspaces/{workspaceId}/contacts.
+  - url: https://docs.bird.com/api/quickstarts/conversations
+    type: Documentation
+    note: Create conversation and send conversation message endpoints.
+  - url: https://docs.bird.com/api/numbers-api/api-reference/list-your-numbers
+    type: APIReference
+    note: List numbers and network lookup.
+  - url: https://developers.messagebird.com/api/sms-messaging/
+    type: APIReference
+    note: Legacy MessageBird REST API SMS/voice/verify/lookup at rest.messagebird.com.
+actions:
+  asyncapiPath: null
+  apisYmlUpdated: true
+  reason: |
+    No WebSocket or SSE streaming surface exists; real-time delivery uses HTTP
+    webhooks. AccessKey-authenticated REST endpoints across Channels, Contacts,
+    Conversations, and Numbers were captured, plus the legacy MessageBird REST
+    API. Company disambiguated from Bird Rides (e-scooters) and Birdeye.
+maintainers:
+- FN: Kin Lane
+  email: kin@apievangelist.com

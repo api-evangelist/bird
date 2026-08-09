@@ -1,0 +1,501 @@
+{
+  "item": [
+    {
+      "id": "b1f0a001-0001-4001-8001-000000000001",
+      "name": "Messaging",
+      "description": {
+        "content": "Send and receive messages across channels.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000101",
+          "name": "Send a message",
+          "request": {
+            "name": "Send a message",
+            "description": {
+              "content": "Send a message over an active channel. Requires a receiver and either a body or a template.",
+              "type": "text/plain"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/channels/:channelId/messages",
+              "path": ["workspaces", ":workspaceId", "channels", ":channelId", "messages"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "channelId", "value": "<string>"}
+              ]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver\": {\n    \"contacts\": [\n      { \"identifierValue\": \"+15551234567\", \"identifierKey\": \"phonenumber\" }\n    ]\n  },\n  \"body\": {\n    \"type\": \"text\",\n    \"text\": { \"text\": \"Hello from Bird\" }\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000102",
+          "name": "List messages by channel",
+          "request": {
+            "name": "List messages by channel",
+            "description": {"content": "List messages for a channel.", "type": "text/plain"},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/channels/:channelId/messages",
+              "path": ["workspaces", ":workspaceId", "channels", ":channelId", "messages"],
+              "host": ["{{baseUrl}}"],
+              "query": [
+                {"key": "limit", "value": "20"},
+                {"key": "pageToken", "value": ""}
+              ],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "channelId", "value": "<string>"}
+              ]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000103",
+          "name": "Create presigned media upload",
+          "request": {
+            "name": "Create presigned media upload",
+            "description": {"content": "Create a presigned upload for channel media.", "type": "text/plain"},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/channel-media/presigned-upload",
+              "path": ["workspaces", ":workspaceId", "channel-media", "presigned-upload"],
+              "host": ["{{baseUrl}}"],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"image/png\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "b1f0a001-0001-4001-8001-000000000002",
+      "name": "Channels",
+      "description": {"content": "Manage workspace channels.", "type": "text/plain"},
+      "item": [
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000201",
+          "name": "List workspace channels",
+          "request": {
+            "name": "List workspace channels",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/channels",
+              "path": ["workspaces", ":workspaceId", "channels"],
+              "host": ["{{baseUrl}}"],
+              "query": [{"key": "platform", "value": ""}, {"key": "status", "value": ""}],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000202",
+          "name": "Get a workspace channel",
+          "request": {
+            "name": "Get a workspace channel",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/channels/:channelId",
+              "path": ["workspaces", ":workspaceId", "channels", ":channelId"],
+              "host": ["{{baseUrl}}"],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "channelId", "value": "<string>"}
+              ]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "b1f0a001-0001-4001-8001-000000000003",
+      "name": "Contacts",
+      "description": {"content": "Manage workspace contacts.", "type": "text/plain"},
+      "item": [
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000301",
+          "name": "Create a contact",
+          "request": {
+            "name": "Create a contact",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/contacts",
+              "path": ["workspaces", ":workspaceId", "contacts"],
+              "host": ["{{baseUrl}}"],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Jane Doe\",\n  \"identifiers\": [\n    { \"key\": \"phonenumber\", \"value\": \"+15551234567\" }\n  ]\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000302",
+          "name": "List contacts",
+          "request": {
+            "name": "List contacts",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/contacts",
+              "path": ["workspaces", ":workspaceId", "contacts"],
+              "host": ["{{baseUrl}}"],
+              "query": [{"key": "limit", "value": "20"}],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000303",
+          "name": "Get a contact",
+          "request": {
+            "name": "Get a contact",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/contacts/:contactId",
+              "path": ["workspaces", ":workspaceId", "contacts", ":contactId"],
+              "host": ["{{baseUrl}}"],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "contactId", "value": "<string>"}
+              ]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000304",
+          "name": "Update a contact",
+          "request": {
+            "name": "Update a contact",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/contacts/:contactId",
+              "path": ["workspaces", ":workspaceId", "contacts", ":contactId"],
+              "host": ["{{baseUrl}}"],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "contactId", "value": "<string>"}
+              ]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "PATCH",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Jane Smith\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000305",
+          "name": "Delete a contact",
+          "request": {
+            "name": "Delete a contact",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/contacts/:contactId",
+              "path": ["workspaces", ":workspaceId", "contacts", ":contactId"],
+              "host": ["{{baseUrl}}"],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "contactId", "value": "<string>"}
+              ]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "b1f0a001-0001-4001-8001-000000000004",
+      "name": "Conversations",
+      "description": {"content": "Manage threaded omnichannel conversations.", "type": "text/plain"},
+      "item": [
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000401",
+          "name": "Create a conversation",
+          "request": {
+            "name": "Create a conversation",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/conversations",
+              "path": ["workspaces", ":workspaceId", "conversations"],
+              "host": ["{{baseUrl}}"],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelId\": \"<string>\",\n  \"participants\": []\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000402",
+          "name": "Send a conversation message",
+          "request": {
+            "name": "Send a conversation message",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/conversations/:conversationId/messages",
+              "path": ["workspaces", ":workspaceId", "conversations", ":conversationId", "messages"],
+              "host": ["{{baseUrl}}"],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "conversationId", "value": "<string>"}
+              ]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver\": {},\n  \"body\": {\n    \"type\": \"text\",\n    \"text\": { \"text\": \"Reply text\" }\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000403",
+          "name": "Get a conversation message",
+          "request": {
+            "name": "Get a conversation message",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/conversations/:conversationId/messages/:messageId",
+              "path": ["workspaces", ":workspaceId", "conversations", ":conversationId", "messages", ":messageId"],
+              "host": ["{{baseUrl}}"],
+              "variable": [
+                {"key": "workspaceId", "value": "<string>"},
+                {"key": "conversationId", "value": "<string>"},
+                {"key": "messageId", "value": "<string>"}
+              ]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "b1f0a001-0001-4001-8001-000000000005",
+      "name": "Numbers",
+      "description": {"content": "Discover and manage phone numbers.", "type": "text/plain"},
+      "item": [
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000501",
+          "name": "List your numbers",
+          "request": {
+            "name": "List your numbers",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/numbers",
+              "path": ["workspaces", ":workspaceId", "numbers"],
+              "host": ["{{baseUrl}}"],
+              "query": [{"key": "countryCode", "value": ""}, {"key": "capabilities", "value": "sms"}],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000502",
+          "name": "Network/country lookup",
+          "request": {
+            "name": "Network/country lookup",
+            "description": {},
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:workspaceId/network-lookup",
+              "path": ["workspaces", ":workspaceId", "network-lookup"],
+              "host": ["{{baseUrl}}"],
+              "variable": [{"key": "workspaceId", "value": "<string>"}]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+15551234567\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "b1f0a001-0001-4001-8001-000000000006",
+      "name": "Legacy MessageBird",
+      "description": {"content": "Predecessor MessageBird REST API at rest.messagebird.com.", "type": "text/plain"},
+      "item": [
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000601",
+          "name": "(Legacy) Send an SMS message",
+          "request": {
+            "name": "(Legacy) Send an SMS message",
+            "description": {},
+            "url": {
+              "raw": "{{legacyBaseUrl}}/messages",
+              "path": ["messages"],
+              "host": ["{{legacyBaseUrl}}"]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originator\": \"Bird\",\n  \"recipients\": [\"+15551234567\"],\n  \"body\": \"Hello from MessageBird\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000602",
+          "name": "(Legacy) Request a lookup",
+          "request": {
+            "name": "(Legacy) Request a lookup",
+            "description": {},
+            "url": {
+              "raw": "{{legacyBaseUrl}}/lookup/:phoneNumber",
+              "path": ["lookup", ":phoneNumber"],
+              "host": ["{{legacyBaseUrl}}"],
+              "variable": [{"key": "phoneNumber", "value": "+15551234567"}]
+            },
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "method": "GET",
+            "auth": null
+          },
+          "response": []
+        },
+        {
+          "id": "b1f0a001-0001-4001-8001-000000000603",
+          "name": "(Legacy) Send a verification token",
+          "request": {
+            "name": "(Legacy) Send a verification token",
+            "description": {},
+            "url": {
+              "raw": "{{legacyBaseUrl}}/verify",
+              "path": ["verify"],
+              "host": ["{{legacyBaseUrl}}"]
+            },
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipient\": \"+15551234567\",\n  \"originator\": \"Bird\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [
+    {"type": "string", "value": "https://api.bird.com", "key": "baseUrl"},
+    {"type": "string", "value": "https://rest.messagebird.com", "key": "legacyBaseUrl"}
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {"key": "key", "value": "Authorization"},
+      {"key": "value", "value": "AccessKey {{accessKey}}"},
+      {"key": "in", "value": "header"}
+    ]
+  },
+  "info": {
+    "_postman_id": "b1f0a001-0001-4001-8001-000000000000",
+    "name": "Bird API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "REST API for Bird (formerly MessageBird), an omnichannel CRM. Covers Channels/Messaging, Contacts, Conversations, and Numbers at https://api.bird.com plus the legacy MessageBird REST API at https://rest.messagebird.com. Authenticate with the header 'Authorization: AccessKey {token}'.\n\nDocs: https://docs.bird.com/",
+      "type": "text/plain"
+    }
+  }
+}
