@@ -32,7 +32,7 @@ tags:
 - Customer Engagement
 created: '2026-06-13'
 modified: '2026-08-08'
-specificationVersion: '0.19'
+specificationVersion: '0.23'
 apis:
 - name: Bird Customer Data API
   description: Sync customer data from multiple sources in real time to build a 360-degree customer view.
