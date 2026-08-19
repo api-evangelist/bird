@@ -1,0 +1,103 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird Channels API",
+    "version": "1.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Channels",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Create a presigned media upload",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/:workspaceId/channel-media/presigned-upload",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Create a presigned media upload"
+        },
+        {
+          "info": {
+            "name": "List workspace channels",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/workspaces/:workspaceId/channels",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              },
+              {
+                "name": "platform",
+                "value": "",
+                "type": "query"
+              },
+              {
+                "name": "status",
+                "value": "",
+                "type": "query"
+              }
+            ]
+          },
+          "docs": "List workspace channels"
+        },
+        {
+          "info": {
+            "name": "Get a workspace channel",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/workspaces/:workspaceId/channels/:channelId",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              },
+              {
+                "name": "channelId",
+                "value": "",
+                "type": "path",
+                "description": "Channel identifier within the workspace."
+              }
+            ]
+          },
+          "docs": "Get a workspace channel"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

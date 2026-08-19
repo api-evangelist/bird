@@ -1,0 +1,166 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird FAQ SMS Messaging API",
+    "version": "1.0.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "SMS Messaging",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "List messages",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/messages",
+            "params": [
+              {
+                "name": "originator",
+                "value": "ValTesting",
+                "type": "query",
+                "description": "Display messages by the specified originator."
+              },
+              {
+                "name": "recipient",
+                "value": "380999999999",
+                "type": "query",
+                "description": "Display messages for the specified recipient."
+              },
+              {
+                "name": "direction",
+                "value": "mt",
+                "type": "query",
+                "description": "Display either mt (sent) or mo (received) messages."
+              },
+              {
+                "name": "limit",
+                "value": "50",
+                "type": "query",
+                "description": "Limit the amount of messages listed."
+              },
+              {
+                "name": "offset",
+                "value": "0",
+                "type": "query",
+                "description": "Skip first n results."
+              },
+              {
+                "name": "searchterm",
+                "value": "val",
+                "type": "query",
+                "description": "Display messages including the specified searchterm in recipient and originator"
+              },
+              {
+                "name": "type",
+                "value": "sms",
+                "type": "query",
+                "description": "Display messages of type sms, binary, or flash"
+              },
+              {
+                "name": "contact_id",
+                "value": "61afc0531573b08ddbe36e1c85602827",
+                "type": "query",
+                "description": "Display messages by contact_id. See Contacts API for more info."
+              },
+              {
+                "name": "status",
+                "value": "buffered",
+                "type": "query",
+                "description": "Display messages with status scheduled, sent, buffered, delivered, expired, or delivery_failed."
+              },
+              {
+                "name": "from",
+                "value": "2022-05-20T12:50:28Z",
+                "type": "query",
+                "description": "Display messages starting from the specified date in RFC3339 format (Y-m-d\\TH:i:sP)."
+              },
+              {
+                "name": "until",
+                "value": "2022-06-29T12:50:28Z",
+                "type": "query",
+                "description": "Display messages until the specified date in RFC3339 format (Y-m-d\\TH:i:sP)."
+              }
+            ]
+          },
+          "docs": "List messages"
+        },
+        {
+          "info": {
+            "name": "Send message",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://faq.messagebird.com/messages",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Authorization",
+                "value": "AccessKey wNmtVQTcLO4uf22uJxjvzwJ223"
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "MessageBird's Programmable SMS API enables you to programmatically send SMS messages from your web application.\n\nFirst, you need to create a new message object. MessageBird returns the created message object with each request. A maximum of 50 recipients can be entered per request."
+        },
+        {
+          "info": {
+            "name": "Get message by ID",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/messages/:messageId",
+            "params": [
+              {
+                "name": "messageId",
+                "value": "",
+                "type": "path"
+              }
+            ]
+          },
+          "docs": "Get message by ID"
+        },
+        {
+          "info": {
+            "name": "Delete message by ID",
+            "type": "http"
+          },
+          "http": {
+            "method": "DELETE",
+            "url": "https://faq.messagebird.com/messages/:messageId",
+            "params": [
+              {
+                "name": "messageId",
+                "value": "",
+                "type": "path"
+              }
+            ]
+          },
+          "docs": "Delete message by ID"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

@@ -1,0 +1,64 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird FAQ LanguageDetection API",
+    "version": "1.0.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "LanguageDetection",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Predict language",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://faq.messagebird.com/api/v1/predict-language",
+            "body": {
+              "type": "json",
+              "data": "{}"
+            },
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Predicts the language for a given phrase. If the language could not be determined, it returns LANGUAGE_UNDETERMINED. Uses the ISO-639-3 standard.\n"
+        },
+        {
+          "info": {
+            "name": "Get supported languages",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/api/v1/supported-languages",
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Lists the languages supported by the Language Detection API."
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

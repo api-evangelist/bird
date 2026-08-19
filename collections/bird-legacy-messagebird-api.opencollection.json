@@ -1,0 +1,114 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird Channels Legacy MessageBird API",
+    "version": "1.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Legacy MessageBird",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "(Legacy) List SMS messages",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/messages"
+          },
+          "docs": "(Legacy) List SMS messages"
+        },
+        {
+          "info": {
+            "name": "(Legacy) Send an SMS message",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/messages",
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Send an outbound SMS via the legacy MessageBird REST API (rest.messagebird.com)."
+        },
+        {
+          "info": {
+            "name": "(Legacy) Get an SMS message",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/messages/:id",
+            "params": [
+              {
+                "name": "id",
+                "value": "",
+                "type": "path"
+              }
+            ]
+          },
+          "docs": "(Legacy) Get an SMS message"
+        },
+        {
+          "info": {
+            "name": "(Legacy) Request a Lookup",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/lookup/:phoneNumber",
+            "params": [
+              {
+                "name": "phoneNumber",
+                "value": "",
+                "type": "path"
+              }
+            ]
+          },
+          "docs": "(Legacy) Request a Lookup"
+        },
+        {
+          "info": {
+            "name": "(Legacy) Send a verification token",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/verify",
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "(Legacy) Send a verification token"
+        },
+        {
+          "info": {
+            "name": "(Legacy) List voice messages",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/voicemessages"
+          },
+          "docs": "(Legacy) List voice messages"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

@@ -1,0 +1,134 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird FAQ Intent API",
+    "version": "1.0.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Intent",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "List datasets",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/api/v1/datasets",
+            "params": [
+              {
+                "name": "listMode",
+                "value": "",
+                "type": "query",
+                "description": "List mode indicating which datasets to query."
+              },
+              {
+                "name": "limit",
+                "value": "",
+                "type": "query",
+                "description": "The maximum number of datasets to return."
+              },
+              {
+                "name": "cursor",
+                "value": "",
+                "type": "query",
+                "description": "The cursor to view the next paginated collection as provided by nextCursor in the ListDatasetsResponse.\n"
+              }
+            ],
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Lists datasets containing intents and corresponding phrases. You can choose to list only your own datasets, template datasets, or both. Results are paginated.\n"
+        },
+        {
+          "info": {
+            "name": "Get dataset",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/api/v1/datasets/:datasetId",
+            "params": [
+              {
+                "name": "datasetId",
+                "value": "",
+                "type": "path",
+                "description": "Unique ID for the dataset. Obtainable from the dashboard or by listing datasets.\n"
+              }
+            ],
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Retrieves the dataset for the given dataset ID. Only displays metadata corresponding to the dataset.\n"
+        },
+        {
+          "info": {
+            "name": "Predict intent",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://faq.messagebird.com/api/v1/datasets/:datasetId/predict",
+            "params": [
+              {
+                "name": "datasetId",
+                "value": "",
+                "type": "path",
+                "description": "The unique ID that identifies the dataset for prediction."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            },
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Predicts an intent for a phrase given a dataset ID. The Intent API uses machine learning to infer the intent of the given phrase. Requires the active model for the dataset to be trained (usually takes ~1 minute after dataset creation or update).\n"
+        },
+        {
+          "info": {
+            "name": "Get supported languages",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/api/v1/supported-languages",
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Lists the languages supported by the Intent API."
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

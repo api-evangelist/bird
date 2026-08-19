@@ -1,0 +1,78 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird Channels Numbers API",
+    "version": "1.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Numbers",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "List your numbers",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/workspaces/:workspaceId/numbers",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              },
+              {
+                "name": "countryCode",
+                "value": "",
+                "type": "query"
+              },
+              {
+                "name": "capabilities",
+                "value": "",
+                "type": "query"
+              }
+            ]
+          },
+          "docs": "List long-code numbers assigned to a workspace, filterable by country code, capabilities (sms, mms, voice, whatsapp), and leading digits."
+        },
+        {
+          "info": {
+            "name": "Network/country information for a phone number",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/:workspaceId/network-lookup",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Network/country information for a phone number"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

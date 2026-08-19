@@ -1,0 +1,1243 @@
+{
+  "item": [
+    {
+      "id": "e703cfda-cdd7-41dc-bf06-7e39bf74765a",
+      "name": "SMS Messaging",
+      "description": {
+        "content": "MessageBird’s SMS API allows you to send and receive SMS messages to and from any country in the world through a REST API. Each message is identified by a unique random ID so that users can always check the status of a message using the given endpoint.\n\nThe SMS API uses HTTP verbs and a RESTful endpoint structure with an access key that is used as the API Authorization. Request and response payloads are formatted as JSON using UTF-8 encoding and URL encoded values.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "77a3adde-351a-4abb-a4ea-106e4c2166e7",
+          "name": "Send message",
+          "request": {
+            "name": "Send message",
+            "description": {
+              "content": "MessageBird's Programmable SMS API enables you to programmatically send SMS messages from your web application.\n\nFirst, you need to create a new message object. MessageBird returns the created message object with each request. A maximum of 50 recipients can be entered per request.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "messages"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originator\": \"<string>\",\n  \"body\": \"<string>\",\n  \"recipients\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"groupIds\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"type\": \"<string>\",\n  \"reference\": \"<string>\",\n  \"reportUrl\": \"<string>\",\n  \"validity\": \"<integer>\",\n  \"gateway\": \"<integer>\",\n  \"typeDetails\": \"<object>\",\n  \"datacoding\": \"<string>\",\n  \"mclass\": \"<integer>\",\n  \"shortenUrls\": \"<boolean>\",\n  \"scheduledDatetime\": \"<integer>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "a52e73c8-2fe0-4a97-8428-cf325b4ae84f",
+              "name": "SMS successfully created",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) ",
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) ",
+                    "key": "Authorization",
+                    "value": "AccessKey wNmtVQTcLO4uf22uJxjvzwJ223"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originator\": \"MessageBird\",\n  \"body\": \"+380999999999\",\n  \"recipients\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"groupIds\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"type\": \"<string>\",\n  \"reference\": \"<string>\",\n  \"reportUrl\": \"https://example.ua/report-here\",\n  \"validity\": 60,\n  \"gateway\": 11,\n  \"typeDetails\": \"<object>\",\n  \"datacoding\": \"unicode\",\n  \"mclass\": 1,\n  \"shortenUrls\": false,\n  \"scheduledDatetime\": \"<integer>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:16:51 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Length",
+                  "value": "8690",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "false",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"f28bbe526fc14974b3e7e663a6139b53\",\n  \"href\": \"https://rest.messagebird.com/messages/f28bbe526fc14974b3e7e663a6139b53\",\n  \"direction\": \"mt\",\n  \"type\": \"sms\",\n  \"originator\": \"MessageBird\",\n  \"body\": \"Lorem ipsum dolor sit amet.\",\n  \"reference\": null,\n  \"validity\": null,\n  \"gateway\": 10,\n  \"typeDetails\": {},\n  \"datacoding\": \"plain\",\n  \"mclass\": 1,\n  \"scheduledDatetime\": null,\n  \"createdDatetime\": \"2022-07-01T16:16:51+00:00\",\n  \"recipients\": {\n    \"totalCount\": 1,\n    \"totalSentCount\": 1,\n    \"totalDeliveredCount\": 0,\n    \"totalDeliveryFailedCount\": 0,\n    \"items\": [\n      {\n        \"recipient\": 380999999999,\n        \"status\": \"sent\",\n        \"statusDatetime\": \"2022-07-01T16:16:51+00:00\",\n        \"messagePartCount\": 1\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "31cfaf53-0cce-4294-8545-2fd789ef7e7f",
+              "name": "Unauthorized",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) ",
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) ",
+                    "key": "Authorization",
+                    "value": "AccessKey wNmtVQTcLO4uf22uJxjvzwJ223"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originator\": \"MessageBird\",\n  \"body\": \"+380999999999\",\n  \"recipients\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"groupIds\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"type\": \"<string>\",\n  \"reference\": \"<string>\",\n  \"reportUrl\": \"https://example.ua/report-here\",\n  \"validity\": 60,\n  \"gateway\": 11,\n  \"typeDetails\": \"<object>\",\n  \"datacoding\": \"unicode\",\n  \"mclass\": 1,\n  \"shortenUrls\": false,\n  \"scheduledDatetime\": \"<integer>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 15:50:06 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Length",
+                  "value": "5913",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "false",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Www-Authenticate",
+                  "value": "Basic realm=\"REST API authentication\"",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"errors\": [\n    {\n      \"code\": 2,\n      \"description\": \"Request not allowed (incorrect access_key)\",\n      \"parameter\": \"access_key\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "787d56cb-2fcb-4ce1-9d26-985f2b925625",
+              "name": "Unprocessable Entity",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) ",
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) ",
+                    "key": "Authorization",
+                    "value": "AccessKey wNmtVQTcLO4uf22uJxjvzwJ223"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originator\": \"MessageBird\",\n  \"body\": \"+380999999999\",\n  \"recipients\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"groupIds\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"type\": \"<string>\",\n  \"reference\": \"<string>\",\n  \"reportUrl\": \"https://example.ua/report-here\",\n  \"validity\": 60,\n  \"gateway\": 11,\n  \"typeDetails\": \"<object>\",\n  \"datacoding\": \"unicode\",\n  \"mclass\": 1,\n  \"shortenUrls\": false,\n  \"scheduledDatetime\": \"<integer>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:15:29 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Length",
+                  "value": "4273",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "false",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"errors\": [\n    {\n      \"code\": 9,\n      \"description\": \"no (correct) recipients found. Note: during your test period you can only send messages to your own number (+380999999999).\",\n      \"parameter\": \"recipient\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "eb7d12d1-24ce-4387-b8ce-8b4609bc9068",
+          "name": "List messages",
+          "request": {
+            "name": "List messages",
+            "description": {},
+            "url": {
+              "path": [
+                "messages"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "originator",
+                  "value": "<string>",
+                  "description": "Display messages by the specified originator."
+                },
+                {
+                  "disabled": false,
+                  "key": "recipient",
+                  "value": "<integer>",
+                  "description": "Display messages for the specified recipient."
+                },
+                {
+                  "disabled": false,
+                  "key": "direction",
+                  "value": "<string>",
+                  "description": "Display either mt (sent) or mo (received) messages."
+                },
+                {
+                  "disabled": false,
+                  "key": "limit",
+                  "value": "<integer>",
+                  "description": "Limit the amount of messages listed."
+                },
+                {
+                  "disabled": false,
+                  "key": "offset",
+                  "value": "<integer>",
+                  "description": "Skip first n results."
+                },
+                {
+                  "disabled": false,
+                  "key": "searchterm",
+                  "value": "<string>",
+                  "description": "Display messages including the specified searchterm in recipient and originator"
+                },
+                {
+                  "disabled": false,
+                  "key": "type",
+                  "value": "<string>",
+                  "description": "Display messages of type sms, binary, or flash"
+                },
+                {
+                  "disabled": false,
+                  "key": "contact_id",
+                  "value": "<string>",
+                  "description": "Display messages by contact_id. See Contacts API for more info."
+                },
+                {
+                  "disabled": false,
+                  "key": "status",
+                  "value": "<string>",
+                  "description": "Display messages with status scheduled, sent, buffered, delivered, expired, or delivery_failed."
+                },
+                {
+                  "disabled": false,
+                  "key": "from",
+                  "value": "<string>",
+                  "description": "Display messages starting from the specified date in RFC3339 format (Y-m-d\\TH:i:sP)."
+                },
+                {
+                  "disabled": false,
+                  "key": "until",
+                  "value": "<string>",
+                  "description": "Display messages until the specified date in RFC3339 format (Y-m-d\\TH:i:sP)."
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "859851c3-d262-4dc3-b79b-b6f6ce6a8965",
+              "name": "OK",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "originator",
+                      "value": "ValTesting"
+                    },
+                    {
+                      "key": "recipient",
+                      "value": "<integer>"
+                    },
+                    {
+                      "key": "direction",
+                      "value": "mt"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "<integer>"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "<integer>"
+                    },
+                    {
+                      "key": "searchterm",
+                      "value": "val"
+                    },
+                    {
+                      "key": "type",
+                      "value": "sms"
+                    },
+                    {
+                      "key": "contact_id",
+                      "value": "61afc0531573b08ddbe36e1c85602827"
+                    },
+                    {
+                      "key": "status",
+                      "value": "buffered"
+                    },
+                    {
+                      "key": "from",
+                      "value": "2022-05-20T12:50:28Z"
+                    },
+                    {
+                      "key": "until",
+                      "value": "2022-06-29T12:50:28Z"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:30:02 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Vary",
+                  "value": "Accept-Encoding",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "false",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Encoding",
+                  "value": "gzip",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Transfer-Encoding",
+                  "value": "chunked",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"offset\": 0,\n  \"limit\": 20,\n  \"count\": 9,\n  \"totalCount\": 9,\n  \"links\": {\n    \"first\": \"https://rest.messagebird.com/messages/?offset=0\",\n    \"previous\": null,\n    \"next\": null,\n    \"last\": \"https://rest.messagebird.com/messages/?offset=0\"\n  },\n  \"items\": [\n    {\n      \"id\": \"cea5a8d4a82f4b7bb4a053296d5a9ba1\",\n      \"href\": \"https://rest.messagebird.com/messages/cea5a8d4a82f4b7bb4a053296d5a9ba1\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"Current time: 2022-06-23 12:41:23.828134 +0300 EEST m=+0.001717501\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-23T09:41:24+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-23T09:41:31+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 66,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"281f98b1732b4ee29f68f930b80b2f60\",\n      \"href\": \"https://rest.messagebird.com/messages/281f98b1732b4ee29f68f930b80b2f60\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"Hi! This is not your first message\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-23T06:54:41+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-23T06:54:47+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 34,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"78065add7b144d7cb6909576cbfc5b5e\",\n      \"href\": \"https://rest.messagebird.com/messages/78065add7b144d7cb6909576cbfc5b5e\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"qwerty3\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-22T22:29:58+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-22T22:30:05+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 7,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"c81801d34d0b4c29bcf304de906feae1\",\n      \"href\": \"https://rest.messagebird.com/messages/c81801d34d0b4c29bcf304de906feae1\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"Hi! This is not your first message\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-22T14:04:22+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-22T14:04:29+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 34,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"e876126d16af4fdfb368c538f7a4d660\",\n      \"href\": \"https://rest.messagebird.com/messages/e876126d16af4fdfb368c538f7a4d660\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"Hi! This is not your first message\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-22T14:03:56+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-22T14:04:04+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 34,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"cfe8234a793f4f90833fe6d01731e6fa\",\n      \"href\": \"https://rest.messagebird.com/messages/cfe8234a793f4f90833fe6d01731e6fa\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"qwerty2\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-22T01:29:58+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-22T01:30:14+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 7,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"0f484ecbf51942b5b7f4df62891ea247\",\n      \"href\": \"https://rest.messagebird.com/messages/0f484ecbf51942b5b7f4df62891ea247\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"qwerty2\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-22T01:29:58+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-22T01:30:04+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 7,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"0aa1c53c34d34bda84cc4bc454d95028\",\n      \"href\": \"https://rest.messagebird.com/messages/0aa1c53c34d34bda84cc4bc454d95028\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"ValTesting\",\n      \"body\": \"Hi! This is not your first message\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-21T16:03:00+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-21T16:03:07+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 34,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"cb96c6336c92482797554428a899a225\",\n      \"href\": \"https://rest.messagebird.com/messages/cb96c6336c92482797554428a899a225\",\n      \"direction\": \"mt\",\n      \"type\": \"sms\",\n      \"originator\": \"Test\",\n      \"body\": \"This is a test message\",\n      \"reference\": null,\n      \"validity\": null,\n      \"gateway\": 10,\n      \"typeDetails\": {},\n      \"datacoding\": \"plain\",\n      \"mclass\": 1,\n      \"scheduledDatetime\": null,\n      \"createdDatetime\": \"2022-06-21T15:28:58+00:00\",\n      \"recipients\": {\n        \"totalCount\": 1,\n        \"totalSentCount\": 1,\n        \"totalDeliveredCount\": 1,\n        \"totalDeliveryFailedCount\": 0,\n        \"items\": [\n          {\n            \"recipient\": 380999999999,\n            \"originator\": null,\n            \"status\": \"delivered\",\n            \"statusDatetime\": \"2022-06-21T15:29:05+00:00\",\n            \"recipientCountry\": \"Ukraine\",\n            \"recipientCountryPrefix\": 380,\n            \"recipientOperator\": \"life:)\",\n            \"messageLength\": 22,\n            \"statusErrorCode\": null,\n            \"statusReason\": \"successfully delivered\",\n            \"price\": {\n              \"amount\": 1,\n              \"currency\": \"TRC\"\n            },\n            \"mccmnc\": \"25506\",\n            \"mcc\": \"255\",\n            \"mnc\": \"06\",\n            \"messagePartCount\": 1\n          }\n        ]\n      }\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "34585291-4a2d-43d4-8a74-aef1c03e9033",
+          "name": "Get message by ID",
+          "request": {
+            "name": "Get message by ID",
+            "description": {},
+            "url": {
+              "path": [
+                "messages",
+                ":messageId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "messageId",
+                  "description": "(Required) "
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "7cd2cbc3-f69f-4191-b9a9-60bb1dbb1064",
+              "name": "OK",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages",
+                    ":messageId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "messageId",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:32:15 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Vary",
+                  "value": "Accept-Encoding",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "false",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Encoding",
+                  "value": "gzip",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Transfer-Encoding",
+                  "value": "chunked",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"cea5a8d4a82f4b7bb4a053296d5a9ba1\",\n  \"href\": \"https://rest.messagebird.com/messages/cea5a8d4a82f4b7bb4a053296d5a9ba1\",\n  \"direction\": \"mt\",\n  \"type\": \"sms\",\n  \"originator\": \"ValTesting\",\n  \"body\": \"Current time: 2022-06-23 12:41:23.828134 +0300 EEST m=+0.001717501\",\n  \"reference\": null,\n  \"validity\": null,\n  \"gateway\": 10,\n  \"typeDetails\": {},\n  \"datacoding\": \"plain\",\n  \"mclass\": 1,\n  \"scheduledDatetime\": null,\n  \"createdDatetime\": \"2022-06-23T09:41:24+00:00\",\n  \"recipients\": {\n    \"totalCount\": 1,\n    \"totalSentCount\": 1,\n    \"totalDeliveredCount\": 1,\n    \"totalDeliveryFailedCount\": 0,\n    \"items\": [\n      {\n        \"recipient\": 380999999999,\n        \"originator\": null,\n        \"status\": \"delivered\",\n        \"statusDatetime\": \"2022-06-23T09:41:31+00:00\",\n        \"recipientCountry\": \"Ukraine\",\n        \"recipientCountryPrefix\": 380,\n        \"recipientOperator\": \"life:)\",\n        \"messageLength\": 66,\n        \"statusErrorCode\": null,\n        \"statusReason\": \"successfully delivered\",\n        \"price\": {\n          \"amount\": 1,\n          \"currency\": \"TRC\"\n        },\n        \"mccmnc\": \"25506\",\n        \"mcc\": \"255\",\n        \"mnc\": \"06\",\n        \"messagePartCount\": 1\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "42c44527-3b38-4b45-a363-13e67dce4703",
+              "name": "Not found",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages",
+                    ":messageId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "messageId",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:32:39 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Vary",
+                  "value": "Accept-Encoding",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Encoding",
+                  "value": "gzip",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Transfer-Encoding",
+                  "value": "chunked",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"errors\": [\n    {\n      \"code\": 20,\n      \"description\": \"message not found\",\n      \"parameter\": null\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a4be53b7-fae3-4a53-a606-4d5c5b1ab9bc",
+          "name": "Delete message by ID",
+          "request": {
+            "name": "Delete message by ID",
+            "description": {},
+            "url": {
+              "path": [
+                "messages",
+                ":messageId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "messageId",
+                  "description": "(Required) "
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "50f6bfdd-7e6a-402d-8bfb-d617527e6d9c",
+              "name": "No Content",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages",
+                    ":messageId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "messageId",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "No Content",
+              "code": 204,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:33:22 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                }
+              ],
+              "body": "string",
+              "cookie": [],
+              "_postman_previewlanguage": "text"
+            },
+            {
+              "id": "9407b908-7097-4a5d-ae10-082fb2ac6745",
+              "name": "Not found",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "messages",
+                    ":messageId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "messageId",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: apikey",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<API Key>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "disabled": false,
+                  "key": "Date",
+                  "value": "Fri, 01 Jul 2022 16:33:02 GMT",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Vary",
+                  "value": "Accept-Encoding",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Headers",
+                  "value": "Authorization, Content-Type",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "*",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Pragma",
+                  "value": "no-cache",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Expires",
+                  "value": "9762",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Cache-Control",
+                  "value": "must-revalidate, post-check=0, pre-check=0",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Content-Encoding",
+                  "value": "gzip",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "Transfer-Encoding",
+                  "value": "chunked",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"errors\": [\n    {\n      \"code\": 20,\n      \"description\": \"message not found\",\n      \"parameter\": null\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://faq.messagebird.com",
+      "key": "baseUrl"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "Authorization"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}"
+      },
+      {
+        "key": "in",
+        "value": "header"
+      }
+    ]
+  },
+  "info": {
+    "_postman_id": "1fd7c219-3f5d-4cc2-a536-183f617a5d07",
+    "name": "Bird FAQ SMS Messaging API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "The MessageBird FAQ API enables answering questions from an FAQ dataset. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. FAQ datasets are created by giving multiple variations of questions that correspond to an answer. The API applies machine learning to generalize from the questions and answers so that unseen questions are automatically mapped to the right answer.\n\n\nContact Support:\n Name: Bird Support",
+      "type": "text/plain"
+    }
+  }
+}

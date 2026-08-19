@@ -1,0 +1,64 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird FAQ NamedEntityRecognition API",
+    "version": "1.0.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "NamedEntityRecognition",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Extract named entities from a phrase",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://faq.messagebird.com/api/v1/predict-entities",
+            "body": {
+              "type": "json",
+              "data": "{}"
+            },
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Extracts named entities from a phrase. If no entities can be found, returns an empty collection. Each entity contains one or more (possibly ambiguous) interpretations. You can limit the entity types to search for by explicitly providing them. If no language is specified, the API will try to infer it automatically.\n"
+        },
+        {
+          "info": {
+            "name": "Get supported languages",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://faq.messagebird.com/api/v1/supported-languages",
+            "auth": {
+              "type": "apikey",
+              "key": "Authorization",
+              "value": "{{Authorization}}",
+              "placement": "header"
+            }
+          },
+          "docs": "Lists the supported entity types per language."
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

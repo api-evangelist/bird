@@ -1,0 +1,106 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "Bird Channels Conversations API",
+    "version": "1.0"
+  },
+  "request": {
+    "auth": {
+      "type": "apikey",
+      "key": "Authorization",
+      "value": "{{Authorization}}",
+      "placement": "header"
+    }
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Conversations",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Create a conversation",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/:workspaceId/conversations",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Create a conversation"
+        },
+        {
+          "info": {
+            "name": "Send a conversation message",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://api.bird.com/workspaces/:workspaceId/conversations/:conversationId/messages",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              },
+              {
+                "name": "conversationId",
+                "value": "",
+                "type": "path"
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Send a conversation message"
+        },
+        {
+          "info": {
+            "name": "Get a conversation message",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://api.bird.com/workspaces/:workspaceId/conversations/:conversationId/messages/:messageId",
+            "params": [
+              {
+                "name": "workspaceId",
+                "value": "",
+                "type": "path",
+                "description": "Bird workspace identifier."
+              },
+              {
+                "name": "conversationId",
+                "value": "",
+                "type": "path"
+              },
+              {
+                "name": "messageId",
+                "value": "",
+                "type": "path"
+              }
+            ]
+          },
+          "docs": "Get a conversation message"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}
