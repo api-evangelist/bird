@@ -109,6 +109,11 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Account
+  - Organization
+  - Workspaces
+  - User
+  tags_raw:
   - Accounts
   - Organizations
   - Workspaces
@@ -149,6 +154,8 @@ apis:
   humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
   baseURL: https://api.bird.com
   tags:
+  - Language Detection
+  tags_raw:
   - LanguageDetection
   properties:
   - type: OpenAPI
@@ -161,6 +168,8 @@ apis:
   humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
   baseURL: https://api.bird.com
   tags:
+  - Named Entity Recognition
+  tags_raw:
   - NamedEntityRecognition
   properties:
   - type: OpenAPI
