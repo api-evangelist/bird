@@ -3,6 +3,18 @@ description: Bird (formerly MessageBird) is an omnichannel customer communicatio
   APIs for email, SMS, WhatsApp, RCS, push notifications, voice, and data management. Trusted by more
   than 450,000 developers, Bird provides enterprise-grade connectivity through a global carrier network
   alongside a full customer engagement and marketing automation suite.
+deliveryModel:
+  model: saas
+  open_source: false
+  commercial: true
+  callable_host: true
+  label: Hosted service · you call their endpoint
+  confidence: high
+  source:
+  - openapi
+  - pricing
+  generated: '2026-08-28'
+  method: derived
 accessModel:
   pricing: enterprise
   onboarding: self-serve
