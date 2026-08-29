@@ -1,6 +1,6 @@
-openapi: 3.0.1
+openapi: 3.2.0
 info:
-  title: Bird Channels Contacts API
+  title: Bird Contacts API
   description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
   termsOfService: https://bird.com/legal/terms-of-service
   contact:
@@ -110,46 +110,7 @@ paths:
         '204':
           description: No Content
 components:
-  parameters:
-    WorkspaceId:
-      name: workspaceId
-      in: path
-      required: true
-      description: Bird workspace identifier.
-      schema:
-        type: string
-    ContactId:
-      name: contactId
-      in: path
-      required: true
-      schema:
-        type: string
   schemas:
-    ContactList:
-      type: object
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Contact'
-        nextPageToken:
-          type: string
-    CreateContact:
-      type: object
-      properties:
-        displayName:
-          type: string
-        identifiers:
-          type: array
-          items:
-            type: object
-            properties:
-              key:
-                type: string
-              value:
-                type: string
-        attributes:
-          type: object
     Contact:
       type: object
       properties:
@@ -166,6 +127,45 @@ components:
         createdAt:
           type: string
           format: date-time
+    CreateContact:
+      type: object
+      properties:
+        displayName:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+        attributes:
+          type: object
+    ContactList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        nextPageToken:
+          type: string
+  parameters:
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
   securitySchemes:
     AccessKey:
       type: apiKey

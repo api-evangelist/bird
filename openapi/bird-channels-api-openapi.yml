@@ -1,4 +1,4 @@
-openapi: 3.0.1
+openapi: 3.2.0
 info:
   title: Bird Channels API
   description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
@@ -79,6 +79,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Channel'
 components:
+  schemas:
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+        connectorId:
+          type: string
+    ChannelList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+        nextPageToken:
+          type: string
+    CreatePresignedUpload:
+      type: object
+      required:
+      - contentType
+      properties:
+        contentType:
+          type: string
+    PresignedUpload:
+      type: object
+      properties:
+        mediaUrl:
+          type: string
+        uploadUrl:
+          type: string
+        uploadMethod:
+          type: string
+        uploadFormData:
+          type: object
   parameters:
     ChannelId:
       name: channelId
@@ -94,47 +135,6 @@ components:
       description: Bird workspace identifier.
       schema:
         type: string
-  schemas:
-    ChannelList:
-      type: object
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Channel'
-        nextPageToken:
-          type: string
-    PresignedUpload:
-      type: object
-      properties:
-        mediaUrl:
-          type: string
-        uploadUrl:
-          type: string
-        uploadMethod:
-          type: string
-        uploadFormData:
-          type: object
-    CreatePresignedUpload:
-      type: object
-      required:
-      - contentType
-      properties:
-        contentType:
-          type: string
-    Channel:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        platform:
-          type: string
-        status:
-          type: string
-        connectorId:
-          type: string
   securitySchemes:
     AccessKey:
       type: apiKey

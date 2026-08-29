@@ -1,7 +1,7 @@
-openapi: 3.0.0
+openapi: 3.2.0
 info:
-  title: Bird FAQ Intent API
-  description: 'The MessageBird FAQ API enables answering questions from an FAQ dataset. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. FAQ datasets are created by giving multiple variations of questions that correspond to an answer. The API applies machine learning to generalize from the questions and answers so that unseen questions are automatically mapped to the right answer.
+  title: Bird Intent API
+  description: 'The MessageBird Intent API enables predicting intents from a given phrase using a machine learning model trained on your datasets. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. Intent recognition groups phrases from incoming messages — for example "hi" and "hello" both express a greeting intent. The API applies machine learning to generalize from phrases so that unseen phrases are automatically mapped to the right intent.
 
     '
   version: 1.0.0
@@ -9,7 +9,7 @@ info:
     name: Bird Support
     url: https://bird.com/en-us/contact
 servers:
-- url: https://faq.messagebird.com
+- url: https://intent.messagebird.com
 security:
 - AccessKey: []
 tags:
@@ -177,57 +177,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    PredictIntentResponse:
-      type: object
-      description: A response for predicting an intent from a phrase and a dataset ID.
-      properties:
-        intent:
-          type: string
-          example: order
-          description: The intent that is predicted for the given phrase.
-        intentPredicted:
-          type: boolean
-          example: true
-          description: 'Boolean indicating an intent was predicted. If false the phrase could not be matched with an intent.
-
-            '
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-    LanguageList:
-      type: object
-      description: List of recognized languages.
-      properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Language'
-          description: The collection of languages.
-    Language:
-      type: object
-      description: Language that was detected from the given phrase.
-      properties:
-        iso6393Code:
-          type: string
-          example: nld
-          description: The ISO-639-3 code of the language.
-        name:
-          type: string
-          example: Dutch
-          description: The English name of the language.
-        languageCode:
-          type: string
-          example: NLD
-          description: The ISO639-3 language code enum value.
     Dataset:
       type: object
       description: 'A collection of phrases with the corresponding intents. There can be multiple matching phrases per intent.
@@ -281,6 +230,45 @@ components:
 
             '
           readOnly: true
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    PredictIntentResponse:
+      type: object
+      description: A response for predicting an intent from a phrase and a dataset ID.
+      properties:
+        intent:
+          type: string
+          example: order
+          description: The intent that is predicted for the given phrase.
+        intentPredicted:
+          type: boolean
+          example: true
+          description: 'Boolean indicating an intent was predicted. If false the phrase could not be matched with an intent.
+
+            '
+    Language:
+      type: object
+      description: Language that was detected from the given phrase.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
     ListDatasetsResponse:
       type: object
       description: A response containing the Intent datasets that were queried.
@@ -298,6 +286,18 @@ components:
           type: string
           example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
           description: The cursor to obtain the next paginated collection of datasets.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
     PredictIntentRequest:
       type: object
       description: A request for predicting an intent from a phrase and a dataset ID.

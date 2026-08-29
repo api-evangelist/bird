@@ -1,22 +1,49 @@
 {
   "provider": "bird",
   "sources": [
-    "bird-faq-api-openapi.yml",
-    "bird-intent-api-openapi.yml",
-    "bird-languagedetection-api-openapi.yml",
-    "bird-namedentityrecognition-api-openapi.yml",
-    "bird-sms-messaging-api-openapi.yml"
+    "_original/bird-faq-openapi.yml",
+    "_original/bird-intent-openapi.yml",
+    "_original/bird-language-detection-openapi.yml",
+    "_original/bird-ner-openapi.yml",
+    "_original/bird-openapi.yml",
+    "_original/bird-sms-openapi.yml"
   ],
   "outputs": [
     "bird-faq-api-openapi.yml",
     "bird-intent-api-openapi.yml",
     "bird-languagedetection-api-openapi.yml",
     "bird-namedentityrecognition-api-openapi.yml",
+    "bird-channels-api-openapi.yml",
+    "bird-contacts-api-openapi.yml",
+    "bird-conversations-api-openapi.yml",
+    "bird-legacy-messagebird-api-openapi.yml",
+    "bird-messaging-api-openapi.yml",
+    "bird-numbers-api-openapi.yml",
     "bird-sms-messaging-api-openapi.yml"
   ],
   "archived": [],
   "errors": [],
   "warnings": [],
-  "notes": [],
-  "skipped": []
+  "notes": [
+    "sourced from openapi/_original/ (6 archived document(s)); previously refined output at the top level was skipped rather than re-split",
+    "bird-faq-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
+    "bird-intent-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
+    "bird-language-detection-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
+    "bird-ner-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
+    "bird-openapi.yml: upgraded openapi 3.0.1 -> OpenAPI 3.2.0",
+    "bird-sms-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0"
+  ],
+  "skipped": [
+    "bird-channels-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-contacts-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-conversations-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-faq-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-intent-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-languagedetection-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-legacy-messagebird-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-messaging-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-namedentityrecognition-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-numbers-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-sms-messaging-api-openapi.yml: previously refined output, superseded by openapi/_original/"
+  ]
 }

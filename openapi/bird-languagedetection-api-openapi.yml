@@ -1,7 +1,7 @@
-openapi: 3.0.0
+openapi: 3.2.0
 info:
-  title: Bird FAQ LanguageDetection API
-  description: 'The MessageBird FAQ API enables answering questions from an FAQ dataset. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. FAQ datasets are created by giving multiple variations of questions that correspond to an answer. The API applies machine learning to generalize from the questions and answers so that unseen questions are automatically mapped to the right answer.
+  title: Bird Language Detection API
+  description: 'The MessageBird Language Detection API detects the language of a given phrase. It assumes the given phrase is written in a single language. Language detection works particularly well for longer texts. This API uses the ISO-639-3 language code standard and supports over 180 languages.
 
     '
   version: 1.0.0
@@ -9,7 +9,7 @@ info:
     name: Bird Support
     url: https://bird.com/en-us/contact
 servers:
-- url: https://faq.messagebird.com
+- url: https://language-detection.messagebird.com
 security:
 - AccessKey: []
 tags:
@@ -78,29 +78,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    PredictLanguageResponse:
-      type: object
-      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
-
-        '
-      properties:
-        language:
-          $ref: '#/components/schemas/Language'
-          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
-
-            '
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
     LanguageList:
       type: object
       description: List of supported languages.
@@ -123,6 +100,17 @@ components:
           - iso6393Code: zho
             languageCode: ZHO
             name: Chinese
+    PredictLanguageResponse:
+      type: object
+      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
+
+        '
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
+
+            '
     Language:
       type: object
       description: Language that was detected from the given phrase.
@@ -139,6 +127,18 @@ components:
           type: string
           example: NLD
           description: The ISO639-3 language code enum value.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
     PredictLanguageRequest:
       type: object
       description: A request for predicting the language from a phrase.

@@ -1,7 +1,7 @@
-openapi: 3.0.0
+openapi: 3.2.0
 info:
-  title: Bird FAQ NamedEntityRecognition API
-  description: 'The MessageBird FAQ API enables answering questions from an FAQ dataset. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. FAQ datasets are created by giving multiple variations of questions that correspond to an answer. The API applies machine learning to generalize from the questions and answers so that unseen questions are automatically mapped to the right answer.
+  title: Bird Named Entity Recognition API
+  description: 'The MessageBird Named Entity Recognition (NER) API extracts and parses a fixed set of entities from incoming phrases. A phrase is usually the text from an incoming message of your customer. An entity contains structured information such as person names, time, durations, locations, etc. Going from an unstructured phrase to structured data is helpful for building intelligent conversational systems such as chatbots.
 
     '
   version: 1.0.0
@@ -9,7 +9,7 @@ info:
     name: Bird Support
     url: https://bird.com/en-us/contact
 servers:
-- url: https://faq.messagebird.com
+- url: https://ner.messagebird.com
 security:
 - AccessKey: []
 tags:
@@ -78,77 +78,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    ListSupportedLanguagesResponse:
-      type: object
-      description: A response containing the supported languages and their entity types.
-      properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/SupportedLanguageEntry'
-          description: The collection of supported languages with their entity types.
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-    Entity:
-      type: object
-      description: A recognized named entity with one or more possible interpretations.
-      properties:
-        entityType:
-          type: string
-          example: LOCATION
-          description: The type of the recognized entity.
-        text:
-          type: string
-          example: Amsterdam
-          description: The original text span from the phrase.
-        startIndex:
-          type: integer
-          example: 22
-          description: The start character index of the entity in the phrase.
-        endIndex:
-          type: integer
-          example: 31
-          description: The end character index (exclusive) of the entity in the phrase.
-        values:
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityValue'
-          description: 'One or more possible interpretations of this entity. Most recognized entities will contain only one interpretation.
-
-            '
-    EntityValue:
-      type: object
-      description: A structured value for a recognized entity.
-      properties:
-        type:
-          type: string
-          example: LOCATION
-          description: The entity type.
-        value:
-          type: object
-          additionalProperties: true
-          description: The structured value of the entity (varies by type).
-    PredictEntitiesResponse:
-      type: object
-      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
-
-        '
-      properties:
-        entities:
-          type: array
-          items:
-            $ref: '#/components/schemas/Entity'
-          description: The collection of recognized named entities.
     SupportedLanguageEntry:
       type: object
       description: A language and its supported entity types.
@@ -196,6 +125,77 @@ components:
           description: 'The entity types to extract. If not specified, all entity types will be extracted.
 
             '
+    ListSupportedLanguagesResponse:
+      type: object
+      description: A response containing the supported languages and their entity types.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportedLanguageEntry'
+          description: The collection of supported languages with their entity types.
+    PredictEntitiesResponse:
+      type: object
+      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
+
+        '
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+          description: The collection of recognized named entities.
+    Entity:
+      type: object
+      description: A recognized named entity with one or more possible interpretations.
+      properties:
+        entityType:
+          type: string
+          example: LOCATION
+          description: The type of the recognized entity.
+        text:
+          type: string
+          example: Amsterdam
+          description: The original text span from the phrase.
+        startIndex:
+          type: integer
+          example: 22
+          description: The start character index of the entity in the phrase.
+        endIndex:
+          type: integer
+          example: 31
+          description: The end character index (exclusive) of the entity in the phrase.
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityValue'
+          description: 'One or more possible interpretations of this entity. Most recognized entities will contain only one interpretation.
+
+            '
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    EntityValue:
+      type: object
+      description: A structured value for a recognized entity.
+      properties:
+        type:
+          type: string
+          example: LOCATION
+          description: The entity type.
+        value:
+          type: object
+          additionalProperties: true
+          description: The structured value of the entity (varies by type).
   securitySchemes:
     AccessKey:
       type: apiKey

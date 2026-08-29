@@ -1,6 +1,6 @@
-openapi: 3.0.1
+openapi: 3.2.0
 info:
-  title: Bird Channels Legacy MessageBird API
+  title: Legacy MessageBird API
   description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
   termsOfService: https://bird.com/legal/terms-of-service
   contact:
@@ -141,6 +141,21 @@ paths:
                 type: object
 components:
   schemas:
+    LegacyCreateMessage:
+      type: object
+      required:
+      - originator
+      - recipients
+      - body
+      properties:
+        originator:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        body:
+          type: string
     LegacyMessage:
       type: object
       properties:
@@ -157,21 +172,6 @@ components:
         createdDatetime:
           type: string
           format: date-time
-    LegacyCreateMessage:
-      type: object
-      required:
-      - originator
-      - recipients
-      - body
-      properties:
-        originator:
-          type: string
-        recipients:
-          type: array
-          items:
-            type: string
-        body:
-          type: string
   securitySchemes:
     AccessKey:
       type: apiKey

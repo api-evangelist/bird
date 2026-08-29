@@ -1,15 +1,13 @@
-openapi: 3.0.0
+openapi: 3.2.0
 info:
-  title: Bird FAQ SMS Messaging API
-  description: 'The MessageBird FAQ API enables answering questions from an FAQ dataset. Datasets can be created and managed using the dataset section of the MessageBird Dashboard. FAQ datasets are created by giving multiple variations of questions that correspond to an answer. The API applies machine learning to generalize from the questions and answers so that unseen questions are automatically mapped to the right answer.
-
-    '
+  title: MessageBird SMS SMS Messaging API
   version: 1.0.0
-  contact:
-    name: Bird Support
-    url: https://bird.com/en-us/contact
+  description: 'MessageBird’s SMS API allows you to send and receive SMS messages to and from any country in the world through a REST API. Each message is identified by a unique random ID so that users can always check the status of a message using the given endpoint.
+
+
+    The SMS API uses HTTP verbs and a RESTful endpoint structure with an access key that is used as the API Authorization. Request and response payloads are formatted as JSON using UTF-8 encoding and URL encoded values.'
 servers:
-- url: https://faq.messagebird.com
+- url: https://rest.messagebird.com/messages
 security:
 - AccessKey: []
 tags:
@@ -1112,9 +1110,7 @@ components:
       type: apiKey
       name: Authorization
       in: header
-      description: 'Use the word "AccessKey" followed by your API Key. Example: "AccessKey w223tVQTcLO4ufBTuJxjvzwJ22"
-
-        '
+      description: 'Use word "AccessKey" + API Key. Example value: "AccessKey w223tVQTcLO4ufBTuJxjvzwJ22"'
 externalDocs:
   description: Find our official documentation in the MessageBird Docs
   url: https://developers.messagebird.com/api
