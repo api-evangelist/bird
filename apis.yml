@@ -274,6 +274,9 @@ apis:
   - type: OpenAPI
     url: openapi/bird-numbers-api-openapi.yml
 common:
+- type: CapabilityMap
+  url: capabilities/bird-capability-edges.yml
+  name: Bird Business Capability Map
 - type: AgenticAccess
   url: agentic-access/bird-agentic-access.yml
 - type: TrustCenter
