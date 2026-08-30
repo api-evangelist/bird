@@ -171,7 +171,7 @@ apis:
   humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
   baseURL: https://api.bird.com
   tags:
-  - Language Detection
+  - LanguageDetection
   tags_raw:
   - LanguageDetection
   properties:
@@ -185,7 +185,7 @@ apis:
   humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
   baseURL: https://api.bird.com
   tags:
-  - Named Entity Recognition
+  - NamedEntityRecognition
   tags_raw:
   - NamedEntityRecognition
   properties:
