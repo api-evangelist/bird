@@ -166,34 +166,6 @@ apis:
     url: openapi/bird-intent-api-openapi.yml
   - type: Documentation
     url: https://docs.bird.com/api/channels-api/api-reference/messaging
-- aid: bird:bird-languagedetection-api
-  name: Bird LanguageDetection API
-  description: Language detection operations.
-  humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
-  baseURL: https://api.bird.com
-  tags:
-  - Language Detection
-  tags_raw:
-  - LanguageDetection
-  properties:
-  - type: OpenAPI
-    url: openapi/bird-languagedetection-api-openapi.yml
-  - type: Documentation
-    url: https://docs.bird.com/api/channels-api/api-reference/messaging
-- aid: bird:bird-namedentityrecognition-api
-  name: Bird NamedEntityRecognition API
-  description: Named entity recognition operations.
-  humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
-  baseURL: https://api.bird.com
-  tags:
-  - Named Entity Recognition
-  tags_raw:
-  - NamedEntityRecognition
-  properties:
-  - type: OpenAPI
-    url: openapi/bird-namedentityrecognition-api-openapi.yml
-  - type: Documentation
-    url: https://docs.bird.com/api/channels-api/api-reference/messaging
 - aid: bird:bird-sms-messaging-api
   name: Bird SMS Messaging API
   description: >-
@@ -274,6 +246,30 @@ apis:
   properties:
   - type: OpenAPI
     url: openapi/bird-numbers-api-openapi.yml
+- aid: bird:bird-language-detection-api
+  name: Bird Language Detection API
+  description: Language detection operations.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - Language Detection
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-language-detection-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+- aid: bird:bird-named-entity-recognition-api
+  name: Bird Named Entity Recognition API
+  description: Named entity recognition operations.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - Named Entity Recognition
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-named-entity-recognition-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
 common:
 - type: CapabilityMap
   url: capabilities/bird-capability-edges.yml
