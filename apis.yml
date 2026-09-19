@@ -109,6 +109,11 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Customer Journey
+  - Automation
+  - Flow
+  - Engagement
+  tags_raw:
   - Customer Journeys
   - Automation
   - Flows
@@ -129,7 +134,7 @@ apis:
   tags:
   - Account
   - Organization
-  - Workspaces
+  - Workspace
   - User
   tags_raw:
   - Accounts
@@ -160,6 +165,8 @@ apis:
   humanURL: https://docs.bird.com/api/channels-api/api-reference/messaging
   baseURL: https://api.bird.com
   tags:
+  - Intents
+  tags_raw:
   - Intent
   properties:
   - type: OpenAPI
