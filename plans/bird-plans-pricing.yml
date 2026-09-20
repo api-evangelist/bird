@@ -11,6 +11,10 @@ provenance:
   grounding: every price_text was found verbatim in the fetched page text
 audience: developer-api
 pricing_basis: usage-other
+delivery:
+  delivery: managed
+  method: keyword-prefilter
+  read: '2026-09-20'
 published: false
 note: No numeric price is published on the pricing page; Pricing overview page states products are priced
   by volume (pay as you go, per message/minute/request, plan + usage for Email, per number each month
