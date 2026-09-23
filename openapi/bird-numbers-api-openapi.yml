@@ -70,15 +70,6 @@ paths:
                 $ref: '#/components/schemas/NumberLookup'
 components:
   schemas:
-    NumberList:
-      type: object
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Number'
-        nextPageToken:
-          type: string
     NumberLookup:
       type: object
       properties:
@@ -103,6 +94,15 @@ components:
           type: array
           items:
             type: string
+    NumberList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Number'
+        nextPageToken:
+          type: string
   parameters:
     WorkspaceId:
       name: workspaceId

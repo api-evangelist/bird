@@ -1,0 +1,31 @@
+# Front Door AI Index — bird — 2026-09-17
+# AI vocabulary counted on the provider's root page. Generated; do not edit.
+# `score` is null unless ownership is `own` — see front_door_ai.py.
+front_door_ai:
+  slug: bird
+  lexicon_version: '1.0'
+  probed_at: '2026-09-17'
+  host: bird.com
+  final_host: bird.com
+  ownership: own
+  owner: bird
+  shares_host_with: null
+  inherited_from: null
+  verdict: scored
+  score: 12
+  host_score: 12
+  density: 9.0
+  words: 1334
+  tiers:
+    agentic: 7
+    core: 2
+    model: 3
+  ambiguous: 9
+  top_terms:
+    agent: 8
+    MCP: 4
+    Claude: 3
+    AI agent: 2
+    AI: 2
+    prompts: 1
+    smart: 1

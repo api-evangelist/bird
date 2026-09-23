@@ -337,6 +337,8 @@ paths:
                 - code: 9
                   description: 'no (correct) recipients found. Note: during your test period you can only send messages to your own number (+380999999999).'
                   parameter: recipient
+      operationId: postMessages
+      x-operation-id-source: derived
     get:
       tags:
       - SMS Messaging
@@ -824,6 +826,8 @@ paths:
                       next: null
                       last: null
                     items: []
+      operationId: getMessages
+      x-operation-id-source: derived
   /messages/{messageId}:
     get:
       tags:
@@ -989,6 +993,8 @@ paths:
                 - code: 20
                   description: message not found
                   parameter: null
+      operationId: getMessagesByMessageId
+      x-operation-id-source: derived
     delete:
       tags:
       - SMS Messaging
@@ -1104,6 +1110,8 @@ paths:
                 - code: 20
                   description: message not found
                   parameter: null
+      operationId: deleteMessagesByMessageId
+      x-operation-id-source: derived
 components:
   securitySchemes:
     AccessKey:

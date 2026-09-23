@@ -1,9 +1,7 @@
 openapi: 3.2.0
 info:
   title: Bird Named Entity Recognition API
-  description: 'The MessageBird Named Entity Recognition (NER) API extracts and parses a fixed set of entities from incoming phrases. A phrase is usually the text from an incoming message of your customer. An entity contains structured information such as person names, time, durations, locations, etc. Going from an unstructured phrase to structured data is helpful for building intelligent conversational systems such as chatbots.
-
-    '
+  description: The MessageBird Named Entity Recognition (NER) API extracts and parses a fixed set of entities from incoming phrases. A phrase is usually the text from an incoming message of your customer. An entity contains structured information such as person names, time, durations, locations, etc. Going from an unstructured phrase to structured data is helpful for building intelligent conversational systems such as chatbots.
   version: 1.0.0
   contact:
     name: Bird Support
@@ -13,17 +11,15 @@ servers:
 security:
 - AccessKey: []
 tags:
-- name: NamedEntityRecognition
+- name: Named Entity Recognition
   description: Named entity recognition operations.
 paths:
   /api/v1/predict-entities:
     post:
       tags:
-      - NamedEntityRecognition
+      - Named Entity Recognition
       summary: Extract named entities from a phrase
-      description: 'Extracts named entities from a phrase. If no entities can be found, returns an empty collection. Each entity contains one or more (possibly ambiguous) interpretations. You can limit the entity types to search for by explicitly providing them. If no language is specified, the API will try to infer it automatically.
-
-        '
+      description: Extracts named entities from a phrase. If no entities can be found, returns an empty collection. Each entity contains one or more (possibly ambiguous) interpretations. You can limit the entity types to search for by explicitly providing them. If no language is specified, the API will try to infer it automatically.
       operationId: NamedEntityRecognition_PredictEntities
       security:
       - AccessKey: []
@@ -53,7 +49,7 @@ paths:
   /api/v1/supported-languages:
     get:
       tags:
-      - NamedEntityRecognition
+      - Named Entity Recognition
       summary: Get supported languages
       description: Lists the supported entity types per language.
       operationId: NamedEntityRecognition_ListSupportedLanguages
@@ -78,53 +74,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    SupportedLanguageEntry:
-      type: object
-      description: A language and its supported entity types.
-      properties:
-        languageCode:
-          type: string
-          example: ENG
-          description: The ISO-639-3 language code.
-        languageName:
-          type: string
-          example: English
-          description: The English name of the language.
-        supportedEntityTypes:
-          type: array
-          items:
-            type: string
-          example:
-          - DATE_TIME
-          - LOCATION
-          - PERSON
-          description: The entity types supported for this language.
-    PredictEntitiesRequest:
-      type: object
-      description: A request for extracting named entities from a phrase.
-      required:
-      - phrase
-      properties:
-        phrase:
-          type: string
-          example: I would like to go to Amsterdam on Sunday at 3pm for 2 hours.
-          description: The phrase from which to extract named entities.
-        language:
-          type: string
-          example: ENG
-          description: 'The ISO-639-3 language code of the phrase. If not specified, the API will try to infer the language automatically.
-
-            '
-        entityTypes:
-          type: array
-          items:
-            type: string
-          example:
-          - LOCATION
-          - DATE_TIME
-          description: 'The entity types to extract. If not specified, all entity types will be extracted.
-
-            '
     ListSupportedLanguagesResponse:
       type: object
       description: A response containing the supported languages and their entity types.
@@ -134,17 +83,18 @@ components:
           items:
             $ref: '#/components/schemas/SupportedLanguageEntry'
           description: The collection of supported languages with their entity types.
-    PredictEntitiesResponse:
+    Error:
       type: object
-      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
-
-        '
       properties:
-        entities:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
           type: array
           items:
-            $ref: '#/components/schemas/Entity'
-          description: The collection of recognized named entities.
+            type: object
+            additionalProperties: true
     Entity:
       type: object
       description: A recognized named entity with one or more possible interpretations.
@@ -172,18 +122,27 @@ components:
           description: 'One or more possible interpretations of this entity. Most recognized entities will contain only one interpretation.
 
             '
-    Error:
+    SupportedLanguageEntry:
       type: object
+      description: A language and its supported entity types.
       properties:
-        code:
-          type: integer
-        message:
+        languageCode:
           type: string
-        details:
+          example: ENG
+          description: The ISO-639-3 language code.
+        languageName:
+          type: string
+          example: English
+          description: The English name of the language.
+        supportedEntityTypes:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            type: string
+          example:
+          - DATE_TIME
+          - LOCATION
+          - PERSON
+          description: The entity types supported for this language.
     EntityValue:
       type: object
       description: A structured value for a recognized entity.
@@ -196,6 +155,43 @@ components:
           type: object
           additionalProperties: true
           description: The structured value of the entity (varies by type).
+    PredictEntitiesRequest:
+      type: object
+      description: A request for extracting named entities from a phrase.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: I would like to go to Amsterdam on Sunday at 3pm for 2 hours.
+          description: The phrase from which to extract named entities.
+        language:
+          type: string
+          example: ENG
+          description: 'The ISO-639-3 language code of the phrase. If not specified, the API will try to infer the language automatically.
+
+            '
+        entityTypes:
+          type: array
+          items:
+            type: string
+          example:
+          - LOCATION
+          - DATE_TIME
+          description: 'The entity types to extract. If not specified, all entity types will be extracted.
+
+            '
+    PredictEntitiesResponse:
+      type: object
+      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
+
+        '
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+          description: The collection of recognized named entities.
   securitySchemes:
     AccessKey:
       type: apiKey

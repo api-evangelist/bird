@@ -102,18 +102,6 @@ components:
           properties:
             text:
               type: string
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
     CreateMessage:
       type: object
       required:
@@ -130,15 +118,18 @@ components:
           type: array
           items:
             type: string
-    MessageList:
+    Receiver:
       type: object
       properties:
-        results:
+        contacts:
           type: array
           items:
-            $ref: '#/components/schemas/Message'
-        nextPageToken:
-          type: string
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
     Message:
       type: object
       properties:
@@ -160,19 +151,28 @@ components:
         createdAt:
           type: string
           format: date-time
+    MessageList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        nextPageToken:
+          type: string
   parameters:
-    ChannelId:
-      name: channelId
-      in: path
-      required: true
-      description: Channel identifier within the workspace.
-      schema:
-        type: string
     WorkspaceId:
       name: workspaceId
       in: path
       required: true
       description: Bird workspace identifier.
+      schema:
+        type: string
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      description: Channel identifier within the workspace.
       schema:
         type: string
   securitySchemes:

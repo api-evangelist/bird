@@ -110,23 +110,21 @@ paths:
         '204':
           description: No Content
 components:
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
-    Contact:
-      type: object
-      properties:
-        id:
-          type: string
-        displayName:
-          type: string
-        identifiers:
-          type: array
-          items:
-            type: object
-        attributes:
-          type: object
-        createdAt:
-          type: string
-          format: date-time
     CreateContact:
       type: object
       properties:
@@ -143,6 +141,22 @@ components:
                 type: string
         attributes:
           type: object
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+        attributes:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
     ContactList:
       type: object
       properties:
@@ -152,20 +166,6 @@ components:
             $ref: '#/components/schemas/Contact'
         nextPageToken:
           type: string
-  parameters:
-    ContactId:
-      name: contactId
-      in: path
-      required: true
-      schema:
-        type: string
-    WorkspaceId:
-      name: workspaceId
-      in: path
-      required: true
-      description: Bird workspace identifier.
-      schema:
-        type: string
   securitySchemes:
     AccessKey:
       type: apiKey

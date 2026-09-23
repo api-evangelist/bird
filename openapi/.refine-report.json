@@ -21,7 +21,9 @@
     "bird-numbers-api-openapi.yml",
     "bird-sms-messaging-api-openapi.yml"
   ],
-  "archived": [],
+  "archived": [
+    "deleted 2 superseded output(s) from the previous generation"
+  ],
   "errors": [],
   "warnings": [],
   "notes": [
@@ -31,7 +33,9 @@
     "bird-language-detection-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
     "bird-ner-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
     "bird-openapi.yml: upgraded openapi 3.0.1 -> OpenAPI 3.2.0",
-    "bird-sms-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0"
+    "bird-sms-openapi.yml: upgraded openapi 3.0.0 -> OpenAPI 3.2.0",
+    "superseded outputs removed: bird-language-detection-api-openapi.yml, bird-named-entity-recognition-api-openapi.yml",
+    "apis.yml register: written (+2 apis, 16 total)"
   ],
   "skipped": [
     "bird-channels-api-openapi.yml: previously refined output, superseded by openapi/_original/",
@@ -39,10 +43,10 @@
     "bird-conversations-api-openapi.yml: previously refined output, superseded by openapi/_original/",
     "bird-faq-api-openapi.yml: previously refined output, superseded by openapi/_original/",
     "bird-intent-api-openapi.yml: previously refined output, superseded by openapi/_original/",
-    "bird-languagedetection-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-language-detection-api-openapi.yml: previously refined output, superseded by openapi/_original/",
     "bird-legacy-messagebird-api-openapi.yml: previously refined output, superseded by openapi/_original/",
     "bird-messaging-api-openapi.yml: previously refined output, superseded by openapi/_original/",
-    "bird-namedentityrecognition-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "bird-named-entity-recognition-api-openapi.yml: previously refined output, superseded by openapi/_original/",
     "bird-numbers-api-openapi.yml: previously refined output, superseded by openapi/_original/",
     "bird-sms-messaging-api-openapi.yml: previously refined output, superseded by openapi/_original/"
   ]

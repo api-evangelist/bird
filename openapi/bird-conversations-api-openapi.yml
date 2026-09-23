@@ -84,15 +84,6 @@ paths:
                 $ref: '#/components/schemas/Message'
 components:
   schemas:
-    CreateConversation:
-      type: object
-      properties:
-        channelId:
-          type: string
-        participants:
-          type: array
-          items:
-            type: object
     MessageBody:
       type: object
       properties:
@@ -108,18 +99,6 @@ components:
           properties:
             text:
               type: string
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
     CreateMessage:
       type: object
       required:
@@ -136,6 +115,39 @@ components:
           type: array
           items:
             type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
+    CreateConversation:
+      type: object
+      properties:
+        channelId:
+          type: string
+        participants:
+          type: array
+          items:
+            type: object
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        channelId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
     Message:
       type: object
       properties:
@@ -157,30 +169,18 @@ components:
         createdAt:
           type: string
           format: date-time
-    Conversation:
-      type: object
-      properties:
-        id:
-          type: string
-        status:
-          type: string
-        channelId:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
   parameters:
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
     WorkspaceId:
       name: workspaceId
       in: path
       required: true
       description: Bird workspace identifier.
-      schema:
-        type: string
-    ConversationId:
-      name: conversationId
-      in: path
-      required: true
       schema:
         type: string
   securitySchemes:

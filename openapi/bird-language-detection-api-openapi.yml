@@ -1,9 +1,7 @@
 openapi: 3.2.0
 info:
   title: Bird Language Detection API
-  description: 'The MessageBird Language Detection API detects the language of a given phrase. It assumes the given phrase is written in a single language. Language detection works particularly well for longer texts. This API uses the ISO-639-3 language code standard and supports over 180 languages.
-
-    '
+  description: The MessageBird Language Detection API detects the language of a given phrase. It assumes the given phrase is written in a single language. Language detection works particularly well for longer texts. This API uses the ISO-639-3 language code standard and supports over 180 languages.
   version: 1.0.0
   contact:
     name: Bird Support
@@ -13,17 +11,15 @@ servers:
 security:
 - AccessKey: []
 tags:
-- name: LanguageDetection
+- name: Language Detection
   description: Language detection operations.
 paths:
   /api/v1/predict-language:
     post:
       tags:
-      - LanguageDetection
+      - Language Detection
       summary: Predict language
-      description: 'Predicts the language for a given phrase. If the language could not be determined, it returns LANGUAGE_UNDETERMINED. Uses the ISO-639-3 standard.
-
-        '
+      description: Predicts the language for a given phrase. If the language could not be determined, it returns LANGUAGE_UNDETERMINED. Uses the ISO-639-3 standard.
       operationId: LanguageDetection_PredictLanguage
       security:
       - AccessKey: []
@@ -53,7 +49,7 @@ paths:
   /api/v1/supported-languages:
     get:
       tags:
-      - LanguageDetection
+      - Language Detection
       summary: Get supported languages
       description: Lists the languages supported by the Language Detection API.
       operationId: LanguageDetection_ListSupportedLanguages
@@ -78,6 +74,22 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
+    Language:
+      type: object
+      description: Language that was detected from the given phrase.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
     LanguageList:
       type: object
       description: List of supported languages.
@@ -100,33 +112,6 @@ components:
           - iso6393Code: zho
             languageCode: ZHO
             name: Chinese
-    PredictLanguageResponse:
-      type: object
-      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
-
-        '
-      properties:
-        language:
-          $ref: '#/components/schemas/Language'
-          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
-
-            '
-    Language:
-      type: object
-      description: Language that was detected from the given phrase.
-      properties:
-        iso6393Code:
-          type: string
-          example: nld
-          description: The ISO-639-3 code of the language.
-        name:
-          type: string
-          example: Dutch
-          description: The English name of the language.
-        languageCode:
-          type: string
-          example: NLD
-          description: The ISO639-3 language code enum value.
     Error:
       type: object
       properties:
@@ -149,6 +134,17 @@ components:
           type: string
           example: Dit is iets in het Nederlands
           description: The phrase for which to predict the language.
+    PredictLanguageResponse:
+      type: object
+      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
+
+        '
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
+
+            '
   securitySchemes:
     AccessKey:
       type: apiKey
