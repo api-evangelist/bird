@@ -1,0 +1,1154 @@
+openapi: 3.2.0
+info:
+  title: Bird Lookup API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: Lookup
+  description: Inspect a recipient before sending. Phone-number lookups return carrier, portability, number type, reachability, roaming, SIM-change, and fraud-risk data when requested. Email lookups return deliverability, confidence, failure reasons, and suggested corrections for likely misspellings.
+paths:
+  /v1/lookup/phone-number:
+    post:
+      operationId: createPhoneNumberLookup
+      x-snippet-key: lookup.phone_number
+      summary: Create a phone number lookup
+      description: 'Returns the number''s serving and issuing networks, porting state, country, and line type. The baseline fields are included in each lookup. Request additional `type` blocks for classification, presence, roaming, SIM-swap, porting-history, or credibility data. Each block reports its own `status`; only blocks with an `ok` status incur an additional charge.
+
+
+        This form keeps the number out of the URL. The URL form performs the same lookup but cannot use an idempotency key. With this form, reuse an `Idempotency-Key` to return the stored result without another lookup or charge.'
+      tags:
+      - Lookup
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneNumberLookupRequest'
+      responses:
+        '200':
+          description: Available network and number-intelligence information.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhoneNumberLookup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/lookup/phone-number/{number}:
+    get:
+      operationId: getPhoneNumberLookup
+      x-snippet-key: none
+      summary: Get a phone number lookup by URL
+      description: 'Performs the same lookup as Create a phone number lookup, with the number in the URL. The response includes the number''s serving and issuing networks, porting state, country, and line type. Repeat `type` to request additional blocks, such as `?type=classification&type=score`; only blocks with an `ok` status incur an additional charge.
+
+
+        Because the number is in the URL, it can appear in proxies, access logs, and browser history. This form does not accept an `Idempotency-Key`; each retry performs and charges for another lookup.'
+      tags:
+      - Lookup
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: number
+        in: path
+        required: true
+        description: The number to look up, in international format. The leading `+` is optional, and `00` works in its place, so `31612345678` and `+31612345678` are the same number, with nothing to percent-encode. If you do send the `+`, percent-encode it as `%2B` when your client does not do that for you.
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 20
+      - name: type
+        in: query
+        required: false
+        description: An additional data block to request. Repeat the parameter for multiple blocks; each block is billed separately only when its status is `ok`.
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/LookupProperty'
+      responses:
+        '200':
+          description: Available network and number-intelligence information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhoneNumberLookup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+  /v1/lookup/email:
+    post:
+      operationId: createEmailLookup
+      x-snippet-key: lookup.email
+      summary: Create an email address lookup
+      description: 'Returns a deliverability `result`, a `delivery_confidence` score, address characteristics, an undeliverable `reason`, and a suggested correction when available. `result` and `reason` are open vocabularies. Handle unknown values and use `delivery_confidence` as the stable fallback. Each completed lookup incurs the same charge regardless of its result.
+
+
+        This form keeps the address out of the URL. The URL form performs the same lookup but cannot use an idempotency key. With this form, reuse an `Idempotency-Key` to return the stored result without another lookup or charge.'
+      tags:
+      - Lookup
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailLookupRequest'
+      responses:
+        '200':
+          description: Available deliverability information about the address.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailLookup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/lookup/email/{address}:
+    get:
+      operationId: getEmailLookup
+      x-snippet-key: none
+      summary: Get an email address lookup by URL
+      description: 'Performs the same deliverability lookup as Create an email address lookup, with the address in the URL. The response includes a result, confidence score, address characteristics, failure reason, and suggested correction when available. Treat unknown `result` and `reason` values as valid additions.
+
+
+        Because the address is in the URL, it can appear in proxies, access logs, and browser history. This form does not accept an `Idempotency-Key`; each retry performs and charges for another lookup.'
+      tags:
+      - Lookup
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: address
+        in: path
+        required: true
+        description: The email address to look up. Percent-encode it, because a local part may legally contain characters a URL path reads as structure. The `@` itself is safe either way.
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 254
+      responses:
+        '200':
+          description: Available deliverability information about the address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailLookup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+components:
+  responses:
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+  schemas:
+    LookupPresence:
+      type: object
+      additionalProperties: false
+      description: 'Whether the number is live on its network right now. Returned when you
+
+        request the `presence` property.
+
+
+        The result reflects a real-time query to the network where the number is
+
+        registered.
+
+        '
+      required:
+      - status
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LookupPropertyStatus'
+          readOnly: true
+        reachable:
+          type: boolean
+          readOnly: true
+          description: 'Whether the number is registered on a network and able to receive traffic. A `false` value means the network answered and reported the number as currently unreachable. This differs from the API being unable to find out. Present only when `status` is `ok`.
+
+            '
+      example:
+        status: ok
+        reachable: true
+    LookupSimSwap:
+      type: object
+      additionalProperties: false
+      description: When the number's SIM last changed. Returned when you request the `sim_swap` property.
+      required:
+      - status
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LookupPropertyStatus'
+          readOnly: true
+        last_swapped_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the SIM was last changed. Absent when only a recency band is known.
+        min_days:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          description: The lower bound, in days, of how long ago the SIM was last changed. Networks that do not release an exact date report a band instead; absent when no lower bound is known.
+        max_days:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          description: The upper bound, in days, of how long ago the SIM was last changed. Absent when no upper bound is known; with a lower bound present, that means the change was at least `min_days` ago.
+      example:
+        status: ok
+        last_swapped_at: '2026-07-02T09:14:00Z'
+        min_days: 0
+        max_days: 7
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+    LookupPortingEvent:
+      type: object
+      additionalProperties: false
+      description: One recorded move of a number between networks.
+      required:
+      - occurred_at
+      - action
+      properties:
+        occurred_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the move was recorded, `null` when the record carries no date.
+        action:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: What the record describes, as the number's registry reports it. Registries use their own short codes rather than a shared vocabulary, so treat this as a label to display rather than a value to branch on.
+      example:
+        occurred_at: '2023-02-08T00:00:00Z'
+        action: A
+    LookupRoaming:
+      type: object
+      additionalProperties: false
+      description: Whether the number is roaming, and on which network. Returned when you request the `roaming` property.
+      required:
+      - status
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LookupPropertyStatus'
+          readOnly: true
+        is_roaming:
+          type: boolean
+          readOnly: true
+          description: Whether the number is currently roaming outside its home network. Present only when `status` is `ok`.
+        mcc:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The mobile country code of the visited network. Absent when the number is not roaming or the visited network is not reported.
+        mnc:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The mobile network code of the visited network. Absent when the number is not roaming or the visited network is not reported.
+      example:
+        status: ok
+        is_roaming: true
+        mcc: '262'
+        mnc: '01'
+    LookupPropertyStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - ok
+      - unavailable
+      - inconclusive
+      description: "How a requested property resolved.\n\n- `ok`: the property was answered and its value is in the response.\n- `unavailable`: no answer arrived, so the property adds nothing: its\n  block is `null`, or for `classification`, `line_type` retains the value\n  from the base lookup. The property is not billed.\n- `inconclusive`: an answer arrived but does not resolve the\n  property, either because the number is outside the coverage of the data\n  behind it or because the source returned a value this property does not\n  report. It is a real answer rather than a missing one, and it is not\n  billed either.\n\nOpen enum: further statuses may be added over time, so treat an unrecognized\nvalue as a future one rather than an error. Only `ok` carries a value and only\n`ok` is billed, so branching on `ok` and treating everything else as \"not\nanswered\" stays correct however the vocabulary grows.\n"
+      example: ok
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    LookupProperty:
+      type: string
+      minLength: 1
+      enum:
+      - classification
+      - porting
+      - presence
+      - roaming
+      - sim_swap
+      - score
+      description: "An intelligence property you can add to a base phone number lookup.\n\n- `classification`: the property resolves `line_type` to its precise\n  allocated service (premium rate, satellite, machine-to-machine,\n  payphone) where the base lookup only distinguishes broad categories.\n- `porting`: the property returns when the number last moved network and\n  its full porting record.\n- `presence`: the property reports whether the number is currently live\n  on the network.\n- `roaming`: the property reports whether it is roaming and on which\n  network.\n- `sim_swap`: the property returns when its SIM last changed.\n- `score`: the property returns a credibility score from 0 to 100.\n\nEach property you request is billed separately, and only when it is\ndelivered.\n"
+      example: classification
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    PhoneNumberLookup:
+      type: object
+      additionalProperties: false
+      description: 'Information about a phone number.
+
+
+        The number, its flags, and its line type are included in the base lookup and
+
+        are always present. The country and two networks are present when identified.
+
+        Each property you request through `type` is returned in a block with the same
+
+        name and its own `status`. A property you did not request is absent. A
+
+        property that could not be answered is present with only its `status`. Each
+
+        requested property is billed only when its status is `ok`.
+
+
+        Fields with no value are omitted rather than returned as `null`.
+
+        '
+      required:
+      - phone_number
+      - flags
+      - line_type
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The number that was looked up, in E.164 format.
+        country_code:
+          readOnly: true
+          description: The ISO 3166-1 alpha-2 country of the number. Absent when the number belongs to no single country, as a non-geographic range does.
+          oneOf:
+          - $ref: '#/components/schemas/CountryCode'
+          - type: 'null'
+        network_info:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/LookupNetworkInfo'
+          - type: 'null'
+          description: The network that serves the number today. Absent when no network could be identified.
+        original_network_info:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/LookupNetworkInfo'
+          - type: 'null'
+          description: The network that issued the number's range. It differs from `network_info` when the number has been ported. Absent when the issuing network could not be identified.
+        flags:
+          type: array
+          readOnly: true
+          description: Notable characteristics of the number. Empty when none apply.
+          items:
+            $ref: '#/components/schemas/LookupFlag'
+        line_type:
+          allOf:
+          - $ref: '#/components/schemas/LookupLineType'
+          readOnly: true
+        classification:
+          allOf:
+          - $ref: '#/components/schemas/LookupClassification'
+          readOnly: true
+          description: The allocated service of the number's range. Absent unless you requested the `classification` property.
+        presence:
+          allOf:
+          - $ref: '#/components/schemas/LookupPresence'
+          readOnly: true
+          description: Whether the number is live on its network. Absent unless you requested the `presence` property.
+        roaming:
+          allOf:
+          - $ref: '#/components/schemas/LookupRoaming'
+          readOnly: true
+          description: Whether the number is roaming. Absent unless you requested the `roaming` property.
+        sim_swap:
+          allOf:
+          - $ref: '#/components/schemas/LookupSimSwap'
+          readOnly: true
+          description: When the number's SIM last changed. Absent unless you requested the `sim_swap` property.
+        porting:
+          allOf:
+          - $ref: '#/components/schemas/LookupPorting'
+          readOnly: true
+          description: The number's porting record. Absent unless you requested the `porting` property.
+        score:
+          allOf:
+          - $ref: '#/components/schemas/LookupScore'
+          readOnly: true
+          description: The number's credibility score. Absent unless you requested the `score` property.
+      example:
+        phone_number: '+441904123456'
+        country_code: GB
+        network_info:
+          carrier_name: BT
+          mcc: '234'
+          mnc: '00'
+        original_network_info: null
+        flags: []
+        line_type: service
+        classification:
+          status: ok
+          value: premium_rate
+        score:
+          status: ok
+          value: 48
+        presence:
+          status: ok
+          reachable: true
+        roaming:
+          status: unavailable
+    EmailLookupFlag:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - role
+      - disposable
+      - free_provider
+      description: "A notable characteristic of an email address.\n\n- `role`: it addresses a function rather than a person (`support@`,\n  `info@`). Replies and consent are therefore ambiguous, and complaints are\n  more likely.\n- `disposable`: it belongs to a throwaway-address provider and\n  typically stops existing.\n- `free_provider`: it belongs to a consumer mailbox provider such as\n  Gmail or Outlook.com. This is ordinary for consumer mail and a signal when\n  you expected a business address.\n\nOpen enum: more flags may be added over time, so treat an unrecognized value\nas a future flag rather than an error.\n"
+      example: role
+    LookupNetworkInfo:
+      type: object
+      additionalProperties: false
+      description: The network a number belongs to.
+      properties:
+        carrier_name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The carrier's name, absent when the carrier could not be identified.
+        mcc:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The mobile country code, absent for a network that has none or could not be identified.
+        mnc:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The mobile network code, absent for a network that has none or could not be identified.
+      example:
+        carrier_name: KPN
+        mcc: '204'
+        mnc: 08
+    EmailLookupResult:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - valid
+      - neutral
+      - risky
+      - undeliverable
+      - typo
+      description: "The verdict on the address, and the one field to decide on.\n\n- `valid`: the address exists and accepts mail.\n- `neutral`: it could not be confirmed either way, usually because the\n  receiving domain answers every recipient the same.\n- `risky`: it probably accepts mail but is likelier than most to\n  bounce or complain. Examples include role, disposable, and low-reputation\n  addresses.\n- `undeliverable`: it does not accept mail, and `reason` says why.\n- `typo`: the address looks misspelled, and `did_you_mean` contains\n  the correction.\n\nOpen enum: further verdicts may be added over time, so treat an unrecognized\nvalue as a future one rather than an error. Branch on the values you know and\nfall back on `delivery_confidence`, which is always present and always\ncomparable.\n"
+      example: risky
+    EmailLookupReason:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - invalid_syntax
+      - invalid_domain
+      - invalid_recipient
+      description: "Why an address cannot receive mail.\n\n- `invalid_syntax`: the address is malformed.\n- `invalid_domain`: the domain does not accept mail.\n- `invalid_recipient`: the domain accepts mail but this mailbox does\n  not exist.\n\nOpen enum: further reasons may be added over time, so treat an unrecognized\nvalue as a future one rather than an error. `result` is what to branch on; this\nfield explains it.\n"
+      example: invalid_recipient
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    LookupScore:
+      type: object
+      additionalProperties: false
+      description: A credibility score for the number. Returned when you request the `score` property.
+      required:
+      - status
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LookupPropertyStatus'
+          readOnly: true
+        value:
+          type: integer
+          minimum: 0
+          maximum: 100
+          readOnly: true
+          description: 'Credibility from 0 (low) to 100 (high). A low score means the number looks less credible than a typical subscriber line in the same range. Treat it as one signal instead of a verdict. It is a composite and is not derivable from the other properties. Present only when `status` is `ok`.
+
+            '
+      example:
+        status: ok
+        value: 84
+    LookupClassification:
+      type: object
+      additionalProperties: false
+      description: 'The allocated service of the number''s range. Returned when you request the
+
+        `classification` property.
+
+
+        This sits beside `line_type` rather than replacing it, so you can always see
+
+        which source answered. The `line_type` property is included in the base lookup
+
+        and comes from the carrier platform. The `classification` property is
+
+        separately billed and comes from an intelligence source.
+
+        '
+      required:
+      - status
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LookupPropertyStatus'
+          readOnly: true
+        value:
+          allOf:
+          - $ref: '#/components/schemas/LookupClassificationValue'
+          readOnly: true
+          description: The allocated service of the range. Present only when `status` is `ok`.
+      example:
+        status: ok
+        value: premium_rate
+    EmailLookup:
+      type: object
+      additionalProperties: false
+      description: 'Assessment of whether an email address accepts mail, the confidence and reason for that
+
+        assessment, and a suggested correction when the address appears misspelled.
+
+
+        `result` is the field to decide on; `delivery_confidence` grades it, and
+
+        `flags` describes the address itself rather than its deliverability, so a
+
+        perfectly valid address can still have `role` or `disposable`.
+
+
+        Fields without resolved values are omitted rather than sent as null. Every
+
+        field present in the response was resolved.
+
+        '
+      required:
+      - email
+      - valid
+      - result
+      - delivery_confidence
+      - flags
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+          readOnly: true
+          description: The address that was looked up, exactly as you sent it.
+        valid:
+          type: boolean
+          readOnly: true
+          description: Whether the address is well-formed and its domain is set up to receive mail at all. It says nothing about the mailbox itself, so a `valid` domain with no such mailbox is `true` here and `undeliverable` in `result`.
+        result:
+          allOf:
+          - $ref: '#/components/schemas/EmailLookupResult'
+          readOnly: true
+        delivery_confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+          readOnly: true
+          description: How likely mail to this address is to be delivered, from 0 (certain not to be) to 100 (certain to be). Read it alongside `result` rather than instead of it, because the same score can sit under `neutral` or `risky` for different reasons.
+        flags:
+          type: array
+          readOnly: true
+          description: Notable characteristics of the address. Empty when none apply.
+          items:
+            $ref: '#/components/schemas/EmailLookupFlag'
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/EmailLookupReason'
+          readOnly: true
+          description: Why the address cannot receive mail. Absent unless `result` is `undeliverable`.
+        did_you_mean:
+          type: string
+          minLength: 3
+          maxLength: 254
+          readOnly: true
+          description: The address this one looks like a misspelling of. Absent unless a correction was found, which in practice means `result` is `typo`. Offer it to whoever typed the original rather than sending to it unasked, because it is a guess and the address they meant may be neither one.
+      example:
+        email: aisha.khan@example.com
+        valid: true
+        result: risky
+        delivery_confidence: 42
+        flags:
+        - role
+        - free_provider
+    PhoneNumberLookupRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - phone_number
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          description: 'The phone number to look up, in international format: the country calling code, then the national number. The leading `+` is optional, and `00` works in its place, so `+31612345678`, `31612345678` and `0031612345678` are all the same number. A number written for dialling inside one country, with no country code, is rejected rather than guessed at.'
+        type:
+          type: array
+          description: 'Properties to add to the base lookup. Omit this field or send an empty
+
+            array to request only the base lookup.
+
+
+            Each delivered property is billed in addition to the base lookup. A
+
+            property that could not be answered is returned with its status and is
+
+            not billed.
+
+            '
+          items:
+            $ref: '#/components/schemas/LookupProperty'
+      example:
+        phone_number: '+31612345678'
+        type:
+        - classification
+        - presence
+    LookupPorting:
+      type: object
+      additionalProperties: false
+      description: 'Whether the number has ever moved network, when it last did, and its full porting record. Returned when you request the `porting` property. The base lookup only reports whether the number has ever ported, through the `ported` flag.
+
+        '
+      required:
+      - status
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LookupPropertyStatus'
+          readOnly: true
+        ported:
+          type: boolean
+          readOnly: true
+          description: 'Whether the number has ever moved network. `false` is a positive finding rather than a lack of one: the registry was consulted and holds no move for this number. Present only when `status` is `ok`.
+
+            '
+        last_ported_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the number last moved network. Absent when it has never ported or when no date is on record.
+        last_ported_at_is_approximate:
+          type: boolean
+          readOnly: true
+          description: Whether `last_ported_at` is an approximation. Some registries record the period of a move without its exact day.
+        history:
+          type: array
+          readOnly: true
+          description: Every move on record, oldest first. Absent when the number has never ported or when its registry publishes no history.
+          items:
+            $ref: '#/components/schemas/LookupPortingEvent'
+      example:
+        status: ok
+        ported: true
+        last_ported_at: '2023-02-08T00:00:00Z'
+        last_ported_at_is_approximate: false
+        history:
+        - occurred_at: '2023-02-08T00:00:00Z'
+          action: A
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    EmailLookupRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+          description: 'The email address to look up. Send it exactly as you hold it. The part before the `@` is case-sensitive, so the API does not lowercase it. A display-name form such as `Aisha <aisha@example.com>` is rejected rather than unwrapped.
+
+            '
+      example:
+        email: aisha.khan@example.com
+    LookupFlag:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - ported
+      description: 'A notable characteristic of a number. `ported` means the number has moved
+
+        from the network that issued it to another one, so `network_info` and
+
+        `original_network_info` name different carriers.
+
+
+        Open enum: more flags may be added over time, so treat an unrecognized value
+
+        as a future flag rather than an error.
+
+        '
+      example: ported
+    LookupClassificationValue:
+      type: string
+      minLength: 1
+      enum:
+      - mobile
+      - fixed_line
+      - fixed_line_or_mobile
+      - voip
+      - toll_free
+      - premium_rate
+      - shared_cost
+      - local_rate
+      - national_rate
+      - personal_number
+      - universal_access
+      - satellite
+      - pager
+      - payphone
+      - m2m
+      - isp
+      - vpn
+      - voice_mail
+      - calling_cards
+      - short_codes
+      - service
+      - other
+      description: "The allocated service of the number's range, at the precision the\nintelligence source publishes it.\n\nThis is a finer vocabulary than `line_type`, which reports what the carrier\nplatform alone can tell. Some values have no carrier equivalent. For example,\na number the carrier calls `service` may be classified as `premium_rate`,\n`shared_cost`, `universal_access`, or a voicemail platform. Where the fields\noverlap, they remain independent results rather than one refining the other.\n\nThree values in particular have no carrier-side concept at all:\n\n- `m2m` is a range reserved for machine-to-machine traffic, belonging to no\n  individual subscriber.\n- `national_rate` is a non-geographic landline number charged above the\n  local rate.\n- `fixed_line_or_mobile` is a range a country allocates so a number can port\n  between the two.\n"
+      example: premium_rate
+    LookupLineType:
+      type: string
+      minLength: 1
+      enum:
+      - mobile
+      - fixed_line
+      - voip
+      - toll_free
+      - premium_rate
+      - satellite
+      - pager
+      - payphone
+      - m2m
+      - service
+      - other
+      - unknown
+      description: "What kind of line the number is, as reported by the carrier platform.\n\nThis is included in every base lookup, regardless of which properties you\nrequest.\n\n- `unknown`: the carrier platform holds no classification for the\n  range.\n- `other`: it holds a classification with no equivalent here.\n- `m2m`: a range reserved for machine-to-machine traffic, belonging to no\n  individual subscriber.\n\nFor the allocated service of the range at finer precision, request the\n`classification` property. That answers from a different source, with its own\nwider vocabulary, and is reported separately so you can always tell the two\napart.\n"
+      example: mobile
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

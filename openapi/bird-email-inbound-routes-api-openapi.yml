@@ -1,0 +1,793 @@
+openapi: 3.2.0
+info:
+  title: Bird Email Inbound Routes API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: email-inbound-routes
+  description: Routing rules that direct inbound mail on your domains into mailboxes, or drop it, in priority order.
+paths:
+  /v1/email/inbound-routes:
+    get:
+      operationId: listInboundRoutes
+      summary: List inbound routes
+      description: Returns a paginated list of the workspace's inbound routes in evaluation order, lowest priority number first. Filter by domain or by enabled state.
+      tags:
+      - email-inbound-routes
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      parameters:
+      - name: domain
+        in: query
+        required: false
+        description: Filter to routes on this domain.
+        schema:
+          type: string
+          minLength: 1
+        example: mail.acme.com
+      - name: enabled
+        in: query
+        required: false
+        description: Set to `true` for active routes or `false` for routes skipped during evaluation.
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: Paginated list of inbound routes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundRouteList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - n8n
+    post:
+      operationId: createInboundRoute
+      summary: Create an inbound route
+      description: Creates a routing rule that delivers matching inbound mail on one of your domains to a mailbox, or drops it. Routes are evaluated in order, lowest `priority` first, and a mailbox's own address always matches ahead of any route you create. Mail that no route matches is still received as a plain received email. The `domain` must be one of your workspace's inbound-enabled domains. Some fields depend on each other, and that dependency is described on the field itself. Breaking one of those rules returns `422`.
+      tags:
+      - email-inbound-routes
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboundRouteCreate'
+      responses:
+        '201':
+          description: Inbound route created.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundRoute'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - n8n
+  /v1/email/inbound-routes/{route_id}:
+    parameters:
+    - name: route_id
+      in: path
+      required: true
+      description: Inbound route identifier. Starts with `ein_`.
+      schema:
+        $ref: '#/components/schemas/EmailInboundRouteID'
+    get:
+      operationId: getInboundRoute
+      summary: Get an inbound route
+      description: 'Returns a single inbound route:
+
+
+        - Its match rule.
+
+        - Its action.
+
+        - Its target mailbox.
+
+        - Its priority.
+
+        - Its enabled state.
+
+
+        Use List inbound routes to see every route in evaluation order.'
+      tags:
+      - email-inbound-routes
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      responses:
+        '200':
+          description: Inbound route object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundRoute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - n8n
+    patch:
+      operationId: updateInboundRoute
+      summary: Update an inbound route
+      description: Updates an inbound route. Omitted fields are unchanged. The `domain` is immutable. Fields that depend on each other are checked against the updated route, so a change that leaves it inconsistent (for example `deliver_to_mailbox` without a target mailbox) returns `422`. Disabled routes are kept but skipped during evaluation.
+      tags:
+      - email-inbound-routes
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboundRouteUpdate'
+      responses:
+        '200':
+          description: Inbound route updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundRoute'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - n8n
+    delete:
+      operationId: deleteInboundRoute
+      summary: Delete an inbound route
+      description: Deletes an inbound route. Mail the route matched falls through to the next route in priority order, or, when nothing matches, is received as a plain received email.
+      tags:
+      - email-inbound-routes
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Inbound route deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - n8n
+components:
+  parameters:
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+  headers:
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+  schemas:
+    MailboxID:
+      type: string
+      minLength: 1
+      pattern: ^mbx_[0-9a-hjkmnp-tv-z]{26}$
+      example: mbx_01krdgeqcxet5s7t44vh8rt9mg
+    EmailInboundRouteID:
+      type: string
+      minLength: 1
+      pattern: ^ein_[0-9a-hjkmnp-tv-z]{26}$
+      example: ein_01krdgeqcxet5s7t44vh8rt9mg
+    InboundRoute:
+      type: object
+      additionalProperties: false
+      description: 'A routing rule that directs inbound mail on one of your domains into a mailbox, or drops it. Routes are tried in priority order, lowest number first. Each mailbox''s own address always matches at priority 10 and your own routes take a priority from 11 to 1000, so delivery to an exact address always takes precedence.
+
+        '
+      required:
+      - id
+      - domain
+      - match_type
+      - match_value
+      - action
+      - target_mailbox_id
+      - priority
+      - enabled
+      - created_at
+      - updated_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/EmailInboundRouteID'
+          description: Inbound route ID.
+        domain:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The domain the route applies to.
+          example: mail.acme.com
+        match_type:
+          type: string
+          minLength: 1
+          enum:
+          - address
+          - catch_all
+          description: How the route matches recipients. `address` matches one local part. `catch_all` matches every recipient on the domain that nothing else matched.
+        match_value:
+          type:
+          - string
+          - 'null'
+          maxLength: 64
+          description: The local part an `address` route matches. `null` for `catch_all` routes.
+          example: refunds
+        action:
+          type: string
+          minLength: 1
+          enum:
+          - deliver_to_mailbox
+          - drop
+          description: What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id`. `drop` discards it silently, with nothing stored and no webhook fired.
+        target_mailbox_id:
+          oneOf:
+          - $ref: '#/components/schemas/MailboxID'
+          - type: 'null'
+          description: The mailbox that receives matching mail. `null` for `drop` routes.
+        priority:
+          type: integer
+          minimum: 11
+          maximum: 1000
+          description: The order routes are tried in, lowest number first. Your own routes take a priority from 11 to 1000, and default to 100. A mailbox's own address always matches at priority 10.
+        enabled:
+          type: boolean
+          description: Whether the route is evaluated. Disabled routes are kept but skipped.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the route was created.
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the route was last updated.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    InboundRouteUpdate:
+      type: object
+      additionalProperties: false
+      description: Fields to update on an inbound route. Omitted fields are unchanged. The domain is immutable.
+      properties:
+        match_type:
+          type: string
+          enum:
+          - address
+          - catch_all
+          description: How the route matches recipients.
+        match_value:
+          type:
+          - string
+          - 'null'
+          maxLength: 64
+          description: The local part an `address` route matches. `null` for `catch_all` routes.
+        action:
+          type: string
+          enum:
+          - deliver_to_mailbox
+          - drop
+          description: What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id` (required). `drop` discards it silently, with nothing stored and no webhook fired.
+        target_mailbox_id:
+          oneOf:
+          - $ref: '#/components/schemas/MailboxID'
+          - type: 'null'
+          description: The mailbox that receives matching mail. `null` for `drop` routes.
+        priority:
+          type: integer
+          minimum: 11
+          maximum: 1000
+          description: The order routes are tried in, lowest number first. Your own routes take a priority from 11 to 1000. The mailbox's own address always matches at priority 10.
+        enabled:
+          type: boolean
+          description: Whether the route is evaluated.
+      example:
+        priority: 50
+        enabled: true
+    InboundRouteCreate:
+      type: object
+      additionalProperties: false
+      description: Parameters for creating an inbound route.
+      required:
+      - domain
+      - match_type
+      - action
+      properties:
+        domain:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The domain the route applies to. It has to be one of your inbound-enabled custom domains.
+          example: mail.acme.com
+        match_type:
+          type: string
+          minLength: 1
+          enum:
+          - address
+          - catch_all
+          description: How the route matches recipients. `address` matches one local part and requires `match_value`. `catch_all` matches every recipient on the domain that nothing else matched.
+        match_value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9._-]+$
+          description: The local part an `address` route matches. Required for `address` routes. Stored lowercase.
+          example: refunds
+        action:
+          type: string
+          minLength: 1
+          enum:
+          - deliver_to_mailbox
+          - drop
+          description: What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id` (required). `drop` discards it silently, with nothing stored and no webhook fired.
+        target_mailbox_id:
+          $ref: '#/components/schemas/MailboxID'
+          description: The mailbox that receives matching mail. Required for `deliver_to_mailbox` routes.
+        priority:
+          type: integer
+          minimum: 11
+          maximum: 1000
+          default: 100
+          description: The order routes are tried in, lowest number first. Your own routes take a priority from 11 to 1000. The mailbox's own address always matches at priority 10, so a route can never pre-empt exact-address delivery.
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the route is evaluated.
+      example:
+        domain: mail.acme.com
+        match_type: address
+        match_value: refunds
+        action: deliver_to_mailbox
+        target_mailbox_id: mbx_01krdgeqcxet5s7t44vh8rt9mg
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    InboundRouteList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of inbound routes in evaluation order, with the lowest priority number first.
+            items:
+              $ref: '#/components/schemas/InboundRoute'
+      - $ref: '#/components/schemas/_ListEnvelope'
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

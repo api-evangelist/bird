@@ -1,0 +1,817 @@
+openapi: 3.2.0
+info:
+  title: Bird Verify Verifications API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: verify-verifications
+  description: Send a one-time passcode to a recipient and check the code they enter. Create a verification to send a passcode over email or SMS, then submit the recipient's code to verify it.
+paths:
+  /v1/verify/verifications:
+    post:
+      operationId: createVerification
+      summary: Create a verification
+      description: 'Creates a verification and sends the recipient a one-time passcode. Provide an email address, a phone number, or both in `to`. The service sends over one channel at a time and moves to the next planned channel if delivery fails.
+
+
+        Calling this again for the same recipient reuses the verification in progress. During the resend cooldown, it returns the current state without sending, so nothing is charged and no send budget is spent. After the cooldown, it sends a fresh passcode, and that send draws on the recipient''s hourly send cap exactly as a new verification does, so repeated resends can exhaust the cap and return `429` for the rest of that rolling hour. Abuse guardrails gives the figures.
+
+
+        The `200` response contains the current state, never the passcode. Submit the recipient''s passcode with Check a verification before `expires_at`. An invalid recipient returns `422`; exceeding the send rate limit returns `429`.'
+      tags:
+      - verify-verifications
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: verify.verifications.create
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationCreateRequest'
+            examples:
+              onboarding-verify-create:
+                summary: The first verification from the dashboard's onboarding step
+                value:
+                  to:
+                    email: user@example.com
+      responses:
+        '200':
+          description: The verification's current state, whether newly opened or reused.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Verification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/verify/verifications/check:
+    post:
+      operationId: createVerificationCheck
+      summary: Create a verification passcode check
+      description: 'Checks a passcode for a recipient and returns the outcome together with the verification''s current state. Identify the verification by the same `to` used to create it; you do not need to store a verification ID.
+
+
+        A wrong or expired passcode returns `200 OK` with `success: false` and a `reason` such as `incorrect_code` or `expired`. `success: true` means the verification is complete. Each verification reports its final outcome once and cannot be checked again.
+
+
+        An error status is returned only when the check cannot be evaluated. A `404
+
+        E13000` means no active verification matched the recipient: either none
+
+        exists for it, or the most recent one is already resolved as verified,
+
+        expired, or out of attempts. One code covers all of those, so a `404` is not
+
+        evidence the recipient failed to verify. Treat your own record of an earlier
+
+        `success: true` as the outcome, and create a new verification only if the
+
+        recipient still needs to verify. A `422` indicates an invalid recipient. A
+
+        `429` means passcodes for a recipient are being checked too quickly.'
+      tags:
+      - verify-verifications
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: verify.verifications.check
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationCheckRequest'
+            examples:
+              onboarding-verify-check:
+                summary: Checking the passcode from the dashboard's onboarding step
+                value:
+                  to:
+                    email: user@example.com
+                  code: '123456'
+      responses:
+        '200':
+          description: The check outcome and the verification's current state.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCheckResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/verify/verifications/next-channel:
+    post:
+      operationId: createVerificationNextChannel
+      summary: Create the next verification channel attempt
+      description: 'Advances an in-progress verification to the next channel in its plan and sends a fresh passcode there. Identify the verification by the same `to` recipient used to create it; no verification ID is required.
+
+
+        The send bypasses the resend cooldown and does not draw on the recipient''s hourly send cap; what bounds it is the channel plan, since each call advances by at most one channel. Passcodes sent earlier remain valid. The response sets `last_channel` to the most recent completed send. Concurrent requests each advance the plan by at most one channel and return committed state.
+
+
+        A recipient with no in-progress verification returns `404 E13000`, whether none was ever created or the most recent one is already resolved. A recipient who has already verified is in that set, so a `404` here is not evidence they still need verifying, and creating another verification would send a passcode they no longer need. A plan with no further channel returns `422 NoNextChannel`; create the verification again to resend on the current channel. If every remaining channel fails, the operation returns `422 NoAvailableChannel`. Requests that exceed the send rate limit return `429`.'
+      tags:
+      - verify-verifications
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: verify.verifications.next_channel
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationNextChannelRequest'
+            example:
+              to:
+                phone_number: '+15551234567'
+      responses:
+        '200':
+          description: Verification state after the advance. `last_channel` identifies the most recent completed send.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Verification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+components:
+  schemas:
+    VerificationCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - to
+      properties:
+        to:
+          $ref: '#/components/schemas/VerificationTo'
+        options:
+          $ref: '#/components/schemas/VerificationOptions'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Optional key/value pairs to attach to the verification, for example a correlation id. Returned on the verification.
+      example:
+        to:
+          phone_number: '+15551234567'
+        metadata:
+          correlation_id: signup-7f3a
+    VerificationNextChannelRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - to
+      properties:
+        to:
+          $ref: '#/components/schemas/VerificationTo'
+      example:
+        to:
+          phone_number: '+15551234567'
+    VerificationChannel:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - email
+      - sms
+      - whatsapp
+      - telegram
+      - voice
+      description: 'The channel a passcode is delivered over. Open enum: new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.'
+    VerificationCheckRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - to
+      - code
+      properties:
+        to:
+          $ref: '#/components/schemas/VerificationTo'
+        code:
+          type: string
+          minLength: 4
+          maxLength: 12
+          description: 'The passcode the recipient received. Passcodes are numeric; submit the digits exactly as delivered. An incorrect value is a normal `200` outcome with `success: false`. It does not return an error.'
+          example: '123456'
+      example:
+        to:
+          phone_number: '+15551234567'
+        code: '123456'
+    VerificationOptions:
+      type: object
+      additionalProperties: false
+      description: Per-request overrides applied to this verification only.
+      properties:
+        code_length:
+          type: integer
+          minimum: 4
+          maximum: 8
+          description: Passcode length for this verification. Omit to use the configured length.
+        channels:
+          type: array
+          description: Reorder or narrow the delivery channels for this request. List channel names in the order to try them; a channel you omit is not used for this request, and a channel not already enabled for the recipient is ignored. A list that leaves no usable channel fails the request with `422`. Omit the field to use the configured order.
+          items:
+            $ref: '#/components/schemas/VerificationChannel'
+        language:
+          $ref: '#/components/schemas/LanguageTag'
+          description: 'Which of the built-in message translations to send. It applies to SMS, email and WhatsApp, and has no effect on a Telegram verification. A tag with no translation of its own falls back to its base language, and then to English. The attempt''s `template_language` reports which translation was used. The tag is fixed for the verification, so a resend arrives in the same language as the first message.
+
+
+            Omit it and the language is read from the recipient phone number''s country, so a French number gets French without you asking. Set it to override that. A verification with no phone number, and one whose country has no translation here, sends English.
+
+
+            Supported: en, ar, bg, cs, da, de, el, es, fi, fr, he, hi, hr, hu, id, it, ja, ko, lt, lv, mk, mn, ms, nb-NO, nl, no, pl, pt, ro, ru, sk, sl, sr, sv, th, tr, uk, vi, zh, zh-TW. Every one of them is available on SMS and email. Mongolian (mn) is the one WhatsApp cannot carry, so a WhatsApp passcode falls back to English for it.'
+    VerificationTerminalReason:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - attempts_exhausted
+      - ttl_elapsed
+      - undeliverable
+      description: 'Why a verification session reached its final state without succeeding: `attempts_exhausted` (too many incorrect passcodes), `ttl_elapsed` (the time window elapsed before a correct passcode), or `undeliverable` (no planned channel could deliver a passcode, so the recipient never had one to submit). Open enum: new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error.'
+    Verification:
+      allOf:
+      - type: object
+        required:
+        - id
+        - status
+        - to
+        - channels
+        - expires_at
+        - created_at
+        - updated_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/VerificationID'
+          status:
+            type: string
+            minLength: 1
+            enum:
+            - pending
+            - verified
+            - failed
+            - expired
+            - canceled
+            - blocked
+            readOnly: true
+            description: "The verification's current state:\n\n- `pending`: Awaiting a correct passcode.\n- `verified`: A correct passcode was submitted.\n- `failed`: The verification cannot be completed. Either too many\n  incorrect passcodes were submitted, or no planned channel could\n  deliver one. Read `reason` to tell those apart.\n- `expired`: The validity window elapsed before a correct passcode.\n- `canceled`: The verification was canceled before completion.\n- `blocked`: A fraud or abuse control stopped the verification."
+          reason:
+            readOnly: true
+            oneOf:
+            - $ref: '#/components/schemas/VerificationTerminalReason'
+            - type: 'null'
+            description: Why the verification reached its final state, or `null` while `pending` and once `verified`. See the enum for the values it can take.
+          to:
+            readOnly: true
+            $ref: '#/components/schemas/VerificationTo'
+          channels:
+            type: array
+            readOnly: true
+            minItems: 1
+            description: 'The channels this verification uses to deliver the passcode, in attempt order: the first entry is tried first and later entries are fallbacks. An email recipient is verified over email; a phone recipient is verified over the phone channels enabled for its destination country, in the order that country''s configuration sets.'
+            items:
+              $ref: '#/components/schemas/VerificationChannelEntry'
+          last_channel:
+            type:
+            - string
+            - 'null'
+            x-extensible-enum:
+            - email
+            - sms
+            - whatsapp
+            - telegram
+            - voice
+            readOnly: true
+            description: The channel the most recent passcode was sent on, or `null` before the first send. Open enum; new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.
+          metadata:
+            type: object
+            additionalProperties: true
+            readOnly: true
+            description: The key/value pairs attached when the verification was created.
+          expires_at:
+            type: string
+            minLength: 1
+            format: date-time
+            readOnly: true
+            description: When the verification expires if no correct passcode is submitted first. After this time its status reports `expired`.
+          verified_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: When the verification was completed, or `null` if it is not yet verified.
+      - $ref: '#/components/schemas/Timestamps'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    VerificationChannelEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - channel
+      properties:
+        channel:
+          $ref: '#/components/schemas/VerificationChannel'
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    VerificationTo:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: 'The recipient to verify. Provide an `email`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.
+
+        '
+      properties:
+        email:
+          type: string
+          minLength: 1
+          format: email
+          description: The recipient's email address. Case does not matter; the address is lowercased before use.
+          example: user@example.com
+        phone_number:
+          type: string
+          minLength: 1
+          description: The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).
+          example: '+15551234567'
+    VerificationID:
+      type: string
+      minLength: 1
+      pattern: ^vrf_[0-9a-hjkmnp-tv-z]{26}$
+      example: vrf_01krdgeqcxet5s7t44vh8rt9mg
+    VerificationCheckResult:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - verification
+      properties:
+        success:
+          type: boolean
+          readOnly: true
+          description: Whether the submitted passcode verified this verification. `true` means the passcode was correct and the verification is now complete; `false` means it did not verify, and `reason` says why. A verification that has already reached a final state is no longer checkable and returns `404`.
+        reason:
+          type:
+          - string
+          - 'null'
+          x-extensible-enum:
+          - incorrect_code
+          - expired
+          - attempts_exhausted
+          readOnly: true
+          description: 'Why the check did not succeed:
+
+
+            - `incorrect_code`: The passcode was wrong and attempts remain.
+
+            - `expired`: The validity window elapsed.
+
+            - `attempts_exhausted`: Too many incorrect attempts were submitted.
+
+
+            `null` when `success` is `true`. Treat unrecognized values as reasons added
+
+            later.'
+        verification:
+          $ref: '#/components/schemas/Verification'
+        attempts_remaining:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: The number of check attempts left while the verification is still pending, or `null` once it has reached a final state.
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+  responses:
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+  headers:
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

@@ -166,22 +166,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    Language:
-      type: object
-      description: Language supported by the FAQ API.
-      properties:
-        iso6393Code:
-          type: string
-          example: nld
-          description: The ISO-639-3 code of the language.
-        name:
-          type: string
-          example: Dutch
-          description: The English name of the language.
-        languageCode:
-          type: string
-          example: NLD
-          description: The ISO639-3 language code enum value.
     Answer:
       type: object
       description: An answer which corresponds to one or more example questions in the dataset.
@@ -198,6 +182,23 @@ components:
           type: string
           example: MessageBird Founder
           description: The short title representing the answer.
+    ListDatasetsResponse:
+      type: object
+      description: A response containing the FAQ datasets that were queried.
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+          description: The paginated collection of datasets.
+        limit:
+          type: integer
+          example: 20
+          description: The effective limit for the maximum number of datasets returned.
+        nextCursor:
+          type: string
+          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
+          description: The cursor to query the next paginated collection of results.
     PredictAnswerResponse:
       type: object
       description: 'A response that contains the answer and its related metadata. If the FAQ API could not find a corresponding answer, the answer field will not be populated.
@@ -215,6 +216,37 @@ components:
           description: 'Indicates if an answer was predicted. If false, the phrase could not be matched with an answer.
 
             '
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    PredictAnswerRequest:
+      type: object
+      description: A request for predicting an answer from a phrase and a dataset ID.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: Who founded MessageBird?
+          description: The phrase that might contain a question to be answered.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
     Dataset:
       type: object
       description: A collection of answers with matching questions.
@@ -256,54 +288,22 @@ components:
           example: '2021-08-24T12:04:32Z'
           description: The timestamp of last model that completed training (ISO-8601).
           readOnly: true
-    LanguageList:
+    Language:
       type: object
-      description: List of recognized languages.
+      description: Language supported by the FAQ API.
       properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Language'
-          description: The collection of languages.
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
+        iso6393Code:
           type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-    ListDatasetsResponse:
-      type: object
-      description: A response containing the FAQ datasets that were queried.
-      properties:
-        datasets:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dataset'
-          description: The paginated collection of datasets.
-        limit:
-          type: integer
-          example: 20
-          description: The effective limit for the maximum number of datasets returned.
-        nextCursor:
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
           type: string
-          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
-          description: The cursor to query the next paginated collection of results.
-    PredictAnswerRequest:
-      type: object
-      description: A request for predicting an answer from a phrase and a dataset ID.
-      required:
-      - phrase
-      properties:
-        phrase:
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
           type: string
-          example: Who founded MessageBird?
-          description: The phrase that might contain a question to be answered.
+          example: NLD
+          description: The ISO639-3 language code enum value.
   securitySchemes:
     AccessKey:
       type: apiKey

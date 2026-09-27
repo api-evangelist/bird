@@ -87,49 +87,15 @@ paths:
                 $ref: '#/components/schemas/MessageList'
 components:
   schemas:
-    MessageBody:
+    MessageList:
       type: object
       properties:
-        type:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        nextPageToken:
           type: string
-          enum:
-          - text
-          - image
-          - file
-          - html
-        text:
-          type: object
-          properties:
-            text:
-              type: string
-    CreateMessage:
-      type: object
-      required:
-      - receiver
-      properties:
-        receiver:
-          $ref: '#/components/schemas/Receiver'
-        body:
-          $ref: '#/components/schemas/MessageBody'
-        template:
-          type: object
-          description: Template reference and variables (required when body is absent).
-        tags:
-          type: array
-          items:
-            type: string
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
     Message:
       type: object
       properties:
@@ -151,15 +117,49 @@ components:
         createdAt:
           type: string
           format: date-time
-    MessageList:
+    MessageBody:
       type: object
       properties:
-        results:
+        type:
+          type: string
+          enum:
+          - text
+          - image
+          - file
+          - html
+        text:
+          type: object
+          properties:
+            text:
+              type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
           type: array
           items:
-            $ref: '#/components/schemas/Message'
-        nextPageToken:
-          type: string
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
+    CreateMessage:
+      type: object
+      required:
+      - receiver
+      properties:
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        template:
+          type: object
+          description: Template reference and variables (required when body is absent).
+        tags:
+          type: array
+          items:
+            type: string
   parameters:
     WorkspaceId:
       name: workspaceId

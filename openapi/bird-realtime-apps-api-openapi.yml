@@ -1,0 +1,1137 @@
+openapi: 3.2.0
+info:
+  title: Bird Realtime Apps API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: realtime-apps
+  description: Realtime app management.
+paths:
+  /v1/realtime/regions:
+    get:
+      operationId: listRealtimeRegions
+      x-snippet-key: none
+      summary: List Realtime regions
+      description: Returns the regions a Realtime app can be created in. Use one of these identifiers as the `region` when creating an app.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      responses:
+        '200':
+          description: The available Realtime regions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeRegionList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+  /v1/realtime/apps:
+    post:
+      operationId: createRealtimeApp
+      x-snippet-key: none
+      summary: Create a Realtime app
+      description: Provisions a new Realtime app for the workspace and returns it with the initial key. Store the key secret when you receive it because later responses do not include it. If you lose the secret, create a new key and revoke this one.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeAppCreate'
+      responses:
+        '201':
+          description: Realtime app created. Includes the initial key's one-time secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAppCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+    get:
+      operationId: listRealtimeApps
+      x-snippet-key: none
+      summary: List Realtime apps
+      description: Returns the workspace's Realtime apps as a paginated list, filterable by a case-insensitive `name` substring. Each entry carries the app's configuration and connection details (`app_id`, `region`) but never key secrets. Use List a Realtime app's keys and Create a Realtime app key to manage them.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: name
+        in: query
+        required: false
+        description: Substring match against the app name (case-insensitive).
+        schema:
+          type: string
+      - name: sort
+        in: query
+        required: false
+        description: Field to sort by.
+        schema:
+          $ref: '#/components/schemas/RealtimeAppSortField'
+      - $ref: '#/components/parameters/OrderDesc'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/IncludeTotal'
+      responses:
+        '200':
+          description: Paginated list of Realtime apps.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAppList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+  /v1/realtime/apps/{realtime_app_id}:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    get:
+      operationId: getRealtimeApp
+      x-snippet-key: none
+      summary: Get a Realtime app
+      description: Returns a single Realtime app with its configuration and connection details (`app_id`, `region`). Key secrets are never included; use List a Realtime app's keys to manage them. Returns a `404 Not Found` error if the app does not exist in the workspace.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      responses:
+        '200':
+          description: Realtime app with its current configuration and status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeApp'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+    patch:
+      operationId: updateRealtimeApp
+      x-snippet-key: none
+      summary: Update a Realtime app
+      description: Updates a Realtime app's name and configuration flags. Region is immutable; TLS is always enforced. Omitted fields are left unchanged.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeAppUpdate'
+      responses:
+        '200':
+          description: The updated Realtime app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeApp'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+    delete:
+      operationId: deleteRealtimeApp
+      x-snippet-key: none
+      summary: Delete a Realtime app
+      description: 'Permanently deletes the app: disconnects all clients and removes its keys and configuration. This cannot be undone.'
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: The app was deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+  /v1/realtime/apps/{realtime_app_id}/keys:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    get:
+      operationId: listRealtimeAppKeys
+      x-snippet-key: none
+      summary: List a Realtime app's keys
+      description: Returns the app's keys, oldest first. Non-revoked only by default; pass include_revoked=true to include revoked keys. An app can hold several keys at once (create a new key, roll it out, then revoke the old one for zero-downtime rotation). Secrets are never included in this response.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: include_revoked
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: When true, include revoked keys in the response.
+      responses:
+        '200':
+          description: The app's keys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAppKeyList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+    post:
+      operationId: createRealtimeAppKey
+      x-snippet-key: none
+      summary: Create a Realtime app key
+      description: 'Adds a new key to the app and returns it with its secret. Store the secret when you receive it because later responses do not include it. Use this together with revoke for zero-downtime rotation: add a key, roll it out across your clients, then revoke the old key.'
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Key created. Includes the one-time secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAppKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+  /v1/realtime/apps/{realtime_app_id}/keys/{realtime_app_key_id}/revoke:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    - name: realtime_app_key_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppKeyID'
+      description: ID of the Realtime app key (`rak_` prefix), as returned when the key was created.
+    post:
+      operationId: revokeRealtimeAppKey
+      x-snippet-key: none
+      summary: Revoke a Realtime app key
+      description: Revokes a key immediately and returns it with `revoked_at` set. Clients that still use the key can no longer authenticate. An already revoked key returns `409`. The app's only key cannot be revoked and returns `422`.
+      tags:
+      - realtime-apps
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Key revoked. Returns the updated key with `revoked_at` set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAppKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - n8n
+components:
+  schemas:
+    RealtimeAppKeyList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: The app's keys, oldest first. Revoked keys are excluded unless `include_revoked`=`true`.
+          items:
+            $ref: '#/components/schemas/RealtimeAppKey'
+    RealtimeRegionList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: The regions a Realtime app can be created in.
+          items:
+            $ref: '#/components/schemas/RealtimeRegion'
+    RealtimeAppList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/RealtimeApp'
+      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    RealtimeAppConfig:
+      type: object
+      description: Realtime app configuration flags. TLS is always enforced (non-TLS client connections are rejected) and is not configurable.
+      properties:
+        client_events:
+          type: boolean
+          description: Allow clients to trigger events directly (client events).
+        connection_counting:
+          type: boolean
+          description: Count the connections subscribed to each channel and expose the count on channel queries.
+        connection_count_events:
+          type: boolean
+          description: Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+        watchlist_events:
+          type: boolean
+          description: Tell a signed-in member when the members on their watchlist come online or go offline. The watchlist is part of the identity your backend signs at signin.
+        authorized_connections:
+          type: boolean
+          description: Require every connection to be authorized.
+    RealtimeAppKeyID:
+      type: string
+      minLength: 1
+      pattern: ^rak_[0-9a-hjkmnp-tv-z]{26}$
+      example: rak_01krdgeqcxet5s7t44vh8rt9mg
+    Region:
+      type: string
+      minLength: 1
+      enum:
+      - us1
+      - eu1
+      description: Deployment region identifier.
+      example: us1
+    RealtimeAppSortField:
+      type: string
+      default: created_at
+      description: 'Field to sort Realtime apps by.
+
+        '
+      enum:
+      - created_at
+      - name
+    RealtimeRegion:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/Region'
+          description: Region identifier to pass as a Realtime app's region.
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    RealtimeAppUpdate:
+      example:
+        name: chat-production
+        connection_counting: true
+      description: Mutable Realtime app fields. Omitted fields are left unchanged. Region is immutable and TLS is always enforced, so neither appears here.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: A label for the app, shown wherever it is listed.
+          minLength: 1
+          maxLength: 100
+          example: chat-production
+        client_events:
+          type: boolean
+          description: Allow clients to trigger events directly (client events).
+        connection_counting:
+          type: boolean
+          description: Count the connections subscribed to each channel and expose the count on channel queries.
+        connection_count_events:
+          type: boolean
+          description: Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+        watchlist_events:
+          type: boolean
+          description: Tell a signed-in member when the members on their watchlist come online or go offline. The watchlist is part of the identity your backend signs at signin.
+        authorized_connections:
+          type: boolean
+          description: Require every connection to be authorized.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    RealtimeAppID:
+      type: string
+      minLength: 1
+      pattern: ^rap_[0-9a-hjkmnp-tv-z]{26}$
+      example: rap_01krdgeqcxet5s7t44vh8rt9mg
+    RealtimeAppCreated:
+      allOf:
+      - $ref: '#/components/schemas/RealtimeApp'
+      - type: object
+        required:
+        - key
+        properties:
+          key:
+            readOnly: true
+            description: The app's initial key, including its one-time secret. Present in this create response only; the secret is never returned again.
+            allOf:
+            - $ref: '#/components/schemas/RealtimeAppKey'
+    RealtimeApp:
+      allOf:
+      - $ref: '#/components/schemas/Timestamps'
+      - type: object
+        required:
+        - id
+        - app_id
+        - name
+        - region
+        - client_events
+        - connection_counting
+        - connection_count_events
+        - watchlist_events
+        - authorized_connections
+        - status
+        properties:
+          client_events:
+            type: boolean
+            description: Allow clients to trigger events directly (client events).
+          connection_counting:
+            type: boolean
+            description: Count the connections subscribed to each channel and expose the count on channel queries.
+          connection_count_events:
+            type: boolean
+            description: Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+          watchlist_events:
+            type: boolean
+            description: Tell a signed-in member when the members on their watchlist come online or go offline. The watchlist is part of the identity your backend signs at signin.
+          authorized_connections:
+            type: boolean
+            description: Require every connection to be authorized.
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/RealtimeAppID'
+          app_id:
+            type: integer
+            format: int64
+            readOnly: true
+            description: The numeric Realtime app id. Use it together with a key and secret to initialize a Realtime client/server SDK. Immutable.
+            example: 432557
+          name:
+            type: string
+            minLength: 1
+            description: A label for the app, shown wherever it is listed.
+            example: chat-production
+          region:
+            allOf:
+            - $ref: '#/components/schemas/Region'
+            description: The region this app runs in. Unlike other products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.
+          status:
+            type: string
+            minLength: 1
+            readOnly: true
+            enum:
+            - active
+            - suspended
+            description: Lifecycle state of the app. `active` apps serve connections; `suspended` apps are provisioned but reject connections.
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    _ListEnvelopeWithTotal:
+      allOf:
+      - $ref: '#/components/schemas/_ListEnvelope'
+      - type: object
+        properties:
+          total:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+            description: Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise `null`.
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    RealtimeAppKey:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - key
+      - revoked_at
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/RealtimeAppKeyID'
+        key:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The public app key clients use to connect.
+          example: d0e95a856ddc1b09d4c8
+        secret:
+          type: string
+          readOnly: true
+          x-sensitive: true
+          description: 'The key secret, used for server-side request signing. Returned only when the key is created, and never shown again: store it securely. If lost, create a new key and revoke this one.'
+          example: 862925e1991a8b6902f9
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the key was revoked, or `null` if still active.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    RealtimeAppCreate:
+      example:
+        name: chat-production
+        region: eu1
+        connection_counting: true
+      allOf:
+      - $ref: '#/components/schemas/RealtimeAppConfig'
+      - type: object
+        additionalProperties: false
+        required:
+        - name
+        - region
+        properties:
+          name:
+            type: string
+            description: A label for the app, shown wherever it is listed.
+            minLength: 1
+            maxLength: 100
+            example: chat-production
+          region:
+            allOf:
+            - $ref: '#/components/schemas/Region'
+            description: The region this app runs in. Unlike other products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.
+          client_events:
+            type: boolean
+            default: false
+            description: Allow clients to trigger events directly (client events).
+          connection_counting:
+            type: boolean
+            default: false
+            description: Count the connections subscribed to each channel and expose the count on channel queries.
+          connection_count_events:
+            type: boolean
+            default: false
+            description: Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+          watchlist_events:
+            type: boolean
+            default: false
+            description: Tell a signed-in member when the members on their watchlist come online or go offline. The watchlist is part of the identity your backend signs at signin.
+          authorized_connections:
+            type: boolean
+            default: false
+            description: Require every connection to be authorized.
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    IncludeTotal:
+      name: include_total
+      in: query
+      required: false
+      description: When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
+      schema:
+        type: boolean
+        default: false
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    OrderDesc:
+      name: order
+      in: query
+      required: false
+      description: 'Sort direction. Defaults to `desc`, which sorts from newest to oldest or largest to smallest, depending on the selected sort field.
+
+        '
+      schema:
+        $ref: '#/components/schemas/SortOrder'
+        default: desc
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

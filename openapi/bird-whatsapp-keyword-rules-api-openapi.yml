@@ -1,0 +1,812 @@
+openapi: 3.2.0
+info:
+  title: Bird Whatsapp Keyword Rules API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: whatsapp-keyword-rules
+  description: 'What happens when someone replies STOP or START to a WhatsApp message: the keywords Bird ships, the keywords you add, and the replies you send back.'
+paths:
+  /v1/whatsapp/keyword-rules:
+    get:
+      operationId: listWhatsAppKeywordRules
+      x-snippet-key: whatsapp.keyword_rules.list
+      summary: List WhatsApp keyword rules
+      description: 'Returns the keyword rules that apply to inbound messages, most specific first. Bird''s own rules are included, so opt-out and opt-in work on every inbound-capable number before you configure anything.
+
+
+        Use the filters to narrow the full, unpaginated list. Set `scope=system` for Bird''s rules only, or `scope=workspace` for the ones you created.'
+      tags:
+      - whatsapp-keyword-rules
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: country
+        in: query
+        required: false
+        description: 'Keep only rules that apply to someone messaging from this country, as an ISO 3166-1 alpha-2 code. Omit for every rule, whichever country it covers.
+
+          '
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: US
+      - name: waba
+        in: query
+        required: false
+        description: 'Keep only the rules that apply to this WhatsApp Business Account of yours, identified by its WhatsApp-issued account ID or by the `waa_` ID Bird gives it. Either form finds the same rules.
+
+          '
+        schema:
+          type: string
+          example: '102290129340398'
+      - name: operation
+        in: query
+        required: false
+        description: 'Keep only rules for this operation. Omit for all of them. Open on the same terms as the response, so an operation Bird gains later can be filtered for without a client update; one Bird does not answer matches nothing rather than failing.
+
+          '
+        schema:
+          $ref: '#/components/schemas/WhatsAppKeywordOperation'
+      - name: scope
+        in: query
+        required: false
+        description: 'Keep only Bird''s own rules (`system`) or only the rules you created (`workspace`). Omit for both.
+
+          '
+        schema:
+          $ref: '#/components/schemas/WhatsAppKeywordRuleScope'
+      responses:
+        '200':
+          description: The keyword rules that apply to your workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppKeywordRuleList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+    post:
+      operationId: createWhatsAppKeywordRule
+      x-snippet-key: whatsapp.keyword_rules.create
+      summary: Create a WhatsApp keyword rule
+      description: 'Creates a keyword rule. Use it to replace the reply Bird sends for `opt_out` or `opt_in`, or to add keywords your customers actually type.
+
+
+        Your rule takes precedence over Bird''s at the same grain and keeps Bird''s keywords unless you add more, so replacing a reply takes two fields. A keyword Bird has bound to one operation cannot be reused for the other.'
+      tags:
+      - whatsapp-keyword-rules
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsAppKeywordRuleCreate'
+      responses:
+        '201':
+          description: The created rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppKeywordRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+  /v1/whatsapp/keyword-rules/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID of the keyword rule, as returned by the list operation. Bird's own rules and yours share one ID space.
+      schema:
+        $ref: '#/components/schemas/WhatsAppKeywordRuleID'
+    get:
+      operationId: getWhatsAppKeywordRule
+      x-snippet-key: whatsapp.keyword_rules.get
+      summary: Get a WhatsApp keyword rule
+      description: Returns one keyword rule, either one of Bird's own or one you created, with its `effective_keywords` and the reply it sends.
+      tags:
+      - whatsapp-keyword-rules
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      responses:
+        '200':
+          description: The keyword rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppKeywordRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+    patch:
+      operationId: updateWhatsAppKeywordRule
+      x-snippet-key: whatsapp.keyword_rules.update
+      summary: Update a WhatsApp keyword rule
+      description: 'Changes the reply or the added keywords of a rule you created. Bird''s own rules cannot be changed. To replace one, create a rule with the same operation and country and yours takes precedence.
+
+
+        What the rule applies to is fixed once created, so this changes the reply and the keywords only.'
+      tags:
+      - whatsapp-keyword-rules
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsAppKeywordRuleUpdate'
+      responses:
+        '200':
+          description: The updated rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppKeywordRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+    delete:
+      operationId: deleteWhatsAppKeywordRule
+      x-snippet-key: whatsapp.keyword_rules.delete
+      summary: Delete a WhatsApp keyword rule
+      description: 'Deletes a rule you created. The next rule in the ladder answers that scope straight away, so Bird''s own keywords keep opting people out; the keywords the rule added go with it, and a word only that rule matched stops meaning anything. Which rule answers next is not always one of yours: the order runs from your rule for an account and country, through your rule for the account, your rule for the country, Bird''s rule for the sender''s country, your worldwide rule, and finally Bird''s worldwide one. So deleting your rule for a country hands the scope to Bird''s rule for that country before your own worldwide rule. List the rules to read the order for your workspace. Bird''s own rules cannot be deleted.'
+      tags:
+      - whatsapp-keyword-rules
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: The rule was deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+components:
+  schemas:
+    WhatsAppKeywordRuleList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: 'The keyword rules that apply to your workspace, Bird''s own included. Ordered most specific first, so the first rule whose keywords match an inbound message is the one that runs. The set is small and returned in full; this list is not paginated.
+
+            '
+          items:
+            $ref: '#/components/schemas/WhatsAppKeywordRule'
+    WhatsAppKeywordOperationWrite:
+      type: string
+      minLength: 1
+      enum:
+      - opt_in
+      - opt_out
+      x-enum-varnames:
+      - WhatsAppKeywordOperationWriteOptIn
+      - WhatsAppKeywordOperationWriteOptOut
+      description: "What Bird does when an inbound message matches the rule.\n\n- `opt_out` records that the sender no longer consents to receive any messages from your\n  WhatsApp Business Account, including transactional ones. Typing the word is the person's\n  own statement, so it covers everything, unlike WhatsApp's built-in marketing opt-out\n  control, which stops marketing alone.\n- `opt_in` records that they consent again.\n\nA rule's operation is fixed once created, and a keyword belongs to exactly one operation, so\na keyword Bird ships for `opt_out` cannot be reused for `opt_in`.\n\nClosed on the write side: an operation Bird does not answer is rejected here rather than\nstored as a rule that never fires. The read side is open, because Bird can gain an operation\nwithout a new API version.\n"
+      example: opt_out
+    WhatsAppKeywordRuleCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - operation
+      properties:
+        operation:
+          $ref: '#/components/schemas/WhatsAppKeywordOperationWrite'
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          description: 'The country this rule applies in, as an ISO 3166-1 alpha-2 code. It matches the country of the person who messaged you, worked out from their phone number. Omit it to cover everyone, which is what Bird''s own rules do.
+
+            '
+          example: US
+        waba:
+          type: string
+          minLength: 1
+          description: 'Limit the rule to one WhatsApp Business Account, identified by its WhatsApp-issued account ID or by the `waa_` ID Bird gives it. Either form resolves to the same account, and the rule stores and returns the WhatsApp-issued one. Omit it to cover every account in your workspace. The account must be one of yours.
+
+            '
+          example: '102290129340398'
+        keywords:
+          type: array
+          description: 'Extra keywords to match, on top of the ones Bird already ships for this operation. Omit to keep Bird''s keywords and change only the reply, including keywords Bird adds later. You cannot remove one of Bird''s keywords, and a keyword Bird has bound to the other operation cannot be reused here.
+
+            '
+          items:
+            type: string
+            minLength: 1
+          example:
+          - no more texts
+          - remove me
+        reply:
+          type: string
+          minLength: 1
+          description: 'The message to send back when a keyword matches. Omit it to send nothing.
+
+            '
+          example: You're off the list. ACME Courier won't message you again.
+    WhatsAppKeywordRuleScope:
+      type: string
+      minLength: 1
+      enum:
+      - system
+      - workspace
+      description: 'Whether the rule is one Bird ships (`system`) or one your workspace created (`workspace`). Both kinds carry a `wkr_` ID and can be read; only a `workspace` rule can be changed or deleted. A `workspace` rule takes precedence over Bird''s at the same grain, so it is how you replace a reply without losing the keywords Bird ships.
+
+        '
+      example: workspace
+    WhatsAppKeywordRule:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      required:
+      - id
+      - scope
+      - operation
+      - keywords
+      - effective_keywords
+      - created_at
+      - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/WhatsAppKeywordRuleID'
+        scope:
+          $ref: '#/components/schemas/WhatsAppKeywordRuleScope'
+        operation:
+          $ref: '#/components/schemas/WhatsAppKeywordOperation'
+        country:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          maxLength: 2
+          description: 'The country the rule applies in, as an ISO 3166-1 alpha-2 code. It is the country of the person who messaged you, worked out from their phone number, not the country of the account they messaged. Null means the rule applies worldwide, which is what Bird''s own rules do. A rule for a country outranks a worldwide rule for the people it covers.
+
+            '
+          example: US
+        waba:
+          type:
+          - string
+          - 'null'
+          description: 'The WhatsApp Business Account the rule is limited to, identified by its WhatsApp-issued account ID, or null when it covers every account in your workspace. Bird''s own rules are always null.
+
+            '
+          example: '102290129340398'
+        keywords:
+          type: array
+          description: 'The keywords this rule adds. For one of Bird''s own rules this is the full set Bird ships. For a rule you created it is only what you added on top: it never restates or removes Bird''s keywords, so `effective_keywords` is what actually matches.
+
+            '
+          items:
+            type: string
+            minLength: 1
+          example:
+          - no more texts
+          - remove me
+        effective_keywords:
+          type: array
+          description: 'Every keyword that matches this rule: Bird''s keywords for the same operation and country, plus the ones you added. This is what an inbound message is compared against, and the whole message has to equal one of them. Keywords Bird adds later join it without you changing anything.
+
+            For a rule of **yours** with no `country`, this list is not the whole set it matches: such a rule compares against Bird''s keywords for the sender''s country, which the list cannot show because it does not know who is writing, so it shows Bird''s worldwide keywords instead. Which rule answers decides whether that matters. Yours with no `country` and no `waba` sits below Bird''s own country rule, so a sender in a country Bird ships a rule for is answered by that rule and your reply is not used. Yours with a `waba` and no `country` sits above it, so those senders match that country''s keywords and get your reply, which is more keywords than this list names. Set a `country` on your own rule to see and extend exactly the set those senders match. A `system` rule is unaffected: each matches only its own keywords, and the ladder checks Bird''s country rules separately from its worldwide one.
+
+            '
+          items:
+            type: string
+            minLength: 1
+          example:
+          - stop
+          - unsubscribe
+          - optout
+          - no more texts
+          - remove me
+        reply:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: 'The message sent back when one of the keywords matches, or null when no reply is sent. The reply goes out on the conversation the inbound message opened.
+
+            '
+          example: You're off the list. ACME Courier won't message you again.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the rule was created. On one of Bird's own rules this is when Bird last shipped a change to it.
+          example: '2026-09-15T10:04:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the rule was last changed. On one of Bird's own rules this is when Bird last shipped a change to it.
+          example: '2026-09-15T10:04:00Z'
+    WhatsAppKeywordOperation:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - opt_in
+      - opt_out
+      description: "What Bird does when an inbound message matches the rule.\n\n- `opt_out` records that the sender no longer consents to receive any messages from your\n  WhatsApp Business Account, including transactional ones. Typing the word is the person's\n  own statement, so it covers everything, unlike WhatsApp's built-in marketing opt-out\n  control, which stops marketing alone.\n- `opt_in` records that they consent again.\n\nA rule's operation is fixed once created, and a keyword belongs to exactly one operation, so\na keyword Bird ships for `opt_out` cannot be reused for `opt_in`.\n\nThis is an open enum. Accept unrecognized values: SMS already answers `help`, `info`, `confirm`\nand `custom`, and WhatsApp gains an operation without a new API version. Sending one Bird does\nnot answer yet is refused with `E15082`.\n"
+      example: opt_out
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    WhatsAppKeywordRuleUpdate:
+      type: object
+      additionalProperties: false
+      description: 'Changes the reply and the added keywords. What a rule applies to (its operation, country and WhatsApp Business Account) is fixed once created: those decide which inbound messages reach it, so changing one would make it a different rule. Delete it and create the one you want.
+
+        '
+      properties:
+        keywords:
+          type: array
+          description: 'Replaces the extra keywords this rule matches, on top of the ones Bird ships. Send an empty array to keep Bird''s keywords only. Omit to leave the current ones unchanged.
+
+            '
+          items:
+            type: string
+            minLength: 1
+          example:
+          - no more texts
+        reply:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: 'Replaces the message sent back when a keyword matches. Set it to null to send nothing. Omit to leave it unchanged.
+
+            '
+          example: You're off the list. ACME Courier won't message you again.
+    WhatsAppKeywordRuleID:
+      type: string
+      minLength: 1
+      pattern: ^wkr_[0-9a-hjkmnp-tv-z]{26}$
+      example: wkr_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

@@ -1,0 +1,1847 @@
+openapi: 3.2.0
+info:
+  title: Bird Whatsapp Templates API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: whatsapp-templates
+  description: Browse the WhatsApp message templates available to your workspace, approved by Meta and ready to send.
+paths:
+  /v1/whatsapp/templates:
+    get:
+      operationId: listWhatsAppTemplates
+      x-snippet-key: whatsapp.templates.list
+      summary: List available message templates
+      description: 'Returns the WhatsApp message templates available to your workspace: both the workspace''s own templates (`scope: workspace`) and our built-in, Meta-approved templates (`scope: system`); filter to one tier with `scope`. Each entry carries the template''s `slug` (the handle you reference when sending), its aggregated `status`, and the languages a send can currently resolve. It also summarizes where every language stands at Meta, so a list page can show an accurate row without another request. Content is not here: it lives under a version. The list is cursor-paginated. With no `scope`, the workspace''s own templates come first, newest first, followed by our built-in templates.'
+      tags:
+      - whatsapp-templates
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: waba
+        in: query
+        required: false
+        description: 'Filter to a single WhatsApp Business Account by its Meta WABA ID: the same value each template reports in its own `waba` field. Our built-in templates belong to no account and are never returned when this is set, and an account your workspace does not hold returns an empty page.'
+        schema:
+          type: string
+          minLength: 1
+          example: '102290129340398'
+      - name: status
+        in: query
+        required: false
+        description: Filter by lifecycle status. Repeat the parameter to match any of several. Our built-in templates are always `active`.
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateStatus'
+      - name: scope
+        in: query
+        required: false
+        description: 'Filter by ownership tier: `system` for the built-in, Meta-approved template catalog, or `workspace` for the workspace''s own templates. Omit to return both.'
+        schema:
+          $ref: '#/components/schemas/TemplateScope'
+      - name: category
+        in: query
+        required: false
+        description: Filter by template category.
+        schema:
+          $ref: '#/components/schemas/WhatsAppTemplateCategory'
+      - name: q
+        in: query
+        required: false
+        description: A case-insensitive substring search across the template's slug, name, and description.
+        schema:
+          type: string
+          minLength: 1
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: The message templates available to your workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppTemplateList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - attio
+      - cli
+      - make
+      - mcp
+      - sdk
+  /v1/whatsapp/templates/{template_ref}:
+    parameters:
+    - name: template_ref
+      in: path
+      required: true
+      description: 'Template ID (`wat_` prefix) or slug. A value that parses as a valid ID resolves by ID; any other value resolves as a slug.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 63
+      example: bird_otp
+    get:
+      operationId: getWhatsAppTemplate
+      x-snippet-key: whatsapp.templates.get
+      summary: Get a message template
+      description: 'Returns one template by its ID or slug: its lifecycle, the languages a send can currently resolve, a summary of where every language stands at Meta, and a pointer to the version that is live. Content is not here: read a version for that.'
+      tags:
+      - whatsapp-templates
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The requested template.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+  /v1/whatsapp/templates/{template_ref}/versions:
+    parameters:
+    - name: template_ref
+      in: path
+      required: true
+      description: 'Template ID (`wat_` prefix) or slug. A value that parses as a valid ID resolves by ID; any other value resolves as a slug.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 63
+      example: bird_otp
+    get:
+      operationId: listWhatsAppTemplateVersions
+      x-snippet-key: whatsapp.templates.versions.list
+      summary: List a template's versions
+      description: Returns the template's versions, newest first. Each names the languages it holds and what became of them; content is not here, since a page of versions would carry a copy of every language in every one of them. Read a single version for its content.
+      tags:
+      - whatsapp-templates
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: The template's versions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppTemplateVersionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+  /v1/whatsapp/templates/{template_ref}/versions/{version_id}:
+    parameters:
+    - name: template_ref
+      in: path
+      required: true
+      description: 'Template ID (`wat_` prefix) or slug. A value that parses as a valid ID resolves by ID; any other value resolves as a slug.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 63
+      example: bird_otp
+    - name: version_id
+      in: path
+      required: true
+      description: ID of the template version (`wav_` prefix), as returned by the version list.
+      schema:
+        $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+    get:
+      operationId: getWhatsAppTemplateVersion
+      x-snippet-key: whatsapp.templates.versions.get
+      summary: Get a template version
+      description: 'Returns one version: the content of every language it holds and what its submission did with each.'
+      tags:
+      - whatsapp-templates
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The requested version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppTemplateVersion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - attio
+      - cli
+      - make
+      - mcp
+      - sdk
+  /v1/whatsapp/templates/{template_ref}/versions/{version_id}/languages:
+    parameters:
+    - name: template_ref
+      in: path
+      required: true
+      description: 'Template ID (`wat_` prefix) or slug. A value that parses as a valid ID resolves by ID; any other value resolves as a slug.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 63
+      example: bird_otp
+    - name: version_id
+      in: path
+      required: true
+      description: ID of the template version (`wav_` prefix), as returned by the version list.
+      schema:
+        $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+    get:
+      operationId: listWhatsAppTemplateVersionLanguages
+      x-snippet-key: whatsapp.templates.versions.languages.list
+      summary: List a version's languages
+      description: 'Returns every language a version holds, without content: each language''s tag, what this version''s submission did with it, its write counter, and a hash over its content. Compare the hashes to tell which languages actually differ before fetching any content. Fetch a single language for its content blocks.'
+      tags:
+      - whatsapp-templates
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The version's languages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppTemplateLanguageList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+  /v1/whatsapp/templates/{template_ref}/versions/{version_id}/languages/{language}:
+    parameters:
+    - name: template_ref
+      in: path
+      required: true
+      description: 'Template ID (`wat_` prefix) or slug. A value that parses as a valid ID resolves by ID; any other value resolves as a slug.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 63
+      example: bird_otp
+    - name: version_id
+      in: path
+      required: true
+      description: ID of the template version (`wav_` prefix), as returned by the version list.
+      schema:
+        $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+    - name: language
+      in: path
+      required: true
+      description: 'The language, as a BCP-47 tag. Case and separator variance is accepted and normalised, and the canonical form is returned.
+
+        '
+      schema:
+        $ref: '#/components/schemas/LanguageTag'
+      example: nl-BE
+    get:
+      operationId: getWhatsAppTemplateVersionLanguage
+      x-snippet-key: whatsapp.templates.versions.languages.get
+      summary: Get a version's language
+      description: 'Returns one language of one version: its content blocks, what this version''s submission did with it, and everything Meta holds about it: review outcome and category.'
+      tags:
+      - whatsapp-templates
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The requested language.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppTemplateLanguage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - sdk
+components:
+  schemas:
+    WhatsAppTemplateRejection:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Why Meta refused a language''s content, and what it says about fixing it. Present when `status` is `rejected`.
+
+        '
+      properties:
+        category:
+          $ref: '#/components/schemas/WhatsAppTemplateRejectionCategory'
+          description: Meta's own classification of the refusal.
+        reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Meta's detail about the refusal, passed through unmodified.
+          example: Parameters are adjacent.
+        recommendation:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Meta''s suggested fix, the only thing it says about how to make the content acceptable. Meta sends it for some refusals and not others.
+
+            '
+          example: Add text between the two parameters.
+    TemplateOnMissingLanguage:
+      type: string
+      minLength: 1
+      enum:
+      - fallback
+      - fail
+      x-enum-varnames:
+      - TemplateOnMissingLanguageFallback
+      - TemplateOnMissingLanguageFail
+      description: 'What a send or a preview does when it asks for a language the template
+
+        cannot serve.
+
+
+        `fallback` serves the closest match instead. It tries a broader form of the
+
+        same language first, so a request for `pt-BR` can be served by a stocked
+
+        `pt`, and then the template''s default language. A send never fails because a
+
+        language is missing.
+
+
+        `fail` rejects the send rather than serving a different language, for content
+
+        where sending the wrong language is worse than not sending at all. It matches
+
+        the requested tag or a broader form of it and refuses a sibling variant, so
+
+        `pt-BR` is never served by `pt-PT`. A send that names no language still uses
+
+        the default language.
+
+
+        The default is per channel and stated on each channel''s own field, because
+
+        what a wrong-language send costs differs. Where every language is separately
+
+        reviewed and separately priced, falling back silently would send content the
+
+        recipient did not expect at a rate the sender did not choose.
+
+        '
+      example: fallback
+    WhatsAppTemplateRevision:
+      type: integer
+      minimum: 1
+      description: 'A write counter, incremented every time the content it belongs to changes. It sits at 1 on content that has never been written through this API.
+
+        '
+      example: 4
+    WhatsAppTemplateVersionLanguage:
+      type: object
+      additionalProperties: false
+      required:
+      - components
+      properties:
+        components:
+          type: array
+          description: This language's content in this version, in display order.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateComponent'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateLanguageStatus'
+          description: 'What this submission did with this language. Absent on a draft, which has not been submitted. Whether the language can be sent right now is a different question, answered by the template''s `languages` summary.
+
+            '
+        rejection:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateRejection'
+          description: 'Why Meta refused this content, present when `status` is `rejected`. Absent otherwise.
+
+            '
+        error:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateSubmissionError'
+          description: 'Why the submission did not complete, present when `status` is `submit_failed` or `outcome_unknown`. Absent otherwise, including on a rejection, whose reason is in `rejection`.
+
+            '
+      description: One language's content in one version, and what that submission did with it.
+    WhatsAppTemplateLanguage:
+      type: object
+      additionalProperties: false
+      required:
+      - language
+      - components
+      - revision
+      - content_hash
+      - submitted_at
+      - updated_at
+      properties:
+        language:
+          $ref: '#/components/schemas/LanguageTag'
+          description: The canonical tag this language is addressed by.
+        components:
+          type: array
+          description: This language's content blocks, in display order, exactly as submitted or as they stand in the draft.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateComponent'
+        status:
+          $ref: '#/components/schemas/WhatsAppTemplateLanguageStatus'
+          description: 'What this submission did with this language. Absent on a draft, which has not been submitted. On a superseded version this is history: how that submission went. It does not report whether the language is sendable now.
+
+            '
+        revision:
+          $ref: '#/components/schemas/WhatsAppTemplateRevision'
+          readOnly: true
+          description: 'This language''s write counter, incremented every time its content changes. It sits at 1 on content that has never been written through this API, which is every built-in template''s language.
+
+            '
+        content_hash:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateContentHash'
+          readOnly: true
+        category:
+          $ref: '#/components/schemas/WhatsAppTemplateCategory'
+          description: The category Meta is applying to this language, which is what messages from it are priced at.
+        previous_category:
+          $ref: '#/components/schemas/WhatsAppTemplateCategory'
+          description: The category this language held before Meta moved it.
+        quality:
+          $ref: '#/components/schemas/WhatsAppTemplateQuality'
+          description: 'Meta''s quality rating for this language. Present only on the version currently in service, and only once Meta has rated it.
+
+            '
+        rejection:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateRejection'
+          description: 'Why Meta refused this content, present when `status` is `rejected`. Absent otherwise.
+
+            '
+        error:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateSubmissionError'
+          description: 'Why the submission did not complete, present when `status` is `submit_failed` or `outcome_unknown`. Absent otherwise, including on a rejection, whose reason is in `rejection`.
+
+            '
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this content was submitted to Meta. Null on a draft, which has not been submitted, and null for a built-in template''s language, which Bird ships already approved rather than submitting on your behalf.
+
+            '
+          example: '2026-07-26T16:40:00Z'
+        approved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When Meta approved this exact content. It is a permanent mark on the content rather than a status, so a later pause or archival does not clear it. Null for a built-in template''s language, whose approval predates Bird holding a date for it.
+
+            '
+          example: '2026-07-21T08:15:00Z'
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this language last changed. Null for a built-in template''s language, which Bird ships rather than stores.
+
+            '
+          example: '2026-07-26T16:41:00Z'
+        updated_by:
+          oneOf:
+          - $ref: '#/components/schemas/UserID'
+          - type: 'null'
+          readOnly: true
+          description: 'The workspace member who last wrote this language. Always null for a built-in template''s language: nobody in the workspace authored it.
+
+            '
+      description: 'One language of one version: its content, what the submission carrying it did with it, and everything Meta holds about it.
+
+        '
+    WhatsAppTemplateLanguageState:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateLanguageStatus'
+          description: 'On a template, where this language stands on the version currently in service. On a version, what that version''s submission did with this language. Absent on a draft, which has not been submitted.
+
+            '
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this language''s content was last submitted to Meta. Null on a draft, which has not been submitted, and null for a built-in template''s language, shipped already approved rather than submitted on your behalf.
+
+            '
+          example: '2026-07-26T16:40:00Z'
+        editable_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'The next time you can edit this language, if Meta''s one-edit-per-day limit on an approved language is currently spent. Null when an edit is allowed right now, though Meta also caps an approved language at ten edits per rolling 30 days: a null here does not guarantee an edit will succeed if you are close to that limit too.
+
+            '
+          example: '2026-07-27T16:40:00Z'
+        rejection:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateRejection'
+          description: 'Why Meta refused this content, present when `status` is `rejected`. Absent otherwise.
+
+            '
+        error:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateSubmissionError'
+          description: 'Why the submission did not complete, present when `status` is `submit_failed` or `outcome_unknown`. Absent otherwise, including on a rejection, whose reason is in `rejection`.
+
+            '
+      description: 'Where one language stands, without its content: content lives under a version, read that for it. An object rather than a bare status string, so detail beyond status can arrive later as a sibling property instead of a breaking change.
+
+        '
+    WhatsAppTemplateComponent:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - header
+          - body
+          - footer
+          - buttons
+          - carousel
+          description: The content block's type within the template.
+          example: body
+        format:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - text
+          - image
+          - video
+          - gif
+          - document
+          - location
+          description: 'The header block''s content type. Present on a header block. A `text` header carries a line of copy. The `image`, `video`, `gif`, and `document` formats each show a file whose address is in the block''s `example_parameters`. The `location` format shows a map. It carries no content because the coordinates belong to the message rather than the template.
+
+            '
+          example: text
+        text:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The block''s text content, with any variable placeholders shown inline. Present when the block carries text. An authentication template''s body and footer are written by WhatsApp from the two settings below rather than by you, so their text is absent until the language has been submitted and WhatsApp has supplied it.
+
+            '
+          example: Your verification code is {{1}}.
+        add_security_recommendation:
+          type: boolean
+          readOnly: true
+          description: 'Whether this authentication template''s body ends with WhatsApp''s advice not to share the code. Present on an authentication template''s body block.
+
+            '
+        code_expiration_minutes:
+          type: integer
+          readOnly: true
+          description: 'How long the passcode stays valid, which WhatsApp states in this footer. Present on an authentication template''s footer block. Omitting it on a write leaves the footer off entirely.
+
+            '
+          example: 60
+        example_parameters:
+          type: array
+          readOnly: true
+          description: Example values for this block's variables, in placeholder order (one per `{{n}}`). Use them to see what a filled message looks like. Present when the block has variables.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateExampleParameter'
+        buttons:
+          type: array
+          readOnly: true
+          description: The buttons attached to this block. Present when the block carries buttons.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateButton'
+        cards:
+          type: array
+          readOnly: true
+          description: 'The cards this block scrolls through, in display order. Present on a `carousel` block.
+
+            '
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateCard'
+    WhatsAppTemplateVersionList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of the template's versions, newest first.
+            items:
+              $ref: '#/components/schemas/WhatsAppTemplateVersionSummary'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    WhatsAppTemplateVersionSummary:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - template_id
+      - languages
+      - submitted_at
+      - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+          readOnly: true
+          description: Stable Bird identifier for the version.
+        template_id:
+          $ref: '#/components/schemas/WhatsAppTemplateID'
+          readOnly: true
+          description: The template this version belongs to.
+        version_number:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          readOnly: true
+          description: 'The version''s sequence number, assigned when it is submitted. Null on a draft, which has not been submitted and has no place in the sequence yet.
+
+            '
+          example: 4
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this version was submitted to Meta. Null on a draft, which has not been submitted, and null for a built-in template''s version, which Bird ships already approved rather than submitting on your behalf.
+
+            '
+          example: '2026-07-20T11:04:00Z'
+        languages:
+          type: object
+          example:
+            en:
+              status: approved
+          description: 'What this version''s submission did with each language it holds, keyed by BCP-47 language tag. Content is not here: read the version for that.
+
+            '
+          propertyNames:
+            $ref: '#/components/schemas/LanguageTag'
+          additionalProperties:
+            $ref: '#/components/schemas/WhatsAppTemplateLanguageState'
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When the version was opened. Null for a built-in template''s version, which Bird ships rather than stores.
+
+            '
+          example: '2026-07-20T10:31:00Z'
+        next:
+          type: array
+          readOnly: true
+          description: 'What to do next with this version, given whether it has been submitted. Present on
+
+            reads that compute it: an empty list means there is nothing to do, and the field is
+
+            absent entirely on responses that do not report next actions.
+
+
+            A version with no `version_number` is the open draft, and routes to writing its
+
+            languages and checking it. One that carries a number is frozen, so it routes to
+
+            reading the verdicts it holds. `submitted_at` does not separate the two, because
+
+            it is also null on a built-in template''s version.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+      description: 'One version of a template, without its content. A version holds a full copy of every language it was submitted with. Listing versions therefore names the languages and what became of each without carrying their content. Read a single version for its content. Read its shallow language collection for content hashes.
+
+        '
+    WhatsAppTemplateExampleParameter:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateParameterType'
+          readOnly: true
+          description: The kind of value this parameter accepts.
+        text:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: An example value for a text parameter. Present when `type` is `text`.
+          example: '123456'
+        url:
+          type: string
+          format: uri
+          readOnly: true
+          description: 'The address of the file a media header shows, as it was given when the header was authored rather than WhatsApp''s copy of it. Present when `type` is `image`, `video`, `gif` or `document`.
+
+            '
+          example: https://www.example.com/holiday/banner.jpg
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The named placeholder this example fills. Present whenever the template declares named parameters, which is what a send must name; absent only for a positional template, whose values go in `{{n}}` order.
+
+            '
+          example: first_name
+    TemplateScope:
+      type: string
+      minLength: 1
+      readOnly: true
+      enum:
+      - system
+      - workspace
+      description: 'Whether the template is one of our built-in templates (`system`) or one your workspace created (`workspace`).
+
+        '
+    WhatsAppTemplateCard:
+      type: object
+      additionalProperties: false
+      required:
+      - components
+      description: One card in a carousel.
+      properties:
+        components:
+          type: array
+          readOnly: true
+          description: This card's content blocks, in display order.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateCardComponent'
+    WhatsAppTemplateCardComponent:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      description: One content block inside a carousel card.
+      properties:
+        type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - header
+          - body
+          - buttons
+          description: The card block's type.
+          example: header
+        format:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - image
+          - video
+          description: The card header's content type. Present on a card's header block.
+          example: image
+        text:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The block's text content, with any variable placeholders shown inline.
+          example: Chronograph, brown leather
+        example_parameters:
+          type: array
+          readOnly: true
+          description: Example values for this block's variables, in placeholder order.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateExampleParameter'
+        buttons:
+          type: array
+          readOnly: true
+          description: The buttons this card carries. Present on a card's buttons block.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateButton'
+    WhatsAppTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^wat_[0-9a-hjkmnp-tv-z]{26}$
+      example: wat_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppTemplateLanguageStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - approved
+      - pending
+      - rejected
+      - paused
+      - disabled
+      - in_appeal
+      - pending_deletion
+      - limit_exceeded
+      - archived
+      - deleted
+      - submit_failed
+      - outcome_unknown
+      description: 'Language review and health status:
+
+
+        - `approved`: Passed review and can be sent.
+
+        - `pending`: Under review.
+
+        - `rejected`: Failed review.
+
+        - `paused` or `disabled`: Sending is suspended.
+
+        - `in_appeal`: A decision is being appealed.
+
+        - `pending_deletion`: Scheduled for deletion by Meta.
+
+        - `limit_exceeded`: Sending is blocked by a limit.
+
+        - `archived`: Reclaimed after 12 months without use; recoverable for 28 days.
+
+        - `deleted`: Permanently deleted.
+
+        - `submit_failed`: A submission or a deletion did not complete and will not be retried. `error.description` says why, and `error.meta_error_code` is set only where WhatsApp itself refused.
+
+        - `outcome_unknown`: A create or an edit reached WhatsApp but no response came back, so the outcome is still being resolved against WhatsApp. An unanswered deletion is retried instead of landing here. `error.description` says so, and `error.meta_error_code` is absent, since nothing was refused.
+
+
+        This is an open enum. Accept unrecognized values.
+
+        '
+    WhatsAppTemplateParameterType:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - text
+      - image
+      - video
+      - gif
+      - document
+      - location
+      description: 'The kind of value a template parameter carries, which follows the block it fills. The `text` type is a plain string substituted into a placeholder. This includes a coupon button''s code, which the recipient copies from the button. The `image`, `video`, `gif`, and `document` types carry a media header''s file in `url`. Each matches its header''s `format`. The `location` type fills a location header and carries a point on the map. Open enum: more kinds may be added over time.
+
+        '
+    WhatsAppTemplateButton:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - url
+          - quick_reply
+          - phone_number
+          - otp
+          - copy_code
+          - request_contact_info
+          description: "The button's behavior.\n\n- `url`: opens a link.\n- `quick_reply`: sends its own label back to you as an inbound message.\n- `phone_number`: dials the number it carries.\n- `otp`: copies a one-time passcode. It belongs only on an authentication\n  template, and that template takes no other button type.\n- `copy_code`: copies a coupon code to the recipient's clipboard. It\n  belongs only on a marketing template, which takes at most one.\n- `request_contact_info`: asks the recipient to share the phone number\n  their WhatsApp account carries. It belongs only on a utility or\n  marketing template, as that template's only button.\n\nThis is an open enum. Accept unrecognized values.\n"
+          example: url
+        otp_type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - copy_code
+          description: How the recipient receives the one-time passcode. Present on authentication-template OTP buttons.
+          example: copy_code
+        text:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The button''s label. Absent on an authentication template''s passcode button until the language has been submitted, since WhatsApp writes that label itself. Absent on a `request_contact_info` draft for a related reason: WhatsApp fixes that label, so a draft that carried it reads back without it. Once the language is submitted, this carries the label WhatsApp wrote, which is `Share Contact Info` in every language today.
+
+            '
+          example: Copy code
+        url:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The address the button opens, with any variable placeholder shown inline. Present on link buttons.
+          example: https://www.example.com/orders/{{1}}
+        phone_number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The number the button dials. Present on dial buttons.
+          example: '+14155550100'
+        example_parameters:
+          type: array
+          readOnly: true
+          description: 'Example values for this button''s variables, in placeholder order. Present when the button address has variables, and on a `copy_code` button, where the single value is the sample coupon code WhatsApp reviewed.
+
+            '
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateExampleParameter'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    WhatsAppTemplateVersionID:
+      type: string
+      minLength: 1
+      pattern: ^wav_[0-9a-hjkmnp-tv-z]{26}$
+      example: wav_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppTemplateVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - template_id
+      - languages
+      - submitted_at
+      - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+          readOnly: true
+          description: Stable Bird identifier for the version.
+        template_id:
+          $ref: '#/components/schemas/WhatsAppTemplateID'
+          readOnly: true
+          description: The template this version belongs to.
+        version_number:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          readOnly: true
+          description: 'The version''s sequence number, assigned when it is submitted. Null on a draft, which has not been submitted and has no place in the sequence yet.
+
+            '
+          example: 4
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this version was submitted to Meta. Null on a draft, which has not been submitted, and null for a built-in template''s version, which Bird ships already approved rather than submitting on your behalf.
+
+            '
+          example: '2026-07-20T11:04:00Z'
+        languages:
+          type: object
+          example:
+            en:
+              status: approved
+              components:
+              - type: body
+                text: Your verification code is {{1}}.
+                example_parameters:
+                - type: text
+                  text: '123456'
+          description: 'This version''s content, keyed by BCP-47 language tag, with what its submission did with each language.
+
+            '
+          propertyNames:
+            $ref: '#/components/schemas/LanguageTag'
+          additionalProperties:
+            $ref: '#/components/schemas/WhatsAppTemplateVersionLanguage'
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When the version was opened. Null for a built-in template''s version, which Bird ships rather than stores.
+
+            '
+          example: '2026-07-20T10:31:00Z'
+      description: 'One version of a template: the content of every language it holds, frozen when it was submitted, alongside what Meta made of each. A draft is a version too: a mutable one, with no number and no submission date.
+
+        '
+    WhatsAppTemplateLanguageList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: Every language this version holds, without content.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateLanguageSummary'
+    WhatsAppTemplateQuality:
+      type: object
+      additionalProperties: false
+      required:
+      - current_score
+      - updated_at
+      properties:
+        current_score:
+          $ref: '#/components/schemas/WhatsAppTemplateQualityScore'
+          description: Meta's rating for this language as of `updated_at`.
+        previous_score:
+          $ref: '#/components/schemas/WhatsAppTemplateQualityScore'
+          description: 'The rating this language held before the most recent change. Absent when Meta has rated it only once. Usually differs from `current_score`, but Meta sometimes reports both as the same value, so compare timestamps rather than assuming a transition.
+
+            '
+        updated_at:
+          type: string
+          minLength: 1
+          format: date-time
+          readOnly: true
+          description: 'When the rating last changed. A re-evaluation that lands on the same rating does not move it, so this answers how long the language has held its current rating.
+
+            '
+          example: '2026-07-26T16:41:00Z'
+      description: 'Meta''s quality rating for one language, with the rating it moved from and when it moved. Present only once Meta has rated the language, and only on the version currently in service. A superseded version''s content carries no rating.
+
+        '
+    WhatsAppTemplateContentHash:
+      type: string
+      minLength: 1
+      description: 'A hash over the serialized `components` this API surfaces, prefixed with the algorithm that produced it (`sha256:`) so the algorithm can change without the field becoming ambiguous. It tells you whether a language differs without transferring its content. Compare hashes only within one version of this API. Adding a field to the component shape changes every hash even when the underlying content is unchanged. Email''s field of the same name carries bare hex and predates this form.
+
+        '
+      example: sha256:9f2c4e1a7b03d85fbc6e29d417a05e8c3b1d9f76a2e4c018d53b7f9a6c2e18d4
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    WhatsAppTemplateRejectionCategory:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - abusive_content
+      - incorrect_category
+      - invalid_format
+      - scam
+      - tag_content_mismatch
+      description: 'Why Meta refused a language''s content, in Meta''s own vocabulary, lowercased. Read it with `reason`, which carries Meta''s human-written detail, and `recommendation`, which carries its suggested fix. This is an open enum. Accept unrecognized values.
+
+        '
+      example: invalid_format
+    WhatsAppTemplate:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - slug
+      - slug_editable
+      - name
+      - scope
+      - description
+      - category
+      - status
+      - default_language
+      - on_missing_language
+      - language_source_required
+      - available_languages
+      - languages
+      - draft_version_id
+      - live_version_id
+      - pending_version_id
+      - last_submitted_at
+      - created_at
+      - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/WhatsAppTemplateID'
+          readOnly: true
+          description: Stable Bird identifier for the template.
+        slug:
+          example: bird_otp
+          allOf:
+          - $ref: '#/components/schemas/TemplateSlug'
+          readOnly: true
+          description: 'The template''s handle, editable before the first submission. Address it by this handle, and reference it when sending. Handles beginning with `bird_` are reserved for our built-in templates.
+
+            '
+        slug_editable:
+          type: boolean
+          readOnly: true
+          description: Whether the slug can still be changed. False after the first submission and for built-in templates.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 'A display name for the template. Nothing resolves through it, so it is safe to show wherever a human reads the template.
+
+            '
+          example: Order update
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+          description: What the template is for. Null when unset.
+          example: Sent when an order ships.
+        scope:
+          $ref: '#/components/schemas/TemplateScope'
+        waba:
+          type: string
+          readOnly: true
+          description: 'The WhatsApp Business Account that holds this template''s languages at Meta. Absent on a built-in template: those live on a WABA that Bird manages centrally rather than on your account, so it is not yours to reconcile against and is not disclosed.
+
+            '
+          example: '102290129340398'
+        category:
+          $ref: '#/components/schemas/WhatsAppTemplateCategory'
+          description: 'The category you declared for the template. It is fixed once the template exists. Meta applies its own category per language and may move one, which is what messages are priced at. Read the language for that.
+
+            '
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+          description: The template's lifecycle, aggregated over its languages.
+        default_language:
+          $ref: '#/components/schemas/LanguageTag'
+          description: 'The language a send is served in when it names none, whichever `on_missing_language` is set. A template that sets `language_source_required` refuses such a send instead. Under `fallback` it is also the last hop for a language that is not in `available_languages`, whether the template holds no copy in it or holds one WhatsApp has not approved. The template is required to hold this default, and it must itself be in `available_languages` for a send to resolve here.
+
+            '
+        on_missing_language:
+          allOf:
+          - $ref: '#/components/schemas/TemplateOnMissingLanguage'
+          readOnly: true
+          description: 'What a send does when the language it asks for has no approved copy. Defaults to `fail` on WhatsApp, because every language is separately approved and separately priced: falling back silently would send content the recipient did not expect at a rate the sender did not choose.
+
+            '
+        language_source_required:
+          type: boolean
+          description: 'When true, a send must name a language explicitly rather than letting the template resolve one.
+
+            '
+          example: false
+        available_languages:
+          type: array
+          readOnly: true
+          description: 'The languages a send can resolve right now: approved and not held back by Meta. It shrinks for reasons you did not cause: Meta pauses, disables, archives or limits a language and it leaves the set with nobody having edited anything. Read `languages` to see which languages exist and why one is missing.
+
+            '
+          items:
+            $ref: '#/components/schemas/LanguageTag'
+        languages:
+          type: object
+          example:
+            en:
+              status: approved
+          readOnly: true
+          description: 'Where each of the template''s languages stands, keyed by BCP-47 language tag. This is the summary of the version currently in service, so a template reading `active` can still hold a rejected or paused language: the aggregate says something is sendable, and this says which. Content is not here; it lives under a version.
+
+            '
+          propertyNames:
+            $ref: '#/components/schemas/LanguageTag'
+          additionalProperties:
+            $ref: '#/components/schemas/WhatsAppTemplateLanguageState'
+        draft_version_id:
+          oneOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+          - type: 'null'
+          readOnly: true
+          description: 'The open draft, or null when nobody is editing. Non-null is the answer to whether this template has unsubmitted work: a draft exists only because someone opened one.
+
+            '
+        live_version_id:
+          oneOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+          - type: 'null'
+          readOnly: true
+          description: 'The version Meta is serving. A version goes live as a unit the moment any of its languages is approved, superseding the one before it. Null until a first approval.
+
+            '
+        pending_version_id:
+          oneOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateVersionID'
+          - type: 'null'
+          readOnly: true
+          description: 'A submitted version still awaiting verdicts: what to poll. It stays set while any language is unresolved, including after a sibling''s approval took the version live. Null when nothing is outstanding.
+
+            '
+        last_submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this template was last submitted. Null for a pre-approved built-in template.
+
+            '
+          example: '2026-07-26T16:40:00Z'
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the template was created. Null for a built-in template, which Bird ships rather than stores.
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the template was last modified. Null for a built-in template, which Bird ships rather than stores.
+        next:
+          type: array
+          readOnly: true
+          description: 'What to do next with this template, given the state it is in. Each entry names one
+
+            action and says why it is worth taking, so you can act on this response without
+
+            working out the order yourself. Present on reads that compute it: an empty list
+
+            means there is nothing to do, and the field is absent entirely on responses that
+
+            do not report next actions.
+
+
+            A `draft` template routes to opening its draft, a `pending` one to the version
+
+            under review, and a `rejected` or `inactive` one to a fresh draft. The template''s
+
+            `status` is the aggregate over its languages, so an entry may send you to the
+
+            version to see where each language actually stands.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+      description: 'A message template: one identity holding a copy of the message per language. Each language is reviewed, priced and paused by Meta on its own, so the template''s own status is an aggregate and the per-language detail is in `languages`. A version contains the content.
+
+        '
+    TemplateSlug:
+      type: string
+      minLength: 1
+      maxLength: 63
+      pattern: ^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$
+      description: 'A template''s slug: what you send it by, for example `welcome-email`. Email and SMS slugs stay fixed after creation. WhatsApp slugs can change only before the first submission. A slug can contain lowercase letters, numbers, hyphens, and underscores, has to start and end with a letter or a number, and can be up to 63 characters long.
+
+        '
+      example: welcome-email
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    WhatsAppTemplateQualityScore:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - green
+      - yellow
+      - red
+      - unknown
+      description: 'Meta''s quality rating for one language of a template, derived from how recipients respond to messages sent from it. The `red` score is the leading indicator of a pause. Reaching Meta''s lowest rating pauses sending from that language for three hours; a second time pauses it for six, and a third disables it. The `unknown` score is a value Meta reports. When Meta has not rated the language, the rating object is absent. This is an open enum. Accept unrecognized values.
+
+        '
+      example: green
+    WhatsAppTemplateList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of templates available to your workspace.
+            items:
+              $ref: '#/components/schemas/WhatsAppTemplate'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    UserID:
+      type: string
+      minLength: 1
+      pattern: ^usr_[0-9a-hjkmnp-tv-z]{26}$
+      example: usr_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppTemplateLanguageSummary:
+      type: object
+      additionalProperties: false
+      required:
+      - language
+      - revision
+      - content_hash
+      properties:
+        language:
+          $ref: '#/components/schemas/LanguageTag'
+          description: The canonical tag this language is addressed by.
+        status:
+          $ref: '#/components/schemas/WhatsAppTemplateLanguageStatus'
+          description: What this version's submission did with this language. Absent on a draft.
+        revision:
+          $ref: '#/components/schemas/WhatsAppTemplateRevision'
+          readOnly: true
+          description: This language's write counter, incremented every time its content changes.
+        content_hash:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'A hash over the serialized `components` this API surfaces, for telling whether a language differs without fetching it. It is comparable only within one version of this API: adding a field to the component shape changes every hash without the underlying content changing.
+
+            '
+          example: sha256:9f2c4e1a7b03d85fbc6e29d417a05e8c3b1d9f76a2e4c018d53b7f9a6c2e18d4
+        next:
+          type: array
+          readOnly: true
+          description: 'What to do next about this language, given the verdict it carries. Present on reads
+
+            that compute it: an empty list means there is nothing to do, and the field is absent
+
+            entirely on responses that do not report next actions.
+
+
+            Approval is per language, so this is where a rejection, a pause, or a reclaimed
+
+            language is answered. The template''s own next actions cannot say, because they read
+
+            the aggregate.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+      description: 'One language of a version without its content. Fetch the language itself for the content.
+
+        '
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    WhatsAppTemplateCategory:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - authentication
+      - utility
+      - marketing
+      description: 'Meta''s content classification for a template.
+
+
+        - `authentication`: delivers one-time passcodes.
+
+        - `utility`: delivers transaction-triggered updates (receipts, order status).
+
+        - `marketing`: carries promotional content.
+
+
+        The category determines the sender number and price. This is an open enum.
+
+        Accept unrecognized values.
+
+        '
+    TemplateStatus:
+      type: string
+      minLength: 1
+      readOnly: true
+      enum:
+      - draft
+      - pending
+      - active
+      - rejected
+      - inactive
+      description: 'Where the template stands as a whole. The same five states on every channel.
+
+
+        - `draft`: nothing has ever gone live.
+
+        - `pending`: nothing is live and at least one language is in review.
+
+        - `active`: at least one language is live, so something can be sent.
+
+        - `rejected`: it was reviewed and every language was refused.
+
+        - `inactive`: nothing is live and nothing is in review, so content was withdrawn or was blocked before anything went live.
+
+
+        A template with one language live is `active` even while another is still
+
+        drafted or refused. Read `languages` for the state of each language and its
+
+        reason.
+
+
+        Which values a channel reports follows its review model. A channel whose
+
+        content a third party reviews uses all five. On email and SMS, where content
+
+        goes live on publish, a template is `draft`, `active` or `inactive`, and
+
+        `pending` and `rejected` are reserved for the review stage coming to both, so
+
+        a template reaching either is not a breaking change.
+
+        '
+      example: active
+    WhatsAppTemplateSubmissionError:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      required:
+      - description
+      description: 'Why the submission itself did not complete. Distinct from `rejection`, which is Meta refusing the content it was given.
+
+        '
+      properties:
+        description:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Human-readable explanation of why the submission did not complete.
+          example: component of type HEADER is missing expected field(s)
+        meta_error_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'WhatsApp''s most specific code for the refusal: its error subcode when it sent one, otherwise its top-level code. Opaque, treat it as a string. Absent when the failure was Bird''s own verdict rather than a WhatsApp refusal.
+
+            '
+          example: '2388043'
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+  parameters:
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

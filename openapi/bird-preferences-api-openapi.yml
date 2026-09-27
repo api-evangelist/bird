@@ -1,0 +1,893 @@
+openapi: 3.2.0
+info:
+  title: Bird Preferences API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: Preferences
+  description: Stated messaging preferences (consent grants and opt-outs) recorded per handle across email, SMS, and WhatsApp, with causally ordered writes.
+paths:
+  /v1/contacts/{contact_id}/preferences:
+    parameters:
+    - name: contact_id
+      in: path
+      required: true
+      description: ID of the contact.
+      schema:
+        $ref: '#/components/schemas/ContactID'
+      example: con_01krdgeqcxet5s7t44vh8rt9mg
+    get:
+      operationId: listContactPreferences
+      summary: List a contact's preferences
+      description: 'Returns the preferences on record for the contact''s current handles: rows keyed to their email address on the email channel, and to their phone number on SMS and WhatsApp. A contact with no handles, or with no statements on record, returns an empty page.
+
+
+        Rows are keyed by handle, not by contact: changing a contact''s email address or phone number changes which rows this returns, and the old handle''s rows remain in force for anything still sent to it.'
+      tags:
+      - Preferences
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      x-snippet-key: contacts.preferences.list
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: Paginated list of the contact's preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - n8n
+      - sdk
+  /v1/preferences:
+    get:
+      operationId: listPreferences
+      summary: List preferences
+      description: 'Returns the workspace''s recorded preferences, most recently created first. Pass `channel` to narrow to one channel, and `handle` with it to look up everything on record for one address or number.
+
+
+        Each row is a key''s current statement. A person can hold several rows on one channel (a channel-wide opt-out next to sender-scoped ones), and the most restrictive statement is what decides whether a message goes out.'
+      tags:
+      - Preferences
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: preferences.list
+      parameters:
+      - name: channel
+        in: query
+        required: false
+        description: Return only preferences on this channel.
+        schema:
+          $ref: '#/components/schemas/PreferenceChannel'
+      - name: handle
+        in: query
+        required: false
+        description: 'Return only preferences for this exact handle: an email address or an E.164 phone number. Requires `channel`, since a handle only means something on its channel.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 320
+        example: '+15550001234'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: Paginated list of preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    post:
+      operationId: createPreference
+      summary: Record a preference
+      description: 'Records one statement, a grant or an opt-out, for a handle on one channel. Writing is an upsert: the key is the channel, handle, and optional sender scope, and a new statement replaces the key''s current one.
+
+
+        Statements are ordered by when they were made, not when they arrive. A statement older than the key''s current one is refused and returned with `applied: false` alongside the statement that survived; refusals are recorded on the key''s history. Granting over a stored opt-out needs `consented_at` later than the opt-out, and a person''s own opt-out (an unsubscribe, a stop keyword) cannot be overridden by a grant asserted on their behalf.
+
+
+        A `201` means this key had no record and one was created; a `200` returns the key''s surviving record, whether this statement replaced it, repeated it, or was refused.'
+      tags:
+      - Preferences
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: preferences.create
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferenceCreate'
+            example:
+              channel: sms
+              handle: '+15550001234'
+              status: revoked
+              coverage: non_transactional
+      responses:
+        '200':
+          description: The key already had a record. The result says whether this statement replaced it, repeated it, or was refused as out of order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceWriteResult'
+        '201':
+          description: The key had no record; this statement created one.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceWriteResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/preferences/{preference_id}:
+    parameters:
+    - name: preference_id
+      in: path
+      required: true
+      description: 'ID of the preference, as returned when it was recorded or listed. The ID stays stable while the key holds a record; deleting and re-recording the same key mints a new one.
+
+        '
+      schema:
+        $ref: '#/components/schemas/PreferenceID'
+      example: prf_01krdgeqcxet5s7t44vh8rt9mg
+    get:
+      operationId: getPreference
+      summary: Get a preference
+      description: 'Returns one preference: the key it is about, the current statement on it, and the statement''s provenance. An ID that does not exist in the workspace returns `404`, including after a delete, which removes the record its ID pointed at.'
+      tags:
+      - Preferences
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: preferences.get
+      responses:
+        '200':
+          description: Preference.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preference'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    delete:
+      operationId: deletePreference
+      summary: Delete a preference
+      description: 'Deletes a preference, returning its key to having no record, as if nothing had ever been stated. The deletion itself is kept on the key''s history, so a later statement is still ordered against what was deleted.
+
+
+        **A statement the person made themselves cannot be deleted.** An unsubscribe or a stop keyword is their statement to reverse: it ends when they opt back in, and attempts to delete it return `422`. To restore messaging with the person''s consent, record a `granted` statement with `consented_at` evidence instead; that records the change of mind rather than erasing the opt-out.
+
+
+        A delete is ordered like any statement, using the time it is received: if the record carries a statement made after that moment, the delete is refused and returned with `applied: false` alongside the surviving record. An ID that does not exist in the workspace returns `404`.'
+      tags:
+      - Preferences
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: preferences.delete
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: 'The outcome. `applied: true` with a null `preference` means the record is gone; `applied: false` means a newer statement survived the delete and is returned.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceWriteResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+components:
+  schemas:
+    PreferenceChannel:
+      type: string
+      minLength: 1
+      description: 'The channel a preference statement applies to. A preference addresses one channel: the handle that identifies the person differs per channel, so opting out of one channel says nothing about the others. New channels can be added over time, so a value outside this list can be returned.'
+      x-extensible-enum:
+      - email
+      - sms
+      - whatsapp
+      example: sms
+    PreferenceList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of preferences, most recently created first.
+            items:
+              $ref: '#/components/schemas/Preference'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    PreferenceCreate:
+      description: 'Records one preference statement for a handle. Writing is an upsert by key (channel, handle, sender scope, and topic), and statements are causally ordered: a statement dated older than the key''s current one is refused and returned with `applied: false` rather than applied out of order.
+
+        '
+      allOf:
+      - type: object
+        required:
+        - handle
+        properties:
+          handle:
+            type: string
+            minLength: 1
+            maxLength: 320
+            description: 'Who the statement is about: an email address on the email channel, a phone number in E.164 format on SMS and WhatsApp.'
+            example: '+15550001234'
+      - $ref: '#/components/schemas/PreferenceStatement'
+    PreferenceID:
+      type: string
+      minLength: 1
+      pattern: ^prf_[0-9a-hjkmnp-tv-z]{26}$
+      example: prf_01krdgeqcxet5s7t44vh8rt9mg
+    PreferenceStatement:
+      type: object
+      required:
+      - channel
+      - status
+      properties:
+        channel:
+          $ref: '#/components/schemas/PreferenceChannel'
+        status:
+          $ref: '#/components/schemas/PreferenceStatus'
+        coverage:
+          allOf:
+          - $ref: '#/components/schemas/PreferenceCoverage'
+          default: non_transactional
+          description: How much traffic the statement covers. Defaults to `non_transactional`, which keeps transactional messages such as receipts and verification codes flowing.
+        sender_scope:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Limit the statement to one sender instead of the whole channel. On SMS this is the originator; on WhatsApp it identifies the business account. Not supported on email, where preferences are always channel-wide.
+          example: '+15557654321'
+        source:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 'Free-form note on where the statement came from: a form name, an import batch, a campaign. Stored verbatim and returned on the preference.'
+          example: signup-form-v2
+        consented_at:
+          type: string
+          format: date-time
+          description: 'When the person consented, on a `granted` statement. Required evidence when granting over a stored opt-out: the grant applies only if this is later than the opt-out it reverses. May not be in the future.'
+    PreferenceCoverage:
+      type: string
+      minLength: 1
+      description: How much traffic the statement covers. `non_transactional` covers marketing and other non-essential messages while transactional messages such as receipts and verification codes keep flowing; `all` covers every message including transactional ones.
+      enum:
+      - all
+      - non_transactional
+      example: non_transactional
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    PreferenceWriteResult:
+      type: object
+      additionalProperties: false
+      description: 'The outcome of one preference write or delete. `applied: true` means the request took effect: either it changed the record, or an identical statement already had. `applied: false` means it was refused as older than the key''s current statement; `preference` then carries the statement that survived, and `transition_id` identifies the refusal on the key''s record.
+
+        '
+      required:
+      - applied
+      - transition_id
+      - preference
+      properties:
+        applied:
+          type: boolean
+          readOnly: true
+          description: Whether the request took effect. False only when it was refused as out of order; the surviving, newer statement is returned in `preference`.
+        transition_id:
+          oneOf:
+          - $ref: '#/components/schemas/PreferenceTransitionID'
+          - type: 'null'
+          readOnly: true
+          description: Identifies this write on the key's record, for applied and refused requests alike. Null when the write was a repeat of the current statement and recorded nothing new.
+        preference:
+          oneOf:
+          - $ref: '#/components/schemas/Preference'
+          - type: 'null'
+          readOnly: true
+          description: The key's surviving statement. Null after an applied delete, when the key is back to having no record.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    PreferenceOrigin:
+      type: string
+      minLength: 1
+      description: 'How the statement was made. Statements the person made themselves (`unsubscribe_link`, `unsubscribe_event`, `keyword`, `preference_page`) carry more weight than ones asserted on their behalf (`api_key`, `user`, `import`): a person''s own opt-out cannot be overridden or deleted through this API. New origins can be added over time, so a value outside this list can be returned.'
+      x-extensible-enum:
+      - unsubscribe_link
+      - unsubscribe_event
+      - keyword
+      - preference_page
+      - api_key
+      - user
+      - import
+      example: api_key
+    PreferenceTransitionID:
+      type: string
+      minLength: 1
+      pattern: ^prt_[0-9a-hjkmnp-tv-z]{26}$
+      example: prt_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    ContactID:
+      type: string
+      minLength: 1
+      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
+      example: con_01krdgeqcxet5s7t44vh8rt9mg
+    Preference:
+      description: 'One person''s current stated preference for one channel: whether they have consented to or opted out of receiving messages at a handle, and how much traffic the statement covers. A key holds one current statement (a newer statement replaces it, an older one is refused), and the full history behind the current state is kept internally. `sender_scope` and `topic_id` are part of the key: a preference with both null applies channel-wide.
+
+        '
+      allOf:
+      - type: object
+        required:
+        - id
+        - channel
+        - handle
+        - sender_scope
+        - topic_id
+        - status
+        - coverage
+        - effective_at
+        - origin
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/PreferenceID'
+          channel:
+            allOf:
+            - $ref: '#/components/schemas/PreferenceChannel'
+            readOnly: true
+          handle:
+            type: string
+            minLength: 1
+            maxLength: 320
+            readOnly: true
+            description: 'Who the statement is about: an email address on the email channel, a phone number in E.164 format on SMS and WhatsApp.'
+            example: '+15550001234'
+          sender_scope:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            description: The sender the statement is limited to, or null when it covers the whole channel. On SMS this is the originator the person replied to; on WhatsApp it identifies the business account that messaged them. Email preferences are always channel-wide, so it is always null there.
+            example: '+15557654321'
+          topic_id:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            description: The topic the statement is limited to, or null when it covers every topic. Part of the key that identifies a statement, alongside `sender_scope`.
+            example: null
+          status:
+            allOf:
+            - $ref: '#/components/schemas/PreferenceStatus'
+            readOnly: true
+          coverage:
+            allOf:
+            - $ref: '#/components/schemas/PreferenceCoverage'
+            readOnly: true
+          effective_at:
+            type: string
+            format: date-time
+            minLength: 1
+            readOnly: true
+            description: 'When the statement was made, as reported by whoever made it. This is what orders one key''s statements: a write dated before this moment is refused rather than applied.'
+          origin:
+            allOf:
+            - $ref: '#/components/schemas/PreferenceOrigin'
+            readOnly: true
+          source:
+            type:
+            - string
+            - 'null'
+            maxLength: 255
+            readOnly: true
+            description: 'Free-form note on where the statement came from, as supplied when it was recorded: a form name, an import batch, a campaign. Null when none was given.'
+            example: signup-form-v2
+          consented_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: When the person consented, as evidenced by whoever asserted the grant. Null on statements that carry no consent evidence, including every opt-out.
+          contact_id:
+            oneOf:
+            - $ref: '#/components/schemas/ContactID'
+            - type: 'null'
+            readOnly: true
+            description: The contact whose handle matched when the statement was recorded. Null when no contact matched at that moment; it is not updated when contacts change later.
+      - $ref: '#/components/schemas/Timestamps'
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    PreferenceStatus:
+      type: string
+      minLength: 1
+      description: 'What the statement says: `granted` records consent to receive messages, `revoked` records an opt-out. There is no third state: a person who never stated anything simply has no preference on record.'
+      enum:
+      - granted
+      - revoked
+      example: revoked
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

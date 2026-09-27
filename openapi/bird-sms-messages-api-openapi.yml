@@ -1,0 +1,1618 @@
+openapi: 3.2.0
+info:
+  title: Bird Sms Messages API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: sms-messages
+  description: Send SMS messages to recipients you address by phone number, and read their delivery status and lifecycle events. Each message is one recipient and one body; set `category` to control opt-out policy and per-country compliance.
+paths:
+  /v1/sms/messages:
+    post:
+      operationId: createSMSMessage
+      x-snippet-key: sms.send
+      summary: Create an SMS message
+      description: 'Sends one SMS to one recipient with exactly one content form: `text`, which
+
+        requires `category` and `from`, or a stored `template`, which supplies its
+
+        category. A workspace template requires `from`, while a built-in template
+
+        selects its sender. To submit up to 100 independent messages in one request, use
+
+        Send a batch of SMS messages
+
+        instead.
+
+
+        The `202 Accepted` response means the API durably accepted the message for
+
+        asynchronous delivery. Delivery remains pending; follow it with
+
+        Get an SMS message or by subscribing
+
+        to `sms.*` webhook events.
+
+
+        An invalid field, more than 12 segments, a disabled destination country, or
+
+        a sender not permitted for the destination returns `422`. Insufficient
+
+        wallet balance returns `402`.'
+      tags:
+      - sms-messages
+      x-audiences:
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSMessageSendRequest'
+            examples:
+              sms-smart-encoding:
+                summary: A send with smart encoding, which downgrades look-alike characters to GSM-7
+                value:
+                  to: '+31612345678'
+                  from: Bird
+                  text: Your order shipped, track it here…
+                  category: transactional
+                  options:
+                    smart_encoding: true
+              sms-template:
+                summary: A send that renders a stored template
+                value:
+                  to: '+14155550100'
+                  template:
+                    slug: bird_otp_verification
+                    parameters:
+                      code: '123456'
+              onboarding-sms:
+                summary: The first send from the dashboard's onboarding step
+                value:
+                  to: '+14155550100'
+                  template:
+                    slug: bird_otp_verification
+                    parameters:
+                      code: '493021'
+      responses:
+        '202':
+          description: Message accepted for asynchronous delivery.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - attio
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    get:
+      operationId: listSMSMessages
+      x-snippet-key: sms.list
+      summary: List SMS messages
+      description: 'Returns the workspace''s SMS messages as a cursor-paginated list, newest
+
+        first. Filter by direction, status, category, recipient, sender, failure
+
+        reason, tag, or creation time; pass the response''s `next_cursor` back as
+
+        `starting_after` to fetch the next page. To follow a single message''s
+
+        delivery, use Get an SMS message
+
+        instead.
+
+
+        Messages are retained for **30 days**. A `created_after` earlier than that
+
+        is accepted and raised to the retention bound rather than rejected, so a
+
+        wider window returns what is still retained instead of failing. Messages
+
+        older than the retention window cannot be retrieved.'
+      tags:
+      - sms-messages
+      x-audiences:
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/CreatedAfter'
+      - $ref: '#/components/parameters/CreatedBefore'
+      - name: direction
+        in: query
+        required: false
+        description: Filter by direction. Omit for both.
+        schema:
+          $ref: '#/components/schemas/MessageDirection'
+      - name: status
+        in: query
+        required: false
+        description: 'Keep only messages whose current `status` matches; repeat the parameter to match any of several. One of `scheduled`, `accepted`, `sent`, `delivered`, `undelivered`, `failed`, `rejected`, `canceled`, `expired`, or `received`. `scheduled` and `canceled` are accepted but match nothing until send-later scheduling ships.
+
+          '
+        schema:
+          type: array
+          items:
+            type: string
+            minLength: 1
+      - name: error_code
+        in: query
+        required: false
+        description: 'Keep only messages whose failure reason (`last_error.code`) matches; repeat the parameter to match any of several. One of `invalid_destination`, `unreachable`, `blocked_by_carrier`, `blocked_by_recipient`, `landline_unreachable`, `content_rejected`, `sender_unregistered`, `recipient_opted_out`, `provider_unavailable`, `insufficient_balance`, or `unknown`.
+
+          '
+        schema:
+          type: array
+          items:
+            type: string
+            minLength: 1
+      - name: category
+        in: query
+        required: false
+        description: Filter by category.
+        schema:
+          $ref: '#/components/schemas/SMSMessageCategory'
+      - name: to
+        in: query
+        required: false
+        description: Filter by recipient phone number (E.164 exact match).
+        schema:
+          type: string
+          example: '+14155550100'
+      - name: from
+        in: query
+        required: false
+        description: Filter by sender (E.164, alphanumeric, or short code; exact match).
+        schema:
+          type: string
+          example: '+15557654321'
+      - $ref: '#/components/parameters/TagFilter'
+      responses:
+        '200':
+          description: Paginated list of messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSMessageList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - attio
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/sms/batches:
+    post:
+      operationId: createSMSMessageBatch
+      x-snippet-key: sms.sendBatch
+      summary: Create a batch of SMS messages
+      description: 'Sends up to 100 independent SMS messages in one request. Each item is a
+
+        complete send request with its own recipient, content, ID, status, and
+
+        cost. For a single message, use
+
+        Send an SMS message instead.
+
+
+        Acceptance is all-or-nothing: every item is validated before any is queued,
+
+        and one invalid item rejects the whole batch with a `422` (nothing is
+
+        sent). A batch from a workspace with no wallet balance fails with a `402`.
+
+        The `202` response lists the accepted messages in submission order; each
+
+        delivers asynchronously and is tracked individually, like a single send.'
+      tags:
+      - sms-messages
+      x-audiences:
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSMessageBatchRequest'
+            example:
+              messages:
+              - to: '+15551111111'
+                from: '+15557654321'
+                text: Hi Alice!
+                category: marketing
+              - to: '+15552222222'
+                from: '+15557654321'
+                text: Hi Bob!
+                category: marketing
+      responses:
+        '202':
+          description: Batch accepted for asynchronous delivery.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSMessageBatchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/sms/messages/{message_id}:
+    get:
+      operationId: getSMSMessage
+      x-snippet-key: sms.get
+      summary: Get an SMS message
+      description: 'Returns a single SMS message: its current delivery status, segment breakdown, cost, and failure detail when it failed. The `status` advances asynchronously as delivery progresses, and `cost` is null until the message has been priced, so poll this operation (or subscribe to `sms.*` webhook events) after a send to confirm delivery. To scan messages in bulk, use List SMS messages instead.'
+      tags:
+      - sms-messages
+      x-audiences:
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the message, as returned in the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/SMSMessageID'
+      responses:
+        '200':
+          description: SMS message with its current delivery status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/sms/messages/{message_id}/events:
+    get:
+      operationId: listSMSMessageEvents
+      summary: List events for an SMS message
+      description: Returns the lifecycle event timeline for a message, in chronological order.
+      tags:
+      - sms-messages
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: sms.list_events
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the SMS message (`sms_` prefix), as returned when the message was accepted.
+        schema:
+          $ref: '#/components/schemas/SMSMessageID'
+      - name: type
+        in: query
+        required: false
+        description: Filter by event type, such as `sms.delivered` or `sms.failed`.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Event timeline for this message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSEventList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+components:
+  schemas:
+    SMSTemplateContentHash:
+      type: string
+      minLength: 1
+      readOnly: true
+      description: 'A fingerprint of SMS template text, prefixed with its algorithm. Compare it within this API version to identify the exact source without transferring it.
+
+        '
+      example: sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+    SMSSendOptions:
+      type: object
+      additionalProperties: false
+      description: 'Settings that change how Bird processes this message. Each option applies to this send only; omit one to use its default.
+
+        '
+      properties:
+        smart_encoding:
+          type: boolean
+          default: false
+          description: 'Replace characters outside the GSM-7 alphabet with their closest GSM-7 equivalent before sending: typically curly quotes, dashes, ellipses, fullwidth forms, and non-breaking spaces.
+
+
+            One such character forces the whole body into `UCS2`, which more than halves the characters that fit in a segment, so replacing them often lowers the segment count and the cost.
+
+
+            Disabled by default, because it alters the body you composed. The replacement is all-or-nothing: a body that still holds a character outside the alphabet afterwards, such as an emoji or a non-Latin script, is sent exactly as you supplied it. Read the message back to see what was applied: `text` is the body as sent.
+
+            '
+        track_clicks:
+          type: boolean
+          description: 'Preview feature: link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 SMSUnsupportedFeature`.'
+        max_price_per_segment:
+          type: number
+          description: 'Preview feature: per-segment price ceiling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+      example:
+        smart_encoding: true
+    SMSMessageID:
+      type: string
+      minLength: 1
+      pattern: ^sms_[0-9a-hjkmnp-tv-z]{26}$
+      example: sms_01krdgeqcxet5s7t44vh8rt9mg
+    SMSBatchSummary:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      required:
+      - accepted_count
+      description: Aggregate result for an SMS batch.
+      properties:
+        accepted_count:
+          type: integer
+          minimum: 0
+          description: 'Number of messages accepted in the batch. Acceptance is all-or-nothing, so this equals the number of messages submitted.
+
+            '
+    SMSTemplateSend:
+      type: object
+      additionalProperties: false
+      description: 'A send-by-template reference. Identify the template by `id` or `slug`, or use the deprecated `name` for a legacy built-in template. Supply exactly one reference, optionally select a language, and pass variable values in `parameters`.
+
+        '
+      oneOf:
+      - required:
+        - id
+      - required:
+        - slug
+      - required:
+        - name
+      properties:
+        id:
+          description: The workspace or built-in template to send, by ID.
+          $ref: '#/components/schemas/SMSTemplateID'
+        slug:
+          allOf:
+          - $ref: '#/components/schemas/TemplateSlug'
+          description: 'The workspace or built-in template to send, by its immutable slug. Read the template''s live version to see its variables.
+
+            '
+          example: bird_otp_verification_ttl
+        name:
+          type: string
+          minLength: 1
+          deprecated: true
+          description: 'Deprecated. Use `slug` instead. This resolves legacy built-in catalogue names and never matches a workspace template''s display name.
+
+            '
+        language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          description: 'Which of the template''s languages to send. Omit it to send the template''s default language, unless the template sets `language_source_required`, in which case a send naming no language is rejected. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.
+
+            '
+          example: fr
+        parameters:
+          type: object
+          additionalProperties: true
+          description: 'Values for the template''s variables, keyed by variable name. Read the live version to see the accepted keys and formats. A missing key, an undeclared key, an invalid value, or a serialized object over 16 KiB returns `422`.
+
+            '
+          example:
+            code: '493021'
+            ttl: '10'
+    CurrencyCode:
+      type: string
+      minLength: 3
+      maxLength: 3
+      pattern: ^[A-Z]{3}$
+      description: ISO 4217 three-letter currency code.
+      example: EUR
+    SMSMessageEffectiveOptions:
+      type: object
+      additionalProperties: false
+      description: 'The settings Bird applied to this message. Every option is reported, whether you set it on the send or took the default that was in force at the time.
+
+        '
+      required:
+      - smart_encoding
+      properties:
+        smart_encoding:
+          type: boolean
+          description: 'Whether Bird replaced characters outside the GSM-7 alphabet in this message''s body with their closest equivalent before sending it. When `true`, `text` is the body as sent and `segments` describes that body.
+
+            '
+      example:
+        smart_encoding: true
+    MessageCost:
+      type:
+      - object
+      - 'null'
+      additionalProperties: false
+      required:
+      - amount
+      - currency_code
+      - transaction_amount
+      - passthrough_amount
+      description: 'What was charged for a message, split into the components that make it up. `null` until at least one component has been priced.
+
+        '
+      properties:
+        amount:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Total charged, as a decimal string: the sum of the components below. Net of tax, which applies to your wallet balance rather than to an individual charge.
+
+            '
+          example: '0.00990'
+        currency_code:
+          readOnly: true
+          $ref: '#/components/schemas/CurrencyCode'
+          description: ISO 4217 currency code. Every component is denominated in this currency.
+          example: USD
+        transaction_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged to carry the message, as a decimal string. `null` when this component was not priced; `"0.00000"` when it priced at zero.
+
+            '
+          example: '0.00790'
+        passthrough_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Third-party fees we pass on, as a decimal string, such as US 10DLC carrier surcharges. `null` when this component was not priced; `"0.00000"` when it priced at zero.
+
+            '
+          example: '0.00200'
+    SMSTemplateVersionID:
+      type: string
+      minLength: 1
+      pattern: ^smv_[0-9a-hjkmnp-tv-z]{26}$
+      example: smv_01krdgeqcxet5s7t44vh8rt9mg
+    SMSMessageBatchResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      - summary
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SMSMessage'
+          description: One entry per message in the batch, in submission order.
+        summary:
+          $ref: '#/components/schemas/SMSBatchSummary'
+          description: Aggregate result for the batch.
+    SMSMessageBatchRequest:
+      type: object
+      additionalProperties: false
+      description: Batch of SMS message send requests.
+      required:
+      - messages
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/SMSMessageSendRequest'
+          minItems: 1
+          maxItems: 100
+          description: SMS message send requests, up to 100. Each is an independent send; all are validated before any is queued.
+    SMSMessageCategory:
+      type: string
+      minLength: 1
+      enum:
+      - transactional
+      - marketing
+      - authentication
+      - service
+      description: 'Content classification: why you are sending. Carriers see it, and where a destination country requires the sender to be registered, that registration is approved for a category: a send outside what it covers returns a `422` `SenderCategoryNotPermitted`. A registration approved for `marketing` covers all four values; one approved for `transactional`, `authentication`, or `service` covers those three and not `marketing`. Use `authentication` for a one-time passcode and `marketing` for a promotion; otherwise pick the value matching the message''s purpose.'
+    SMSMessageList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of SMS messages, newest first.
+            items:
+              $ref: '#/components/schemas/SMSMessage'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    SMSError:
+      type:
+      - object
+      - 'null'
+      additionalProperties: false
+      readOnly: true
+      required:
+      - code
+      - description
+      - occurred_at
+      description: Failure detail for a message that could not be delivered or was rejected.
+      properties:
+        code:
+          $ref: '#/components/schemas/SMSErrorCode'
+        description:
+          type: string
+          minLength: 1
+          description: 'The failure in words, from whatever refused the message: the carrier''s own reason text on a delivery receipt, or ours on a message stopped before a carrier saw it. Free-form, so branch on `code` and show this to a human.'
+          example: Carrier filtered as spam
+        carrier_error_code:
+          type:
+          - string
+          - 'null'
+          description: Raw provider-supplied error code, finer-grained than the `code` that normalizes it. Not a Bird-defined value, so quote it to support when asking why a message failed. Null when the provider sent none, including any failure decided before one was reached.
+        occurred_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the failure occurred.
+    SMSEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - occurred_at
+      properties:
+        id:
+          type: string
+          minLength: 1
+          readOnly: true
+          pattern: ^evt_[0-9a-hjkmnp-tv-z]{26}$
+          description: Unique identifier for this event, stable across repeated fetches of the message.
+          example: evt_01krdgeqcxet5s7t44vh8rt9mg
+        type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - sms.accepted
+          - sms.sent
+          - sms.delivered
+          - sms.undelivered
+          - sms.failed
+          - sms.rejected
+          - sms.expired
+          description: 'Lifecycle event type. The `sms.accepted` event means the API accepted the request. The `sms.sent` event means the message reached the carrier. The `sms.delivered` event confirms delivery. The `sms.undelivered`, `sms.failed`, and `sms.expired` events describe delivery failures. The `sms.rejected` event means the message was refused before carrier handoff. This is an open enum. Accept unrecognized values.
+
+            '
+          example: sms.delivered
+        occurred_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When this event occurred.
+        carrier:
+          type: string
+          readOnly: true
+          description: Carrier that handled the message. Present on `sms.sent` and `sms.delivered` once identified, absent otherwise.
+          example: Verizon
+        mcc_mnc:
+          type: string
+          readOnly: true
+          description: Mobile country code and mobile network code of the carrier. Present on `sms.sent` and `sms.delivered` once identified, absent otherwise.
+          example: '311480'
+        error:
+          $ref: '#/components/schemas/SMSError'
+          description: Failure detail. Present only on `sms.failed`, `sms.undelivered`, `sms.rejected`, and `sms.expired` events.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    SMSMessageSendRequest:
+      type: object
+      additionalProperties: false
+      description: 'A message to send. Supply exactly one of `text` (free-text, which also requires `category`) or `template` (a stored template, whose category is derived). Supplying both, or neither, is rejected.
+
+        '
+      required:
+      - to
+      anyOf:
+      - required:
+        - text
+      - required:
+        - template
+      not:
+        anyOf:
+        - required:
+          - text
+          - template
+          properties:
+            text: {}
+            template: {}
+        - required:
+          - template
+          - category
+          properties:
+            template: {}
+            category: {}
+        - required:
+          - template
+          - media_urls
+          properties:
+            template: {}
+            media_urls: {}
+      dependentRequired:
+        text:
+        - category
+      properties:
+        to:
+          type: string
+          minLength: 1
+          description: 'Recipient phone number in E.164 format (for example `+14155550100`). One recipient per message. The number is stored and returned in canonical E.164; a recipient that cannot be routed returns a `422` `SMSInvalidRecipient`.
+
+            '
+          example: '+14155550100'
+        from:
+          type: string
+          minLength: 1
+          description: 'Sender to send from. It must be a sender the workspace holds: a number it owns in E.164, such as `+15557654321`, a short code it holds, such as `24680`, or an alphanumeric sender ID it has claimed, such as `MyBrand`. A sender the workspace does not hold returns a `422` `SMSSenderNotConfigured`, and an alphanumeric sender must also be permitted, and where required registered, for the destination country. Required on a free-text send and when sending a workspace template. Omitting it in either case returns `422`. A built-in template selects its sender automatically and rejects `from`.
+
+            '
+          example: '+15557654321'
+        text:
+          type: string
+          minLength: 1
+          description: 'Free-text message body. Required unless `template` is supplied (the two are mutually exclusive). At least 1 character, up to a 12-segment cap (roughly 1836 GSM-7 or 804 UCS-2 characters). Bird does not truncate; a body exceeding 12 segments is rejected with a 422. The cap applies to segments because GSM-7 and UCS-2 encodings differ in characters per segment.
+
+            '
+          example: Your verification code is 123456.
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SMSMessageCategory'
+          description: 'Content classification: why you are sending. Required on a free-text send; omit it on a template send, where the category is derived from the template. Where the destination country requires the sender to be registered, a category outside what that registration covers returns a `422` `SenderCategoryNotPermitted`.
+
+            '
+        validity_period:
+          type: integer
+          minimum: 60
+          maximum: 172800
+          description: 'Preview feature: how long, in seconds (60-172800), the carrier may keep attempting delivery before the message is marked `expired`. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.
+
+            '
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          maxItems: 20
+          description: 'Structured `{name, value}` labels for filtering and analytics. Tags become first-class query dimensions: filter the list endpoint by tag name, slice analytics by tag, and surface in webhook payloads. Maximum 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`). For arbitrary structured context you do not need as a filter dimension, use `metadata` instead.
+
+            '
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 'Arbitrary JSON object stored on the message, returned on API reads, and echoed in webhook payloads. Maximum 2 KB serialized. Use metadata for per-send context like internal IDs and foreign keys. For low-cardinality filterable labels, use `tags` instead.
+
+            '
+        options:
+          allOf:
+          - $ref: '#/components/schemas/SMSSendOptions'
+          description: 'What Bird does to this message on its way out, such as `smart_encoding`. The message being relayed stays at the top level: its recipient, sender, content, and the delivery instructions the carrier acts on.
+
+            '
+        media_urls:
+          type: array
+          items:
+            type: string
+          description: 'Preview feature: multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        messaging_profile_id:
+          type: string
+          description: 'Preview feature: sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        scheduled_at:
+          type: string
+          format: date-time
+          description: 'Preview feature: send-later scheduling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        template:
+          allOf:
+          - $ref: '#/components/schemas/SMSTemplateSend'
+          description: 'Send using a stored template instead of free text. The category is derived from the template, so `category` and `media_urls` are rejected. A workspace template requires `from`; a built-in template selects its sender and rejects `from`.
+
+            '
+        broadcast_id:
+          type: string
+          description: 'Preview feature: broadcast correlation. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        campaign_id:
+          type: string
+          description: 'Preview feature: campaign correlation for analytics. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        audience_id:
+          type: string
+          description: 'Preview feature: audience-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        contact_id:
+          type: string
+          description: 'Preview feature: contact-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        topic_id:
+          type: string
+          description: 'Preview feature: topic-gated sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+        personalization:
+          type: object
+          additionalProperties: true
+          description: 'Preview feature: per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.'
+      example:
+        to: '+14155550100'
+        from: '+15557654321'
+        text: Your verification code is 123456.
+        category: authentication
+        options:
+          smart_encoding: true
+        tags:
+        - name: campaign
+          value: signup
+        metadata:
+          user_id: usr_12345
+    SMSEventList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: Timeline events for this SMS message, in chronological order. The bounded timeline is returned in full and is not paginated.
+          items:
+            $ref: '#/components/schemas/SMSEvent'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    TemplateSlug:
+      type: string
+      minLength: 1
+      maxLength: 63
+      pattern: ^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$
+      description: 'A template''s slug: what you send it by, for example `welcome-email`. Email and SMS slugs stay fixed after creation. WhatsApp slugs can change only before the first submission. A slug can contain lowercase letters, numbers, hyphens, and underscores, has to start and end with a letter or a number, and can be up to 63 characters long.
+
+        '
+      example: welcome-email
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - value
+      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
+
+
+        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
+
+
+        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+
+            '
+          example: category
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+
+            '
+          example: welcome
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    SMSTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^smt_[0-9a-hjkmnp-tv-z]{26}$
+      example: smt_01krdgeqcxet5s7t44vh8rt9mg
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    SMSSegments:
+      type: object
+      additionalProperties: false
+      required:
+      - count
+      - encoding
+      - characters
+      description: Segment breakdown for the message body. Segment count drives billing.
+      properties:
+        count:
+          type: integer
+          minimum: 1
+          readOnly: true
+          description: Number of segments the body is split into. Each segment is a billable unit.
+        encoding:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - GSM_7BIT
+          - UCS2
+          description: 'Encoding used for the body. The `GSM_7BIT` encoding fits 160 septets
+
+            (seven-bit units) in one segment, or 153 per part in a multi-segment
+
+            message. The `UCS2` encoding applies when the body contains a character
+
+            outside the GSM 03.38 alphabet, including emoji, CJK, and some accented
+
+            characters. It fits 70 UTF-16 code units in one segment, or 67 per part.
+
+
+            Neither limit counts characters, and both alphabets have characters that
+
+            cost two units. Under `GSM_7BIT` there are ten such entries, and they are
+
+            the whole set: `^`, `{`, `}`, `\`, `[`, `]`, `~`, `|`, `€`, and the form
+
+            feed control. Eighty of those fill a single segment. Under `UCS2` an emoji
+
+            outside the Basic Multilingual Plane is a surrogate pair costing two code
+
+            units, so 35 of those fill a single segment.
+
+            '
+        characters:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Character count of the body, counted in Unicode code points under either encoding. This is not the segment measure: a `GSM_7BIT` extended-table character counts once here but costs two septets, and a `UCS2` emoji outside the Basic Multilingual Plane counts once here but costs two of the segment''s 70 code units.
+
+            '
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    SMSMessageStatus:
+      type: string
+      minLength: 1
+      enum:
+      - scheduled
+      - accepted
+      - sent
+      - delivered
+      - undelivered
+      - failed
+      - rejected
+      - canceled
+      - expired
+      - received
+      description: 'Delivery status:
+
+
+        - `accepted`: Accepted and awaiting carrier handoff.
+
+        - `sent`: Handed to the carrier and awaiting a delivery receipt.
+
+        - `delivered`: Confirmed as delivered.
+
+        - `undelivered`: The carrier reported delivery as failed for a reason that may clear later, such as a handset out of coverage or a carrier at capacity. Final all the same: the message is not retried, so reaching the recipient means sending again.
+
+        - `failed`: The carrier reported delivery as failed for a reason that will not clear, such as an unassigned number, a recipient who has opted out, or content the carrier refused.
+
+        - `rejected`: Refused before carrier handoff.
+
+        - `expired`: Reached its validity limit without a final receipt.
+
+        - `received`: Received as an inbound message.
+
+
+        `scheduled` and `canceled` are declared ahead of the send-later scheduling
+
+        feature that produces them, so their arrival is not a breaking change. No
+
+        message carries either status today.
+
+        '
+    MessageDirection:
+      type: string
+      enum:
+      - outbound
+      - inbound
+      description: Whether a message was sent from the workspace (`outbound`) or received by it (`inbound`).
+    SMSErrorCode:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - invalid_destination
+      - unreachable
+      - blocked_by_carrier
+      - blocked_by_recipient
+      - landline_unreachable
+      - content_rejected
+      - sender_unregistered
+      - recipient_opted_out
+      - provider_unavailable
+      - insufficient_balance
+      - unknown
+      description: 'Standardized failure reason:
+
+
+        - `invalid_destination`: The number is unassigned, ported out, or malformed.
+
+        - `unreachable`: The handset is off or outside coverage.
+
+        - `blocked_by_carrier`: The carrier filtered the message.
+
+        - `blocked_by_recipient`: The recipient device blocked the sender.
+
+        - `landline_unreachable`: The destination is a landline that does not accept SMS.
+
+        - `content_rejected`: The carrier rejected the content.
+
+        - `sender_unregistered`: The sender is not registered for the destination.
+
+        - `recipient_opted_out`: The recipient is on a suppression list.
+
+        - `provider_unavailable`: The provider remained unavailable after retries.
+
+        - `insufficient_balance`: The workspace wallet could not fund the send.
+
+        - `unknown`: The failure could not be classified.
+
+
+        This is an open enum. Accept unrecognized values.
+
+        '
+    SMSMessage:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - direction
+      - status
+      - to
+      - from
+      - segments
+      - requested_language
+      - resolved_language
+      - template_id
+      - template_version_id
+      - template_content_hash
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/SMSMessageID'
+          description: 'ID of the message, assigned when the send is accepted. Pass it as `message_id` to the get-message endpoint.
+
+            '
+        direction:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - outbound
+          - inbound
+          description: Whether the message was sent from a Bird sender (`outbound`) or received from a subscriber (`inbound`).
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SMSMessageStatus'
+          readOnly: true
+        to:
+          type: string
+          minLength: 1
+          description: 'Where the message went. On an outbound message this is the recipient''s phone number in E.164 format; on an inbound one it is your own number that received it.
+
+            '
+          example: '+15551234567'
+        from:
+          type: string
+          minLength: 1
+          description: 'Where the message came from. On an outbound message this is the sender you sent it from: an E.164 number, an alphanumeric sender ID, or a short code. On an inbound message, this is the phone number that sent it to you.
+
+            '
+          example: '+15557654321'
+        text:
+          type: string
+          minLength: 1
+          description: 'The message body. Every message carries body text, attachments, or both, so this is absent only on a received message that carried attachments and no text. For a template send, this is the rendered text after parameter substitution. When `category` is `authentication` (a message carrying a one-time code), this is `**REDACTED**`: the code still reaches the recipient, but the API does not retain it for later reads.
+
+            '
+          example: Your order has shipped and is on its way.
+        category:
+          oneOf:
+          - $ref: '#/components/schemas/SMSMessageCategory'
+          - type: 'null'
+          description: Content classification supplied for free text or derived from the template. Null for inbound messages.
+        requested_language:
+          readOnly: true
+          description: 'The template language requested by the send, in canonical form. Null when the send named no language or used no template.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+        resolved_language:
+          readOnly: true
+          description: 'The template language whose text was rendered, in canonical form. Null when the send used no template. This can differ from `requested_language` when the template''s fallback policy selects another language.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+        template_id:
+          readOnly: true
+          description: The template rendered for this message, or null for a free-text message.
+          oneOf:
+          - $ref: '#/components/schemas/SMSTemplateID'
+          - type: 'null'
+        template_version_id:
+          readOnly: true
+          description: 'The workspace published version or synthetic built-in version rendered at acceptance, or null for a free-text message. For a built-in template, `template_content_hash` identifies the exact catalogue source.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/SMSTemplateVersionID'
+          - type: 'null'
+        template_content_hash:
+          readOnly: true
+          description: The rendered language's source fingerprint, or null for a free-text message.
+          oneOf:
+          - $ref: '#/components/schemas/SMSTemplateContentHash'
+          - type: 'null'
+        segments:
+          $ref: '#/components/schemas/SMSSegments'
+          description: Segment breakdown for the body.
+        cost:
+          $ref: '#/components/schemas/MessageCost'
+          description: What the message cost, split into Bird's charge and any third-party fees passed through. Null until the message has been priced.
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Structured `{name, value}` filter labels applied to this message.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Arbitrary JSON metadata stored on the message and echoed in webhook payloads.
+        options:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSMessageEffectiveOptions'
+          description: 'The settings applied to this message, with any option you omitted filled in with the default in force when you sent it. Absent on inbound messages, and on any outbound message for which no settings were recorded.
+
+            '
+        validity_period:
+          type: integer
+          readOnly: true
+          description: 'Preview feature: how long, in seconds, the carrier may keep attempting delivery before the message is marked `expired`. Not returned yet.'
+        carrier:
+          type: string
+          readOnly: true
+          description: Carrier that handled the message. Absent until a delivery receipt identifies it, and on a received message the carrier reports it only where a carrier fee applies.
+          example: Verizon
+        mcc_mnc:
+          type: string
+          readOnly: true
+          description: Mobile country code and mobile network code of the carrier. Absent until the carrier is identified.
+          example: '311480'
+        last_error:
+          $ref: '#/components/schemas/SMSError'
+          description: Failure detail on a message that failed, was rejected, was not delivered, or expired. Absent otherwise.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the message was accepted (outbound) or received (inbound).
+        sent_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the message was handed to the carrier. Null until then.
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When delivery was confirmed. Null until then.
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+  responses:
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    CreatedAfter:
+      name: created_after
+      in: query
+      required: false
+      description: Limits the response to resources created at or after this timestamp. Combine it with `created_before` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-05-01T00:00:00Z'
+    CreatedBefore:
+      name: created_before
+      in: query
+      required: false
+      description: Limits the response to resources created before this timestamp. Combine it with `created_after` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-01T00:00:00Z'
+    TagFilter:
+      name: tag
+      in: query
+      required: false
+      description: 'Filter by tag. Accepts `name` to match any record carrying that tag name, or `name:value` to match a specific tag pair (for example `category:welcome`). Repeat the parameter to add more tags. A record must match every tag listed to be returned.
+
+        '
+      schema:
+        type: array
+        items:
+          type: string
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

@@ -1,19 +1,28 @@
 openapi: 3.2.0
 info:
   title: Bird Numbers API
-  description: REST API for Bird (formerly MessageBird), an omnichannel CRM. The Bird platform APIs at https://api.bird.com cover Channels/Messaging (send and receive across SMS, WhatsApp, email, and more), Contacts, Conversations, and Numbers. The legacy MessageBird REST API at https://rest.messagebird.com (SMS, Voice, Verify, Lookup) is documented here for existing integrations. All endpoints authenticate with an AccessKey token via the Authorization header.
-  termsOfService: https://bird.com/legal/terms-of-service
-  contact:
-    name: Bird Support
-    url: https://docs.bird.com/
   version: '1.0'
+  description: 'Operations tagged Numbers across 2 of this provider''s published API definitions: bird-openapi.yml, messagebird-bird-api-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://api.bird.com
   description: Bird platform API
 - url: https://rest.messagebird.com
   description: Legacy MessageBird REST API
-security:
-- AccessKey: []
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
 tags:
 - name: Numbers
   description: Discover, purchase, and manage phone numbers.
@@ -42,6 +51,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NumberList'
+      security:
+      - AccessKey: []
+    servers:
+    - url: https://api.bird.com
+      description: Bird platform API
+    - url: https://rest.messagebird.com
+      description: Legacy MessageBird REST API
   /workspaces/{workspaceId}/network-lookup:
     post:
       operationId: numberLookup
@@ -68,19 +84,592 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NumberLookup'
+      security:
+      - AccessKey: []
+    servers:
+    - url: https://api.bird.com
+      description: Bird platform API
+    - url: https://rest.messagebird.com
+      description: Legacy MessageBird REST API
+  /v1/numbers:
+    get:
+      operationId: listWorkspaceNumbers
+      x-snippet-key: numbers.list
+      summary: List your allocated numbers
+      description: 'Returns a paginated list of the phone numbers currently allocated to your workspace, newest first. Each entry is either a dedicated number you bought or a shared number managed for you, as its `kind` field indicates. Pass `number` to look one up, or narrow the list with `country_code`, `number_type`, `prefix`, and `capabilities`. An allocated number is not always enough to send from it: some countries also require an approved registration for the sender.'
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: number
+        in: query
+        required: false
+        description: 'Return only the number matching these digits. Give a full number with its country code, however your own records spell it: `+12025550188`, `12025550188`, `0012025550188`, and `+1 202 555 0188` all resolve to the same number. Spacing and punctuation are fine once a leading `+` or `00` marks the country code, or when `country_code` names the country; a grouped spelling without either is refused rather than guessed at, and a national spelling (bare digits without the country code) matches only when `country_code` names the country. A short code is matched on its bare digits instead, and since the same short code can be allocated in more than one country, pass `country_code` alongside it to name which one. This filter narrows the list like the others rather than replacing them, so a country or capability filter still applies. To match a range of numbers rather than one, use `prefix`.'
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 24
+          pattern: ^[0-9+()\-. ]+$
+      - name: country_code
+        in: query
+        required: false
+        description: Filter by the country a number belongs to, as an ISO 3166-1 alpha-2 code.
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 2
+      - name: number_type
+        in: query
+        required: false
+        description: Return only allocated numbers of this physical type after applying the country and prefix filters.
+        schema:
+          $ref: '#/components/schemas/NumberType'
+      - name: prefix
+        in: query
+        required: false
+        description: 'Return only numbers that start with these digits. With `country_code`, the digits are national ones, matched right after the country dial code: with `country_code=US`, `prefix=212` returns the +1 212 area-code numbers allocated to you. Leave out the dial code and any national dialing prefix such as a leading 0; short codes never match a country-anchored prefix search. Without `country_code`, the digits are matched from the start of each stored number, ignoring a leading `+`, so short codes are reachable and a full number in digits finds itself. Digits only: up to 10 of them with `country_code`, 15 without.'
+        schema:
+          type: string
+          pattern: ^[0-9]{1,15}$
+      - name: capabilities
+        in: query
+        required: false
+        description: 'Filter by capability. Repeat the parameter to require several at once: `capabilities=sms&capabilities=voice` returns only numbers that support both.'
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            x-extensible-enum:
+            - sms
+            - voice
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: List of the numbers allocated to the workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumberList_2'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    servers:
+    - url: https://{region}.platform.bird.com
+      description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+        '
+      variables:
+        region:
+          default: us1
+          enum:
+          - us1
+          - eu1
+          description: The region your organization's data is hosted in.
+    - url: https://platform.bird.com
+      description: Region-independent endpoint for authentication and account administration.
+    - url: http://localhost:8080
+      description: Local development.
+  /v1/numbers/available:
+    get:
+      operationId: listAvailableNumbers
+      x-snippet-key: numbers.available.list
+      summary: List available phone numbers
+      description: Returns phone numbers available for purchase in a country, newest first. Narrow the search with `number_type`, `capabilities`, and `prefix`. Inventory numbers are returned first and support pagination. The final page can include a live snapshot of numbers available from suppliers.
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: country_code
+        in: query
+        required: true
+        description: ISO 3166-1 alpha-2 country code to search in.
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 2
+      - name: number_type
+        in: query
+        required: false
+        description: Return only numbers of this physical type after applying the country and prefix filters.
+        schema:
+          $ref: '#/components/schemas/NumberType'
+      - name: prefix
+        in: query
+        required: false
+        description: 'Return only numbers that start with these digits, matched right after the country dial code: with `country_code=US`, `prefix=212` matches +1 212 area-code numbers and `prefix=833` matches 833 toll-free numbers. Digits only. Leave out the country dial code and any national dialing prefix such as a leading 0. Short codes never match a prefix search.'
+        schema:
+          type: string
+          pattern: ^[0-9]{1,10}$
+      - name: capabilities
+        in: query
+        required: false
+        description: 'Filter by capability. Repeat the parameter to require several at once: `capabilities=sms&capabilities=voice` returns only numbers that support both.'
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            x-extensible-enum:
+            - sms
+            - voice
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: List of available phone numbers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableNumberList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    servers:
+    - url: https://{region}.platform.bird.com
+      description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+        '
+      variables:
+        region:
+          default: us1
+          enum:
+          - us1
+          - eu1
+          description: The region your organization's data is hosted in.
+    - url: https://platform.bird.com
+      description: Region-independent endpoint for authentication and account administration.
+    - url: http://localhost:8080
+      description: Local development.
+  /v1/numbers/available/{number}:
+    get:
+      operationId: getAvailableNumber
+      x-snippet-key: numbers.available.get
+      summary: Get an available phone number
+      description: Returns a single phone number available for purchase, whether it is already in inventory or can be acquired for you. Numbers supplied through a carrier remain available only while the carrier has them, so a number listed a moment ago may already be gone. A `404` means the number is currently unavailable for sale.
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: number
+        in: path
+        required: true
+        description: Phone number in E.164 format. The leading `+` is optional.
+        schema:
+          type: string
+          minLength: 1
+      responses:
+        '200':
+          description: The available phone number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableNumber'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    servers:
+    - url: https://{region}.platform.bird.com
+      description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+        '
+      variables:
+        region:
+          default: us1
+          enum:
+          - us1
+          - eu1
+          description: The region your organization's data is hosted in.
+    - url: https://platform.bird.com
+      description: Region-independent endpoint for authentication and account administration.
+    - url: http://localhost:8080
+      description: Local development.
+  /v1/numbers/orders:
+    post:
+      operationId: createNumbersOrder
+      x-snippet-key: numbers.orders.create
+      summary: Create a number order
+      description: 'Orders a number for your workspace and starts its monthly charge. Pass a
+
+        number from `GET /v1/numbers/available`. Whether the number is already in
+
+        inventory or acquired from a supplier, the response contains an order.
+
+
+        Most orders complete immediately and return `201` with `status` of
+
+        `completed` and `number_id` populated. Read the number with
+
+        `GET /v1/numbers/{number_id}`. An order that cannot complete in the request
+
+        returns `202`; poll `GET /v1/numbers/orders/{order_id}` until it is
+
+        `completed` or `failed`.
+
+
+        A `412` means the workspace has not
+
+        completed the identity verification required to acquire a sender. Complete
+
+        it, then retry.'
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NumbersOrderCreate'
+      responses:
+        '201':
+          description: The order completed and the number is now allocated to your workspace. Its status is completed, with number and number_id populated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumbersOrder'
+        '202':
+          description: The order was accepted but could not complete in this request. Poll it for completion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumbersOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    get:
+      operationId: listNumbersOrders
+      x-snippet-key: numbers.orders.list
+      summary: List your number orders
+      description: Returns your workspace's number orders, newest first. Filter by status to find in-progress or failed orders.
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: status
+        in: query
+        required: false
+        description: Return only orders with status `charging`, `ordering`, `pending`, `completed`, or `failed`.
+        schema:
+          $ref: '#/components/schemas/NumbersOrderStatus'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: List of the workspace's number orders.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumbersOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    servers:
+    - url: https://{region}.platform.bird.com
+      description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+        '
+      variables:
+        region:
+          default: us1
+          enum:
+          - us1
+          - eu1
+          description: The region your organization's data is hosted in.
+    - url: https://platform.bird.com
+      description: Region-independent endpoint for authentication and account administration.
+    - url: http://localhost:8080
+      description: Local development.
+  /v1/numbers/orders/{order_id}:
+    get:
+      operationId: getNumbersOrder
+      x-snippet-key: numbers.orders.get
+      summary: Get a number order
+      description: Returns a single number order by id, including its current lifecycle state and, once completed, the number it produced.
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/NumbersOrderID'
+        description: Identifier of the order.
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumbersOrder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    servers:
+    - url: https://{region}.platform.bird.com
+      description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+        '
+      variables:
+        region:
+          default: us1
+          enum:
+          - us1
+          - eu1
+          description: The region your organization's data is hosted in.
+    - url: https://platform.bird.com
+      description: Region-independent endpoint for authentication and account administration.
+    - url: http://localhost:8080
+      description: Local development.
+  /v1/numbers/{number_id}:
+    get:
+      operationId: getWorkspaceNumber
+      x-snippet-key: numbers.get
+      summary: Get an allocated number
+      description: 'Returns a single phone number allocated to your workspace, whether it is a dedicated number you bought or a shared number managed for you. Numbers you have released are no longer returned. An allocated number is not always enough to send from it: some countries also require an approved registration for the sender.'
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: number_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AllocatedNumberID'
+        description: Identifier of the number, as returned in the id field of GET /v1/numbers.
+      responses:
+        '200':
+          description: The number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Number_2'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    delete:
+      operationId: releaseWorkspaceNumber
+      x-snippet-key: numbers.release
+      summary: Release a dedicated number
+      description: Releases one of your workspace's dedicated numbers and stops its monthly charge. Your workspace can no longer use the number after release. Shared numbers belong to Bird-managed shared infrastructure and cannot be released from your workspace.
+      tags:
+      - Numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: number_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AllocatedNumberID'
+        description: Identifier of the number to release, as returned in the id field of GET /v1/numbers.
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Number released.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    servers:
+    - url: https://{region}.platform.bird.com
+      description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+        '
+      variables:
+        region:
+          default: us1
+          enum:
+          - us1
+          - eu1
+          description: The region your organization's data is hosted in.
+    - url: https://platform.bird.com
+      description: Region-independent endpoint for authentication and account administration.
+    - url: http://localhost:8080
+      description: Local development.
 components:
   schemas:
-    NumberLookup:
-      type: object
-      properties:
-        phoneNumber:
-          type: string
-        countryCode:
-          type: string
-        network:
-          type: string
-        type:
-          type: string
     Number:
       type: object
       properties:
@@ -94,6 +683,17 @@ components:
           type: array
           items:
             type: string
+    NumberLookup:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+        countryCode:
+          type: string
+        network:
+          type: string
+        type:
+          type: string
     NumberList:
       type: object
       properties:
@@ -103,6 +703,496 @@ components:
             $ref: '#/components/schemas/Number'
         nextPageToken:
           type: string
+    NumbersOrder:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - number
+      - country_code
+      - number_type
+      - status
+      - created_at
+      - updated_at
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/NumbersOrderID'
+          description: Identifier of this purchase order.
+        number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The number being acquired, in E.164 format.
+        country_code:
+          allOf:
+          - $ref: '#/components/schemas/CountryCode'
+          readOnly: true
+        number_type:
+          allOf:
+          - $ref: '#/components/schemas/NumberType'
+          readOnly: true
+          description: Physical type of the number being acquired.
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/NumbersOrderStatus'
+        number_id:
+          readOnly: true
+          description: 'Identifier of the number this order produced, set when `status` is `completed`. Pass it as `number_id` to `GET /v1/numbers/{number_id}` or `DELETE /v1/numbers/{number_id}`. `null` until the order completes.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/NumbersDedicatedAllocationID'
+          - type: 'null'
+        failure_reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Human-readable reason the purchase failed. `null` unless status is failed. An order can fail some time after it was created, so `updated_at` tells you when the failure was recorded rather than when the order was placed.
+
+            '
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When the purchase completed and the number became owned (status completed). `null` for orders still in progress or failed.
+
+            '
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    NumbersOrderStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - charging
+      - ordering
+      - pending
+      - completed
+      - failed
+      description: 'Lifecycle state of a number purchase order:
+
+
+        - `charging`: Securing funds.
+
+        - `ordering`: Placing the order with the carrier.
+
+        - `pending`: The carrier accepted the order and is provisioning the number.
+
+        - `completed`: Your workspace owns the number.
+
+        - `failed`: The purchase did not complete.
+
+
+        A setup fee already charged is non-refundable. Contact support about a failed
+
+        order.'
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+    Number_2:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - kind
+      - number
+      - country_code
+      - number_type
+      - capabilities
+      - status
+      - allocated_at
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/AllocatedNumberID'
+          description: Identifier of this allocated number. Pass it as `number_id` to read this number, or to release it when kind is dedicated.
+        kind:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - dedicated
+          - shared
+          description: How this number is allocated. `dedicated` belongs to your workspace and is billed as a subscription. `shared` is provided through Bird-managed shared infrastructure and is not owned or billed as a workspace subscription.
+        number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Phone number in E.164 format.
+        country_code:
+          allOf:
+          - $ref: '#/components/schemas/CountryCode'
+          readOnly: true
+        number_type:
+          allOf:
+          - $ref: '#/components/schemas/NumberType'
+          readOnly: true
+          description: Physical type of this phone number.
+        capabilities:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/NumberCapability'
+          description: Capabilities supported by this number.
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - active
+          - pending_ownership_registration
+          - released
+          description: "The allocation and ownership-approval status of this number.\n\n- `active` means this number is allocated to your workspace and usable.\n- `pending_ownership_registration` means this number is allocated to your workspace and billed,\n  but outbound SMS and both inbound and outbound voice calls are blocked until the ownership paperwork\n  its country requires is accepted. This ownership status does not gate inbound SMS or WhatsApp.\n  Read `ownership.next` for what advances it, and re-read later if\n  `ownership` is momentarily `null`.\n- `released` means this number is no longer allocated to your workspace.\n\nAn allocated number is not always enough to send from it: some destination\ncountries also require an approved registration for the sender.\n"
+        allocated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When this number was allocated to your workspace.
+        released_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When this number was released. `null` while it is still allocated to your workspace.
+        ownership:
+          readOnly: true
+          description: 'Where this number stands with the ownership paperwork its country requires. `null` when the country requires none, which is the usual case: a number with no `ownership` object is usable as soon as it is allocated. Also `null` when that standing cannot be established right now; `status` still reads `pending_ownership_registration` while the number is blocked, so re-read this field rather than caching its absence. We manage the paperwork for shared short codes, so this field is always `null` for them.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/NumberOwnership'
+          - type: 'null'
+    AllocatedNumberID:
+      type: string
+      minLength: 1
+      pattern: ^(nda|nal)_[0-9a-hjkmnp-tv-z]{26}$
+      example: nda_01krdgeqcxet5s7t44vh8rt9mg
+      description: Identifier of a number allocated to your workspace, as returned in the id field of `GET /v1/numbers`.
+    NumbersOrderCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - number
+      properties:
+        number:
+          type: string
+          minLength: 1
+          description: The number to acquire, in E.164 format, as returned by `GET /v1/numbers/available`.
+          example: '+18005550100'
+    AvailableNumberList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/AvailableNumber'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    NumbersOrderID:
+      type: string
+      minLength: 1
+      pattern: ^nor_[0-9a-hjkmnp-tv-z]{26}$
+      example: nor_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    NumberList_2:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/Number_2'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    NumbersDedicatedAllocationID:
+      type: string
+      minLength: 1
+      pattern: ^nda_[0-9a-hjkmnp-tv-z]{26}$
+      example: nda_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    AvailableNumber:
+      type: object
+      readOnly: true
+      additionalProperties: false
+      required:
+      - number
+      - country_code
+      - number_type
+      - capabilities
+      - ownership_registration_required
+      properties:
+        number:
+          type: string
+          minLength: 1
+          description: Phone number in E.164 format.
+        country_code:
+          $ref: '#/components/schemas/CountryCode'
+        number_type:
+          allOf:
+          - $ref: '#/components/schemas/NumberType'
+          description: Physical type of this phone number.
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/NumberCapability'
+          description: Capabilities supported by this number.
+        ownership_registration_required:
+          type: boolean
+          description: Whether ownership paperwork must be approved before outbound SMS and voice use. Customer availability accounts for organization exemptions; admin supplier searches report the general country and number-type requirement. You can acquire the number, including Bird stock, and submit paperwork afterward. Any setup fee is charged during purchase. Monthly billing starts at assignment even while approval is pending; assignment may follow completion of a pending supplier order.
+    NumberType:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - mobile
+      - local
+      - national
+      - short_code
+      - short_code_fteu
+      - toll_free
+      description: Physical type of a phone number. New number types may be added over time, so treat unrecognized values as supported types rather than errors.
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    NumberCapability:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - sms
+      - mms
+      - voice
+      description: A capability supported by a phone number. New capabilities may be added over time, so treat unrecognized values as supported capabilities rather than errors.
+    NumbersOrderList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/NumbersOrder'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    NumberOwnership:
+      type: object
+      additionalProperties: false
+      required:
+      - satisfied
+      - next
+      description: 'Where this number stands with the ownership paperwork its country requires before it may carry traffic. Present only for a number whose country requires any, so its absence means no paperwork was ever asked for and this number is unconditionally usable. Absent as well when the requirement cannot be established right now, since reporting either answer would state something about your paperwork that has not been checked.
+
+        '
+      properties:
+        satisfied:
+          type: boolean
+          readOnly: true
+          description: 'Whether the paperwork is accepted. Read `next` for what advances it while this is false. Whether sending is currently refused is reported by `blocked_at` instead: a number bought before its country asked for anything is unsatisfied and still usable until a review says otherwise.
+
+            '
+        blocked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When the number stopped being able to carry traffic, and null while it can. Always null when `satisfied` is true, but null does not imply it: a number whose country began asking after you bought it is usable with its paperwork still outstanding. A number can also arrive blocked, and one that was usable can be blocked again if its approval is withdrawn.
+
+            '
+        next:
+          type: array
+          readOnly: true
+          description: 'What you do about it, in the order to do it. Empty only when `satisfied` is true, so while anything is outstanding there is always at least one step. When what you already sent is being reviewed and nothing is needed from you, that step has kind `wait` and says so. Re-read it after each call rather than caching the first list you saw.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
   parameters:
     WorkspaceId:
       name: workspaceId
@@ -111,9 +1201,203 @@ components:
       description: Bird workspace identifier.
       schema:
         type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+  responses:
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PreconditionFailed:
+      description: Precondition failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
   securitySchemes:
     AccessKey:
       type: apiKey
       in: header
       name: Authorization
       description: AccessKey token. Send as the Authorization header value "AccessKey {your-access-key}".
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '
+x-refined-from:
+- bird-openapi.yml
+- messagebird-bird-api-openapi.yml

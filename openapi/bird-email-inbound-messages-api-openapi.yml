@@ -1,0 +1,917 @@
+openapi: 3.2.0
+info:
+  title: Bird Email Inbound Messages API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: email-inbound-messages
+  description: Emails received on your behalf, including each parsed message, its body, raw MIME content, and attachments.
+paths:
+  /v1/email/inbound-messages:
+    get:
+      operationId: listInboundMessages
+      summary: List received emails
+      description: Returns a paginated list of received emails for the workspace, newest first. Filter by sender address, by the inbound address that received the mail, or by a received-time range. Received emails are retained for 30 days.
+      tags:
+      - email-inbound-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Filter to messages whose sender address matches this value exactly. Sender addresses are stored lowercase, so pass the address in lowercase to match reliably.
+        schema:
+          type: string
+          format: email
+          minLength: 5
+        example: alice@example.com
+      - name: inbound_address_id
+        in: query
+        required: false
+        description: Filter to messages received on a specific inbound address.
+        schema:
+          $ref: '#/components/schemas/InboundAddressID'
+      - name: received_after
+        in: query
+        required: false
+        description: Filter to messages received at or after this time.
+        schema:
+          type: string
+          format: date-time
+      - name: received_before
+        in: query
+        required: false
+        description: Filter to messages received at or before this time.
+        schema:
+          type: string
+          format: date-time
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: Paginated list of received emails.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundEmailMessageList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+  /v1/email/inbound-messages/{inbound_message_id}:
+    parameters:
+    - name: inbound_message_id
+      in: path
+      required: true
+      description: Received email identifier. Starts with `rem_`.
+      schema:
+        $ref: '#/components/schemas/InboundEmailMessageID'
+    get:
+      operationId: getInboundMessage
+      summary: Get a received email
+      description: 'Returns the parsed metadata for a received email:
+
+
+        - Addresses.
+
+        - Subject.
+
+        - Threading headers.
+
+        - Authentication results.
+
+        - The attachment manifest.
+
+
+        Content is fetched separately:
+
+
+        - Get the parsed body from Get a received email''s body.
+
+        - Get the original MIME from Get a received email''s raw content.
+
+        - Get attachment bytes from Get a received email''s attachment.
+
+
+        Received emails are retained for 30 days. An unknown or expired message returns `404`.'
+      tags:
+      - email-inbound-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: Received email object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundEmailMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+  /v1/email/inbound-messages/{inbound_message_id}/body:
+    parameters:
+    - name: inbound_message_id
+      in: path
+      required: true
+      description: Received email identifier. Starts with `rem_`.
+      schema:
+        $ref: '#/components/schemas/InboundEmailMessageID'
+    get:
+      operationId: getInboundMessageBody
+      summary: Get a received email's body
+      description: 'Returns the parsed, decoded body of a received email as JSON: the `html` and `text` parts, each `null` when the message had no such part. This is the reading-friendly form. For the exact original bytes (headers, signatures, full MIME structure) use Get a received email''s raw content. An unknown or expired message returns `404`. A message that exists but has no stored content returns both parts `null`.'
+      tags:
+      - email-inbound-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: Parsed message body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundEmailMessageBody'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+  /v1/email/inbound-messages/{inbound_message_id}/raw:
+    parameters:
+    - name: inbound_message_id
+      in: path
+      required: true
+      description: Received email identifier. Starts with `rem_`.
+      schema:
+        $ref: '#/components/schemas/InboundEmailMessageID'
+    get:
+      operationId: getInboundMessageRaw
+      summary: Get a received email's raw content
+      description: 'Returns the original message exactly as received, in RFC 5322 (MIME) format, as a `message/rfc822` download. Use it when you need the exact bytes:
+
+
+        - Full headers.
+
+        - Signatures.
+
+        - Your own MIME parsing.
+
+
+        For parsed fields use Get a received email and Get a received email''s body.
+
+
+        Returns `404` when the message is unknown or its stored content has expired (received emails are retained for 30 days). A received message, including its attachments, cannot exceed 25 MB.'
+      tags:
+      - email-inbound-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: The original message in RFC 5322 (MIME) format.
+          content:
+            message/rfc822:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+  /v1/email/inbound-messages/{inbound_message_id}/attachments:
+    parameters:
+    - name: inbound_message_id
+      in: path
+      required: true
+      description: Received email identifier. Starts with `rem_`.
+      schema:
+        $ref: '#/components/schemas/InboundEmailMessageID'
+    get:
+      operationId: listInboundMessageAttachments
+      summary: List a received email's attachments
+      description: 'Returns metadata for each attachment on a received email:
+
+
+        - The `attachment_id`.
+
+        - The declared filename.
+
+        - The MIME type.
+
+        - The size.
+
+
+        The same manifest is embedded in Get a received email. Fetch an individual attachment''s bytes with Get a received email''s attachment.'
+      tags:
+      - email-inbound-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: The attachments on the received email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundAttachmentList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+  /v1/email/inbound-messages/{inbound_message_id}/attachments/{attachment_id}:
+    parameters:
+    - name: inbound_message_id
+      in: path
+      required: true
+      description: Received email identifier. Starts with `rem_`.
+      schema:
+        $ref: '#/components/schemas/InboundEmailMessageID'
+    - name: attachment_id
+      in: path
+      required: true
+      description: Inbound attachment identifier. Starts with `rea_`.
+      schema:
+        $ref: '#/components/schemas/InboundAttachmentID'
+    get:
+      operationId: getInboundMessageAttachment
+      summary: Get a received email's attachment
+      description: Returns the raw bytes of a single attachment on a received email, served as `application/octet-stream`. The attachment's declared MIME type and filename are in its metadata, from List a received email's attachments, which is also where you find the `attachment_id`. Returns `404` when the attachment is not part of the message or its stored bytes have expired. A received message, including its attachments, cannot exceed 25 MB.
+      tags:
+      - email-inbound-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: The raw attachment bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+components:
+  schemas:
+    InboundEmailMessageID:
+      type: string
+      minLength: 1
+      pattern: ^rem_[0-9a-hjkmnp-tv-z]{26}$
+      example: rem_01krdgeqcxet5s7t44vh8rt9mg
+    InboundAttachmentList:
+      type: object
+      additionalProperties: false
+      description: The attachments on a received email. The response returns every attachment without pagination.
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: Metadata for every attachment on the message. Empty when the message had no attachments.
+          items:
+            $ref: '#/components/schemas/InboundAttachment'
+    EmailAddress:
+      type: object
+      additionalProperties: false
+      description: An email address with an optional display name.
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          description: Email address.
+          example: jane@acme.com
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^[^\r\n]+$
+          description: Display name shown alongside the address in mail clients.
+          example: Jane Doe
+    InboundEmailMessageList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of received emails, newest first.
+            items:
+              $ref: '#/components/schemas/InboundEmailMessage'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    InboundAttachmentID:
+      type: string
+      minLength: 1
+      pattern: ^rea_[0-9a-hjkmnp-tv-z]{26}$
+      example: rea_01krdgeqcxet5s7t44vh8rt9mg
+    InboundAddressID:
+      type: string
+      minLength: 1
+      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
+      example: ina_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    InboundEmailMessageBody:
+      type: object
+      additionalProperties: false
+      description: The parsed body of a received email.
+      required:
+      - html
+      - text
+      properties:
+        html:
+          type:
+          - string
+          - 'null'
+          description: The HTML body of the message, or `null` when the message had no HTML part.
+        text:
+          type:
+          - string
+          - 'null'
+          description: The plain-text body of the message, or `null` when the message had no text part.
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    InboundAttachment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - filename
+      - content_type
+      - size
+      description: 'Metadata for a file attached to a received email. The raw bytes are fetched separately with `GET /v1/email/inbound-messages/{inbound_message_id}/attachments/{attachment_id}`.
+
+        '
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/InboundAttachmentID'
+          description: Attachment ID, stable within the received message.
+        filename:
+          type:
+          - string
+          - 'null'
+          description: Filename from the attachment's Content-Disposition, or `null` when the sender did not name the part.
+          example: invoice.pdf
+        content_type:
+          type:
+          - string
+          - 'null'
+          description: MIME type parsed from the attachment part, or `null` when absent.
+          example: application/pdf
+        size:
+          type: integer
+          minimum: 0
+          description: Size of the attachment in bytes.
+          example: 215432
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    InboundEmailMessage:
+      type: object
+      additionalProperties: false
+      description: 'An email received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.
+
+        '
+      required:
+      - id
+      - from
+      - to
+      - cc
+      - subject
+      - message_id
+      - in_reply_to
+      - thread_id
+      - authentication
+      - spf_pass
+      - dkim_pass
+      - dmarc_pass
+      - spam_score
+      - attachments
+      - received_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/InboundEmailMessageID'
+          description: Received message ID.
+        from:
+          $ref: '#/components/schemas/EmailAddress'
+          description: Sender address parsed from the message.
+        to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+          description: Recipients on the message's To header.
+        cc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+          description: Recipients on the message's Cc header.
+        subject:
+          type:
+          - string
+          - 'null'
+          description: Subject line as received, or `null` when the message had no subject.
+          example: 'Re: Your receipt'
+        message_id:
+          type:
+          - string
+          - 'null'
+          description: RFC 5322 Message-ID header from the sender, or `null` when the sender did not include one.
+          example: <CAH+T8d5...@mail.gmail.com>
+        in_reply_to:
+          type:
+          - string
+          - 'null'
+          description: The `In-Reply-To` header, which holds the Message-ID this message is replying to. `null` when the message is not a reply.
+          example: <previous-message@example.com>
+        references:
+          type: array
+          items:
+            type: string
+          description: The References header, which holds every Message-ID in this conversation, oldest first. Left out when the message arrived without one.
+        thread_id:
+          type:
+          - string
+          - 'null'
+          description: Conversation this message belongs to, or `null` when it is not grouped into one.
+        authentication:
+          type:
+          - string
+          - 'null'
+          enum:
+          - pass
+          - fail
+          - unknown
+          - null
+          description: 'DMARC result for the domain in the received message''s `From` header.
+
+
+            - `pass`: SPF or DKIM passed and aligned with that domain.
+
+            - `fail`: DMARC was evaluated and did not pass.
+
+            - `unknown`: no trustworthy verdict is available.
+
+
+            This follows `dmarc_pass` and does not verify a particular person. The receiving provider currently supplies no DMARC result, so received messages report `unknown`.
+
+            '
+        spf_pass:
+          type:
+          - boolean
+          - 'null'
+          description: Whether the receiving provider reports that SPF authorized the envelope sender for the sending server. A soft failure is `false`. Missing, neutral and inconclusive results are `null`.
+        dkim_pass:
+          type:
+          - boolean
+          - 'null'
+          description: Whether the receiving provider verified a DKIM signature. A passing signature makes this `true` even when another signature fails. Missing signatures and inconclusive verification results are `null`.
+        dmarc_pass:
+          type:
+          - boolean
+          - 'null'
+          description: Whether SPF or DKIM passed and aligned with the domain in the message's `From` header. The receiving provider currently supplies no DMARC result, so this is `null`.
+        spam_score:
+          type:
+          - number
+          - 'null'
+          description: Content spam score when available. The receiving provider currently supplies no score, so this is `null`.
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboundAttachment'
+          description: Metadata for each attachment found on the message. Empty when the message had no attachments.
+        received_at:
+          type: string
+          minLength: 1
+          format: date-time
+          readOnly: true
+          description: When the message was received.
+  parameters:
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

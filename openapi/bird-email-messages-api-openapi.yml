@@ -1,0 +1,2412 @@
+openapi: 3.2.0
+info:
+  title: Bird Email Messages API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: email-messages
+  description: Send emails to recipients you address explicitly in `to`, `cc`, and `bcc`. Use this for transactional sends (receipts, password resets, alerts) and for marketing sends where you already have the recipient addresses on hand. The same endpoint accepts every content type. Set `category` to control suppression policy.
+paths:
+  /v1/email/messages:
+    post:
+      operationId: createEmailMessage
+      summary: Create an email message
+      description: 'Sends an email to the recipients you list explicitly in `to`/`cc`/`bcc`. Use it for
+
+        transactional sends (receipts, password resets, alerts) and for marketing sends where
+
+        you have the recipient addresses on hand. To submit many independent messages in one
+
+        request, use Create a batch of email messages
+
+        instead. The `category` field controls suppression policy independently of content:
+
+        set it to `marketing` when sending marketing content.
+
+
+        The `202` response means the message is safely accepted and awaiting delivery.
+
+        Fetch it by `id` or subscribe to webhook events to follow delivery. The
+
+        request never half-succeeds: an unverified sender domain or any field-level
+
+        validation failure rejects it immediately with a `422` naming the reason.
+
+        Suppression is evaluated per recipient after acceptance, so a suppressed recipient
+
+        appears as `rejected` on the message''s recipient list rather than as a synchronous
+
+        error. New workspaces can send from the shared onboarding domain before verifying
+
+        their own. The quickstart covers its
+
+        recipient and volume limits.'
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: email.send
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailMessageSendRequest'
+            examples:
+              quickstart-first-email:
+                summary: The smallest send that works, from the getting-started guide
+                value:
+                  from:
+                    email: onboarding@messagebird.dev
+                    name: Bird
+                  to:
+                  - email: delivered@messagebird.dev
+                  subject: Hello from Bird
+                  html: <p>My first Bird email.</p>
+              send-minimal:
+                summary: 'A minimal send: one sender, one recipient, one body'
+                value:
+                  from:
+                    email: hello@yourdomain.com
+                  to:
+                  - email: delivered@messagebird.dev
+                  subject: Hello from Bird
+                  html: <p>It works.</p>
+              send-template:
+                summary: A send that renders a stored template with parameters
+                value:
+                  from:
+                    email: hello@yourdomain.com
+                  to:
+                  - email: delivered@messagebird.dev
+                  category: transactional
+                  template:
+                    slug: welcome-email
+                    parameters:
+                      first_name: Jane
+              send-from-ip-pool:
+                summary: A send routed through a named dedicated IP pool
+                value:
+                  from:
+                    email: noreply@yourdomain.com
+                  to:
+                  - email: delivered@messagebird.dev
+                  subject: Your receipt
+                  html: <p>Thanks for your order.</p>
+                  ip_pool_id: ipp_1btmn1nnkd8y6a4jckbkvvt9eh
+              send-sandbox-bounce:
+                summary: A send to the sandbox address that always hard-bounces
+                value:
+                  from:
+                    email: onboarding@messagebird.dev
+                  to:
+                  - email: bounce+signup-flow@messagebird.dev
+                  subject: Sandbox bounce test
+                  html: <p>This message will hard-bounce.</p>
+                  tags:
+                  - name: flow
+                    value: signup
+                  metadata:
+                    test_run: docs-capture-1
+              quickstart:
+                summary: A first send on a new workspace
+                value:
+                  from:
+                    email: onboarding@messagebird.dev
+                    name: Bird
+                  to:
+                  - delivered@messagebird.dev
+                  subject: Welcome to Bird
+                  html: <p>You are in.</p>
+              onboarding-email:
+                summary: The first send from the dashboard's onboarding step
+                value:
+                  from:
+                    email: onboarding@messagebird.dev
+                    name: Bird
+                  to:
+                  - delivered@messagebird.dev
+                  subject: Hello World
+                  html: <p>You made your <strong>first email fly</strong>. Congratulations!</p>
+      responses:
+        '202':
+          description: Message accepted for asynchronous delivery.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailMessage'
+              example:
+                id: em_01krdgeqcxet5s7t44vh8rt9mg
+                from:
+                  email: onboarding@messagebird.dev
+                  name: Bird
+                to:
+                - email: delivered@messagebird.dev
+                subject: Hello from Bird
+                category: transactional
+                status: accepted
+                accepted_count: 1
+                processed_count: 0
+                delivered_count: 0
+                bounced_count: 0
+                complained_count: 0
+                deferred_count: 0
+                rejected_count: 0
+                open_count: 0
+                click_count: 0
+                track_opens: false
+                track_clicks: false
+                created_at: '2026-07-01T12:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - attio
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+    get:
+      operationId: listEmailMessages
+      summary: List messages
+      description: 'Returns the workspace''s sent and scheduled messages, newest first, as a cursor page. Each item has the aggregate delivery `status` and per-state recipient counts. Message bodies are omitted.
+
+
+        Combine filters to narrow the page:
+
+
+        - Delivery status.
+
+        - Category.
+
+        - Tag.
+
+        - An exact `to` or `from` address.
+
+        - A `created_after` or `created_before` time window.'
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: email.list.iterate
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/CreatedAfter'
+      - $ref: '#/components/parameters/CreatedBefore'
+      - name: status
+        in: query
+        required: false
+        description: Filter by aggregate delivery status.
+        schema:
+          $ref: '#/components/schemas/EmailMessageStatus'
+      - $ref: '#/components/parameters/TagFilter'
+      - name: category
+        in: query
+        required: false
+        description: Filter by category.
+        schema:
+          $ref: '#/components/schemas/EmailMessageCategory'
+      - name: to
+        in: query
+        required: false
+        description: 'Filter by recipient address. Exact match against any `to`/`cc`/`bcc` recipient on the message. The address is normalized to lowercase before comparison.
+
+          '
+        schema:
+          type: string
+          format: email
+          example: delivered@messagebird.dev
+      - name: from
+        in: query
+        required: false
+        description: 'Filter by sender address. Exact match against the message `from` field. The address is normalized to lowercase before comparison.
+
+          '
+        schema:
+          type: string
+          format: email
+          example: noreply@acme.com
+      responses:
+        '200':
+          description: Paginated list of messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailMessageList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - attio
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/email/batches:
+    post:
+      operationId: createEmailMessageBatch
+      summary: Create a batch of email messages
+      description: 'Accepts up to 100 independent email messages and queues them for delivery. All items are validated before any are queued: if one fails validation, the entire batch is rejected. Field-level validation failures and business-rule failures, such as sending from a domain that is not verified, both return `422`. An item can set `scheduled_at` to send it later, on the same terms as a single scheduled send, and one batch can mix scheduled and immediate messages. Cancel a scheduled item before it sends with Cancel an email message. Suppression is evaluated per recipient after acceptance, never as a synchronous error. The `202` response returns one entry per message in submission order, each with its own `id` you can use to fetch that message or match it against webhook events. Attachments are allowed per message. Each message must stay within the 20 MB estimated generated message-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap.'
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: email.sendBatch
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailMessageBatchRequest'
+      responses:
+        '202':
+          description: Batch accepted for asynchronous delivery.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailMessageBatchResponse'
+              example:
+                data:
+                - id: em_01krdgeqcxet5s7t44vh8rt9mg
+                  status: accepted
+                  category: marketing
+                  requested_language: pt-BR
+                  resolved_language: pt-BR
+                  template_id: emt_01krdgeqcxet5s7t44vh8rt9mg
+                  template_version_id: emv_01krdgeqcxet5s7t44vh8rt9mg
+                - id: em_01krdgeqcxet5s7t44vh8rt9mh
+                  status: accepted
+                  category: transactional
+                  scheduled_at: '2026-05-22T09:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/email/messages/{message_id}:
+    get:
+      operationId: getEmailMessage
+      summary: Get a message
+      description: Returns a single message with its aggregate delivery `status` and per-state recipient counts. The response never includes the `html`/`text` bodies. When content storage is enabled for the send, fetch the stored bodies with Get stored message content. Per-recipient statuses and the event timeline are separate sub-resources.
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: email.get
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the message to fetch. A broadcast records one message per recipient, and [List email messages](/docs/api/reference/list-email-messages) returns those copies alongside ordinary sends. For a single send, this is the message's own ID, from the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/EmailID'
+      responses:
+        '200':
+          description: Message object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/email/messages/{message_id}/cancel:
+    post:
+      operationId: cancelEmailMessage
+      summary: Cancel a scheduled message
+      description: Cancels a message that was scheduled with `scheduled_at` before it sends. Only a message that is still scheduled can be canceled. A message that already started sending, was delivered, or was previously canceled returns a conflict error. The message's status becomes `canceled` and an `email.canceled` webhook event fires. Canceling does not return consumed scheduled-send quota.
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: email.cancel
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the scheduled message to cancel, from the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/EmailID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: The message is canceled and no longer eligible to send.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+      - sdk
+  /v1/email/messages/{message_id}/recipients:
+    get:
+      operationId: listEmailMessageRecipients
+      summary: List recipients of a message
+      description: 'Returns the message''s per-recipient delivery state as a cursor page: each entry is
+
+        one `to`/`cc`/`bcc` recipient with its role, current `status`, rejection or bounce
+
+        detail when delivery failed, and open/click counts. Use it to see which specific
+
+        addresses failed when the aggregate message `status` is mixed (for example
+
+        `partial_failure`).
+
+
+        This works for every email message, including one a broadcast sent. A broadcast
+
+        records one message per recipient, so such a message has exactly one recipient
+
+        here: the address its copy went to.'
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the message whose recipients to list. A broadcast records one message per recipient, and [List email messages](/docs/api/reference/list-email-messages) returns those copies alongside ordinary sends. For a single send, this is the message's own ID, from the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/EmailID'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      responses:
+        '200':
+          description: Paginated list of recipients for this message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailRecipientList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+  /v1/email/messages/{message_id}/events:
+    get:
+      operationId: listEmailMessageEvents
+      summary: List events for a message
+      description: Returns the message's per-recipient event timeline, oldest first, as a cursor page. Lifecycle, failure, and engagement events interleave as they happen, and engagement events (`email.opened`, `email.clicked`) can repeat per recipient. Filter to one event type with `type`. For each recipient's current state rather than its history, use List recipients of a message.
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the message whose timeline to read. A broadcast records one message per recipient, and [List email messages](/docs/api/reference/list-email-messages) returns those copies alongside ordinary sends. For a single send, this is the message's own ID, from the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/EmailID'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - name: type
+        in: query
+        required: false
+        description: Filter by event type, for example `email.bounced` or `email.opened`.
+        schema:
+          $ref: '#/components/schemas/EmailEventType'
+      responses:
+        '200':
+          description: Paginated event timeline for this message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailEventList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - n8n
+  /v1/email/messages/{message_id}/content:
+    get:
+      operationId: getEmailMessageContent
+      summary: Get stored message content
+      description: Returns the stored HTML and text bodies for a sent message. Content storage must be enabled for the message. Content is available for up to 30 days after sending. A broadcast stores no body, so a copy the send has recorded always answers `404`, whatever the workspace has configured. A `404` indicates no content was stored for this message. A `425` indicates the content is still being stored and the request can be retried shortly. A `410` indicates the content was stored but has since expired.
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the message whose stored content to fetch. A broadcast records one message per recipient, and [List email messages](/docs/api/reference/list-email-messages) returns those copies alongside ordinary sends. For a single send, this is the message's own ID, from the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/EmailID'
+      responses:
+        '200':
+          description: Stored message content.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailMessageContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '425':
+          $ref: '#/components/responses/TooEarly'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - make
+      - mcp
+      - n8n
+  /v1/email/messages/{message_id}/attachments/{attachment_id}:
+    get:
+      operationId: getEmailMessageAttachment
+      summary: Get a message attachment
+      description: Downloads the raw bytes of one attachment from a sent message, returned with the attachment's own content type and a Content-Disposition header that includes its filename. The message must have content storage enabled and the attachment is available for up to 30 days after sending. A `404` indicates the message has no stored content or no attachment with this ID. A `425` indicates the attachment is still being stored and the request can be retried shortly. A `410` indicates the attachment was stored but has since expired.
+      tags:
+      - email-messages
+      x-audiences:
+      - public
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: ID of the message the attachment belongs to, from the send response's `id` field.
+        schema:
+          $ref: '#/components/schemas/EmailID'
+      - name: attachment_id
+        in: path
+        required: true
+        description: Attachment ID, as returned in the message's `attachments` list.
+        schema:
+          $ref: '#/components/schemas/EmailAttachmentID'
+      responses:
+        '200':
+          description: The raw attachment bytes.
+          headers:
+            Content-Disposition:
+              description: 'Has the attachment''s filename. The value is `attachment` for regular files, or `inline` for inline images referenced from the HTML body.
+
+                '
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '425':
+          $ref: '#/components/responses/TooEarly'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+components:
+  schemas:
+    EmailRecipient:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - parent_id
+      - role
+      - recipient
+      - status
+      - open_count
+      - click_count
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/RecipientID'
+          description: Recipient ID.
+        parent_id:
+          $ref: '#/components/schemas/EmailID'
+          description: ID of the message this recipient belongs to. For a message send, this is the message's own `em_`-prefixed ID. For a broadcast, it is the `em_`-prefixed ID of the copy addressed to this recipient. Read either one with [Get an email message](/docs/api/reference/get-email-message), which answers 404 for a broadcast copy the send has not recorded. No recipient status distinguishes a copy the send recorded from one it did not.
+        role:
+          $ref: '#/components/schemas/RecipientRole'
+          description: How this recipient appeared in the send request.
+        recipient:
+          type: string
+          format: email
+          minLength: 5
+          description: Recipient email address.
+        name:
+          type:
+          - string
+          - 'null'
+          description: Display name provided for this recipient on the send, or null if none was given.
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - accepted
+          - processed
+          - deferred
+          - delivered
+          - bounced
+          - complained
+          - rejected
+          x-enum-varnames:
+          - EmailRecipientStatusAccepted
+          - EmailRecipientStatusProcessed
+          - EmailRecipientStatusDeferred
+          - EmailRecipientStatusDelivered
+          - EmailRecipientStatusBounced
+          - EmailRecipientStatusComplained
+          - EmailRecipientStatusRejected
+          description: 'Delivery status for this recipient:
+
+
+            - `accepted`: The send has been taken and is being prepared for delivery.
+
+            - `processed`: This recipient''s message is on its way out.
+
+            - `deferred`: The recipient''s mailbox provider asked for a retry, and delivery attempts continue.
+
+            - `delivered`: The recipient''s mail server accepted the message.
+
+            - `bounced`: Delivery permanently failed (see `bounce_type` for hard vs soft).
+
+            - `complained`: The recipient reported the message as spam.
+
+            - `rejected`: Delivery was never attempted (see `rejection_reason` for why).
+
+            '
+        rejection_reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          enum:
+          - recipient_suppressed
+          - transmission_failed
+          - generation_failure
+          - policy_rejection
+          - domain_unverified
+          - quota_exceeded
+          - recipient_not_allowed
+          - null
+          description: "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n\n- `recipient_suppressed`: The recipient is on the workspace suppression list, so\n  delivery was never attempted.\n- `transmission_failed`: The message could not be transmitted for delivery.\n- `generation_failure`: The message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: The message was refused by sending policy.\n- `domain_unverified`: The sending domain was not verified.\n- `quota_exceeded`: The organization's send quota was reached.\n- `recipient_not_allowed`: A recipient was not permitted for this send (for shared\n  onboarding-domain sends, recipients must be verified workspace members).\n"
+        bounce_type:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          enum:
+          - hard
+          - soft
+          - undetermined
+          - admin
+          - block
+          - null
+          description: 'Bounce classification for `bounced` and `deferred` rows, or null when the recipient
+
+            has not bounced or the receiving server''s response has not been classified.
+
+
+            - `hard`: a permanent failure (invalid address or non-existent domain).
+
+            - `soft`: a transient failure (mailbox full or server temporarily unavailable).
+
+            - `block`: the receiving mail server blocked the sending IP for reputation reasons.
+
+            - `admin`: an administrative refusal (relaying denied or blocklisted domain).
+
+            - `undetermined`: the receiving server''s response is ambiguous.
+
+            '
+        bounce_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: SMTP reply code returned by the receiving mail server for `bounced` and `deferred` rows, or null when none was provided.
+          example: '550'
+        bounce_description:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Human-readable reason the receiving mail server gave for the bounce or deferral, or null when none was provided.
+          example: 5.1.1 Unknown user
+        processed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the message was prepared and queued for delivery to the recipient's mail server, or null if that has not happened yet.
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the recipient's mail server accepted the message, or null if not yet delivered.
+        processing_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Time between the send being accepted and the message being prepared for delivery, in milliseconds. Null until processed.
+        delivery_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Time between the message being prepared and the receiving mail server accepting it, in milliseconds. Null until delivered.
+        total_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: End-to-end accept → delivered time for this recipient, in milliseconds. Null until delivered.
+        open_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of open events for this recipient.
+        click_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of click events for this recipient.
+    EmailAttachmentRef:
+      type: object
+      additionalProperties: false
+      required:
+      - filename
+      - size
+      description: 'Attachment metadata returned on API reads. Download the file during its retention window with `GET /v1/email/messages/{message_id}/attachments/{attachment_id}`.
+
+        '
+      properties:
+        id:
+          readOnly: true
+          description: Attachment ID, stable per email send.
+          $ref: '#/components/schemas/EmailAttachmentID'
+        filename:
+          type: string
+          minLength: 1
+          description: Filename as shown to the recipient.
+          example: invoice.pdf
+        content_type:
+          type: string
+          description: Resolved MIME type at send time.
+          example: application/pdf
+        size:
+          type: integer
+          minimum: 0
+          description: Decoded size in bytes.
+          example: 215432
+        inline:
+          type: boolean
+          description: 'True when the attachment was sent inline via a `content_id` reference in the HTML body, false for regular file attachments.
+
+            '
+          example: false
+        content_id:
+          type:
+          - string
+          - 'null'
+          description: The Content-ID set at send time, when the attachment was inline.
+    EmailMessageCategory:
+      type: string
+      minLength: 1
+      enum:
+      - marketing
+      - transactional
+      description: 'Content classification, which controls suppression policy:
+
+
+        - `marketing`: Blocks on all suppression reasons.
+
+        - `transactional`: Allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail.
+
+        '
+    EmailMessageBatchResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailMessageBatchItem'
+          description: One entry per message in the batch, in submission order.
+    EmailAttachment:
+      type: object
+      additionalProperties: false
+      required:
+      - filename
+      - content
+      description: 'A file attached to an email. Put the base64-encoded bytes in `content` and the
+
+        recipient-facing name in `filename`. To show an image inline, set `content_id`
+
+        and reference it from the HTML body with `<img src="cid:..."/>`.
+
+
+        The generated message is limited to 20 MB across the HTML body, text body,
+
+        attachments, and inline images after base64 and MIME encoding. Keep raw
+
+        attachment content at or below 15 MB to leave room for encoding and the body.
+
+
+        Batch sends apply the same 20 MB limit to each message and to the full request
+
+        body. Executable and script content types are rejected.
+
+        '
+      properties:
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The name the recipient sees on the attachment.
+          example: invoice.pdf
+        content:
+          type: string
+          format: byte
+          minLength: 1
+          description: Base64-encoded file bytes. The encoded value and MIME wrapping count toward the 20 MB message limit.
+        content_type:
+          type: string
+          description: The file's MIME type. If omitted, the API infers it from the extension in `filename`. The API rejects executable and script types based on this value.
+          example: application/pdf
+        content_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._-]+$
+          description: An RFC 2392 Content-ID for an inline file. Reference it from the HTML body with `<img src="cid:{content_id}"/>`. Omit it to send a downloadable attachment.
+          example: invoice-logo
+    EmailAddress:
+      type: object
+      additionalProperties: false
+      description: An email address with an optional display name.
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          description: Email address.
+          example: jane@acme.com
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^[^\r\n]+$
+          description: Display name shown alongside the address in mail clients.
+          example: Jane Doe
+    EmailMessage:
+      type: object
+      description: 'An email message, including a recipient''s copy of a broadcast. `broadcast_id` identifies the broadcast that sent the message and is absent for other sends. A broadcast records one message per recipient; these copies share the same `broadcast_id`.
+
+        '
+      additionalProperties: false
+      required:
+      - id
+      - from
+      - to
+      - subject
+      - category
+      - status
+      - accepted_count
+      - processed_count
+      - delivered_count
+      - bounced_count
+      - complained_count
+      - deferred_count
+      - rejected_count
+      - open_count
+      - click_count
+      - track_opens
+      - track_clicks
+      - created_at
+      example:
+        id: em_01krdgeqcxet5s7t44vh8rt9mg
+        from:
+          email: onboarding@messagebird.dev
+          name: Bird
+        to:
+        - email: delivered@messagebird.dev
+        subject: Hello from Bird
+        category: marketing
+        status: accepted
+        broadcast_id: eb_01krdgeqcxet5s7t44vh8rt9mg
+        accepted_count: 1
+        processed_count: 0
+        delivered_count: 0
+        bounced_count: 0
+        complained_count: 0
+        deferred_count: 0
+        rejected_count: 0
+        open_count: 0
+        click_count: 0
+        track_opens: false
+        track_clicks: false
+        created_at: '2026-07-01T12:00:00Z'
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/EmailID'
+          description: Message ID.
+        from:
+          $ref: '#/components/schemas/EmailAddress'
+          description: Sender address. `name` is present when a display name was provided on the send.
+        to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+          minItems: 1
+          maxItems: 50
+          description: Primary recipients. Length is the recipient count. Use the broadcasts endpoint for audience-targeted sends. Each entry's `name` is present when a display name was provided on the send.
+        cc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+          description: CC recipients.
+        bcc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+          description: BCC recipients.
+        subject:
+          type: string
+          minLength: 1
+          description: 'The subject line as delivered. For a send that used a template, the stored subject is the template''s, so this reports it with the send''s `parameters` substituted in, which is what the recipient saw.
+
+            '
+        category:
+          $ref: '#/components/schemas/EmailMessageCategory'
+        reply_to:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+          maxItems: 25
+          description: Reply-To addresses, if set on the send. Empty/null when no Reply-To was provided.
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailMessageStatus'
+        accepted_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: How many recipients are in the `accepted` state, meaning we have the message and are getting ready to deliver it.
+        processed_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: How many recipients the message has been prepared for and queued for delivery.
+        delivered_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: How many recipients' messages were accepted by their mail server.
+        bounced_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of recipients that resulted in a permanent delivery failure.
+        complained_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of recipients that reported spam.
+        deferred_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of recipients in transient delivery deferral. Their mail server asked for a retry, and delivery attempts continue.
+        rejected_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: 'Number of recipients rejected before delivery. Read the per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` for the specific cause.
+
+            '
+        processing_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Time between the send being accepted and the message being prepared for delivery, in milliseconds, for the fastest recipient. Null until the first recipient reaches `processed`.
+
+            '
+        delivery_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Time between the message being processed and the receiving mail server accepting it, in milliseconds, for the fastest delivered recipient. Null until the first recipient is delivered.
+
+            '
+        total_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'End-to-end accept → delivered time for the fastest delivered recipient, in milliseconds. Null until the first recipient is delivered.
+
+            '
+        open_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Total open events across all recipients.
+        click_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Total click events across all recipients.
+        requested_language:
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+          readOnly: true
+          description: 'The template language this send asked for, in canonical form (`pt-BR` for a request of `pt-br`). Null when the send named no language (it took the template''s default) or used no template at all. Compare it with `resolved_language`: when they differ, the language you asked for was not available and the template''s `on_missing_language` policy chose the one shown there instead.
+
+            '
+        resolved_language:
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+          readOnly: true
+          description: 'The template language this send was actually delivered in, in canonical form. Null when the send used no template. A non-null value with a null `requested_language` means the send named no language and took the template''s default.
+
+            '
+        template_id:
+          oneOf:
+          - $ref: '#/components/schemas/EmailTemplateID'
+          - type: 'null'
+          readOnly: true
+          description: 'The template this send rendered from, or null for a send that supplied its content inline.
+
+            '
+        template_version_id:
+          oneOf:
+          - $ref: '#/components/schemas/EmailTemplateVersionID'
+          - type: 'null'
+          readOnly: true
+          description: 'The exact template version this send rendered from, or null for an inline send. A template''s live version changes every time you submit it, so this is what identifies the wording that was actually delivered, together with `resolved_language`.
+
+            '
+        broadcast_id:
+          $ref: '#/components/schemas/EmailBroadcastID'
+          readOnly: true
+          description: 'The broadcast that sent this message. Absent for a send that was not part of a broadcast. A broadcast records one message per recipient, and every one of them carries the same value here.
+
+            '
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Labels on this message, each one a `name` and a `value`, that you can filter and search messages by. Use tags for anything you want to find messages by later, and `metadata` for data you only want handed back to you.
+        metadata:
+          type: object
+          description: Any JSON you kept on the message. We store it and hand it back in webhook payloads, and that is all it does. If you want to search or filter by it, use `tags` instead.
+          additionalProperties: true
+        parameters:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+          readOnly: true
+          description: 'The substitution values this send supplied, whether inline or from a template, or null if none were supplied. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.
+
+            '
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAttachmentRef'
+          description: Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed. When content storage is enabled, download an attachment by its `id` via the message's attachment endpoint.
+        track_opens:
+          type: boolean
+          description: Whether open tracking is enabled for this send.
+        track_clicks:
+          type: boolean
+          description: Whether click tracking is enabled for this send.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the send request was accepted.
+        thread_id:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          pattern: ^thr_[0-9a-hjkmnp-tv-z]{26}$
+          description: Thread this message belongs to, or null when the message is not part of one.
+        in_reply_to_message_id:
+          readOnly: true
+          description: The message this one is a reply to, if any.
+          oneOf:
+          - $ref: '#/components/schemas/EmailID'
+          - type: 'null'
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When all recipients reached a terminal delivered state, or null if not yet fully delivered.
+        scheduled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this message is scheduled to send, for a send created with a future send time. Absent for an immediate send. Stays set after the scheduled send fires.
+    EmailTemplateSend:
+      type: object
+      additionalProperties: false
+      description: 'A reference to the template to send. Identify the template by its `id` or its `slug`, supplying exactly one of the two, and give the values for its variables in `parameters`.
+
+        '
+      oneOf:
+      - required:
+        - id
+      - required:
+        - slug
+      properties:
+        id:
+          description: The template to send, by its id.
+          $ref: '#/components/schemas/EmailTemplateID'
+        slug:
+          allOf:
+          - $ref: '#/components/schemas/TemplateSlug'
+          description: The template to send, by its slug handle. A workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).
+          example: welcome-email
+        language:
+          $ref: '#/components/schemas/LanguageTag'
+          description: 'Which of the template''s languages to send. Omit it to send the template''s default language, unless the template sets `language_source_required`, in which case a send naming no language is rejected. When the template does not have the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.
+
+            '
+        parameters:
+          type: object
+          additionalProperties: true
+          description: 'Values for the template''s variables, keyed by the variable name. A variable name is a single word.
+
+
+            Every variable in the template''s `variables` list needs a value. A send
+
+            that omits one is rejected. Languages can use different variables, and a
+
+            value unused by the selected language is ignored.
+
+
+            The API supplies values under the reserved `bird` key, so a send that sets
+
+            it is rejected. `parameters` is capped at 16 KB once serialized.
+
+            '
+          example:
+            animal: otter
+    EmailBroadcastID:
+      type: string
+      minLength: 1
+      pattern: ^eb_[0-9a-hjkmnp-tv-z]{26}$
+      example: eb_01krdgeqcxet5s7t44vh8rt9mg
+    EmailEventList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of timeline events for this email send, in chronological order.
+            items:
+              $ref: '#/components/schemas/EmailEvent'
+          next:
+            type: array
+            readOnly: true
+            description: 'What to do next, given what this page reports. Present only where the read computes it: an
+
+              empty list means the answer you were looking for is here and there is nothing further to
+
+              do. Absent entirely on reads that do not report next actions.
+
+              '
+            items:
+              $ref: '#/components/schemas/NextAction'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    RecipientRole:
+      type: string
+      minLength: 1
+      enum:
+      - to
+      - cc
+      - bcc
+      description: Envelope position of a recipient on an outbound email event.
+      example: to
+    EmailMessageBatchItem:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - status
+      - category
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/EmailID'
+          description: Message ID assigned to this batch item.
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - accepted
+          description: Initial status of this message in the batch.
+        category:
+          type: string
+          minLength: 1
+          enum:
+          - marketing
+          - transactional
+          description: Resolved category for this batch item.
+        requested_language:
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+          readOnly: true
+          description: 'The template language this item asked for, in canonical form. Null when the item named no language or used no template. Every item in a batch resolves its own template reference, so this and `resolved_language` can differ from item to item.
+
+            '
+        resolved_language:
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+          readOnly: true
+          description: 'The template language this item was actually delivered in, in canonical form. Null when the item used no template. A value here differing from `requested_language` means the template did not have the language asked for and its `on_missing_language` policy chose this one.
+
+            '
+        template_id:
+          oneOf:
+          - $ref: '#/components/schemas/EmailTemplateID'
+          - type: 'null'
+          readOnly: true
+          description: 'The template this item rendered from, or null for an item that supplied its content inline.
+
+            '
+        template_version_id:
+          oneOf:
+          - $ref: '#/components/schemas/EmailTemplateVersionID'
+          - type: 'null'
+          readOnly: true
+          description: 'The exact template version this item rendered from, or null for an inline item. Record it if you need to reproduce what was sent: a template''s live version changes every time you submit it.
+
+            '
+        scheduled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: 'When this item is scheduled to send, for an item created with a future send time. Absent for an item that sends immediately.
+
+            '
+    EmailMessageSendRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - from
+      - to
+      properties:
+        from:
+          $ref: '#/components/schemas/EmailAddressInput'
+          description: Sender address, as a plain email string, an RFC 5322 mailbox string (`Jane <jane@acme.com>`), or an object with an optional display name. Must be from a verified domain in this workspace.
+        to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddressInput'
+          minItems: 1
+          maxItems: 50
+          description: Primary recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@acme.com>`), or an object with an optional display name.
+        cc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddressInput'
+          maxItems: 50
+          description: CC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@acme.com>`), or an object with an optional display name.
+        bcc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddressInput'
+          maxItems: 50
+          description: BCC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@acme.com>`), or an object with an optional display name.
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 998
+          description: Message subject line. Required for inline sends. Omit it when sending a `template` (the template supplies the subject).
+        html:
+          type: string
+          maxLength: 524288
+          description: HTML body. At least one of html or text must be provided.
+        text:
+          type: string
+          maxLength: 524288
+          description: Plain-text body. At least one of html or text must be provided.
+        reply_to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddressInput'
+          minItems: 1
+          maxItems: 25
+          description: 'Reply-To addresses, each a plain email string, an RFC 5322 mailbox string, or an object with an optional display name. RFC 5322 allows multiple. Every recipient reply hits all listed addresses, so 1-2 is typical. The 25 cap exists to prevent header sizes that some receiving mail servers reject.
+
+            '
+        headers:
+          type: object
+          maxProperties: 25
+          additionalProperties:
+            type: string
+            maxLength: 998
+          description: 'Custom email headers as key-value pairs (for example `References`, `In-Reply-To`, or your own `X-*` headers). Reserved headers are rejected with a `422`. Set the message''s addressing and subject through the dedicated fields: `from`, `to`, `cc`, `bcc`, `reply_to`, and `subject`. The API automatically generates `Content-Type`, `Content-Transfer-Encoding`, `DKIM-Signature`, `Received`, and `Return-Path`. You cannot override these generated headers. `List-Unsubscribe` and `List-Unsubscribe-Post` are honored as-is on `transactional` sends. Marketing sends receive a compliant unsubscribe header, so supplying either one is rejected with a `422`. Header values may not contain carriage-return or line-feed characters. Up to 25 headers per send, each value up to 998 characters.
+
+            '
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          maxItems: 20
+          description: 'Structured `{name, value}` labels for **filtering and analytics**. Tags become first-class query dimensions:
+
+
+            - Filter the list endpoint by tag name.
+
+            - Slice analytics rollups by tag.
+
+            - Surface in webhook payloads.
+
+
+            Cap: 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`, `template_id`). For arbitrary structured context that you do not need as a filter dimension, use `metadata` instead.
+
+            '
+        metadata:
+          type: object
+          description: 'Arbitrary JSON object returned on API reads and included in webhook payloads. You can query its paths in analytics, such as `metadata.order_id`, but it is not a dashboard filter. The serialized object is limited to 2 KB. Use metadata for per-send context such as order IDs, customer references, and structured event data. For low-cardinality filterable labels, use `tags` instead.
+
+            '
+          additionalProperties: true
+        parameters:
+          type: object
+          description: 'Parameter values used to personalize inline content, shared across all recipients of this send. Tokens such as `{{ animal }}` are replaced with matching values; missing values render empty. Include this object, even as `{}`, to use Liquid, or omit it to leave tokens unchanged. Use single-word names other than `bird`. Cap: 16 KB serialized. For a stored template, use `template.parameters` instead. See [inline personalization](https://bird.com/docs/guides/email/sending-email#content) for validation and URL encoding examples.
+
+            '
+          additionalProperties: true
+        template:
+          allOf:
+          - $ref: '#/components/schemas/EmailTemplateSend'
+          description: 'Send a stored template instead of inline content. When set, omit `subject`, `html` and `text`, because the template supplies them. Personalize with `template.parameters`. A template send goes out immediately: `template` and `scheduled_at` are mutually exclusive, and combining them is rejected with a `422`.
+
+            '
+        track_opens:
+          type: boolean
+          default: true
+          description: Whether to track open events for this message.
+        track_clicks:
+          type: boolean
+          default: true
+          description: Whether to track click events for this message.
+        ip_pool_id:
+          type: string
+          pattern: ^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$
+          description: 'ID of the IP pool to send from (`ipp_` prefix), or `ipp_shared` to route through the shared pool explicitly. Omit to use your organization''s default pool. An unknown pool, or a pool with no dedicated IPs available to send from, is rejected with a `422`.
+
+            '
+        category:
+          $ref: '#/components/schemas/EmailMessageCategory'
+          default: marketing
+          description: 'Content classification, which controls suppression policy:
+
+
+            - `marketing`: Blocks on all suppression reasons.
+
+            - `transactional`: Allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail.
+
+
+            When you send with `template` and omit this field, the message takes the template''s own classification, so a template created as `transactional` sends as transactional. Set this field to classify a single send differently from its template. It always takes precedence. A send with no template and no category defaults to `marketing`.
+
+            '
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAttachment'
+          maxItems: 20
+          description: 'Files to attach, up to 20 per message. A message can be at most 20 MB once it has been generated, and we refuse a send that would go over. That figure covers the HTML body, the text body and every attachment and inline image, all measured after base64 encoding, which adds roughly a third. So 15 MB of raw files already accounts for most of the budget, and the body competes for the same space. A batch send is held to the same 20 MB per message, and the whole request body is capped at 20 MB as well.
+
+            '
+        scheduled_at:
+          type: string
+          format: date-time
+          description: 'Schedule the message to send at a future time instead of immediately. Must be at least 30 seconds and at most 30 days ahead. Outside that range the request is rejected with `422`. The message returns with status `accepted` and shows as `scheduled` on reads until it sends. Cancel it before then with the message cancel endpoint. Scheduled sends count against your plan''s monthly scheduled-email allowance. Exceeding it is rejected with a `422`. A scheduled message has inline content: `scheduled_at` and `template` are mutually exclusive, and combining them is rejected with a `422`. Batch items take this field too, so one batch can mix scheduled and immediate messages.
+
+            '
+      example:
+        from:
+          email: noreply@acme.com
+          name: Acme Support
+        to:
+        - email: delivered@messagebird.dev
+          name: Jane Doe
+        cc:
+        - manager@acme.com
+        reply_to:
+        - support@acme.com
+        subject: Welcome aboard
+        html: <h1>Hi there 👋</h1>
+        text: Hi there
+        headers:
+          X-Campaign: spring-2026
+        tags:
+        - name: category
+          value: welcome
+        metadata:
+          user_id: usr_12345
+        category: transactional
+        track_clicks: false
+    EmailMessageList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of message objects.
+            items:
+              $ref: '#/components/schemas/EmailMessage'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    EmailMessageContent:
+      type: object
+      additionalProperties: false
+      description: 'The body content of a sent email message, as delivered. A send that used a template stores the template''s body, so these report it with the send''s `parameters` substituted in.
+
+        '
+      properties:
+        html:
+          type: string
+          minLength: 1
+          description: The HTML body of the message as delivered, if it was stored.
+        text:
+          type: string
+          minLength: 1
+          description: The plain-text body of the message as delivered, if it was stored.
+    EmailEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - occurred_at
+      - recipient_id
+      properties:
+        id:
+          type: string
+          minLength: 1
+          readOnly: true
+          pattern: ^ev_[0-9a-hjkmnp-tv-z]{26}$
+          description: Event ID.
+          example: ev_01krdgeqcxet5s7t44vh8rt9mg
+        type:
+          $ref: '#/components/schemas/EmailEventType'
+          description: 'The event''s type. `email.processed`, for example, means the message has been processed and queued for delivery.
+
+            '
+        occurred_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When this event occurred.
+        recipient_id:
+          $ref: '#/components/schemas/RecipientID'
+          description: Recipient this event applies to.
+        bounce_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - hard
+          - soft
+          - undetermined
+          - admin
+          - block
+          - null
+          description: 'Bounce classification. Present on `email.bounced`, `email.out_of_band_bounce`, and
+
+            `email.deferred` events.
+
+
+            - `hard`: a permanent failure (invalid address or non-existent domain).
+
+            - `soft`: a transient failure (mailbox full or server temporarily unavailable).
+
+            - `block`: the receiving mail server blocked the sending IP for reputation reasons.
+
+            - `admin`: an administrative refusal (relaying denied or blocklisted domain).
+
+            - `undetermined`: the receiving server''s response is ambiguous.
+
+            '
+        bounce_class:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 255
+          description: 'A more detailed numeric bounce code, useful for telling apart failures that share the same `bounce_type`. For example, a DNS failure and a spam block can both come through as `bounce_type: soft` or `bounce_type: block`; this field tells you which one actually happened. Present on `email.bounced`, `email.out_of_band_bounce`, and `email.deferred` events.
+
+            '
+        bounce_code:
+          type:
+          - string
+          - 'null'
+          description: 'SMTP status code returned by the receiving mail server. Present on `email.bounced` and `email.deferred` events.
+
+            '
+          example: 5.1.1
+        bounce_description:
+          type:
+          - string
+          - 'null'
+          description: The bounce reason, in plain language, as reported by the mail server. Present on `email.bounced` and `email.deferred` events.
+        rejection_reason:
+          type:
+          - string
+          - 'null'
+          enum:
+          - recipient_suppressed
+          - transmission_failed
+          - generation_failure
+          - policy_rejection
+          - domain_unverified
+          - quota_exceeded
+          - recipient_not_allowed
+          - null
+          description: 'Specific cause of rejection. Present on `email.rejected` events only.
+
+
+            - `recipient_suppressed`: The recipient is on the workspace suppression list.
+
+            - `transmission_failed`: The message could not be transmitted for delivery.
+
+            - `generation_failure`: The message could not be built for delivery, because of a template or content issue.
+
+            - `policy_rejection`: The message was refused by sending policy.
+
+            - `domain_unverified`: The sending domain was not verified.
+
+            - `quota_exceeded`: The organization''s send quota was reached.
+
+            - `recipient_not_allowed`: This recipient was not allowed for this send. For a send from the shared onboarding domain, every recipient has to be a verified member of the workspace.
+
+            '
+        sending_ip:
+          type:
+          - string
+          - 'null'
+          description: 'The IP address used to send this message. Useful for spotting a deliverability problem that is tied to one specific sending IP rather than affecting all of them. Present on `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, and `email.deferred` events.
+
+            '
+        mailbox_provider:
+          type:
+          - string
+          - 'null'
+          description: 'The recipient mailbox provider, as a lowercased classifier bucket (e.g. `gmail`, `yahoo`, `microsoft`, `apple`). Present on `email.processed`, `email.delivered`, `email.complained`, `email.bounced`, `email.out_of_band_bounce`, `email.deferred`, `email.rejected`, `email.unsubscribed`, `email.list_unsubscribed`, `email.opened`, and `email.clicked` events when the receiving mail system could be classified; null when it could not.
+
+            '
+        mailbox_provider_region:
+          type:
+          - string
+          - 'null'
+          description: 'The provider region, as reported by the receiving mail system (for example `NA`, `EU`, `APAC`). The set is open and provider-specific. Present on `email.processed`, `email.delivered`, `email.complained`, `email.bounced`, `email.out_of_band_bounce`, `email.deferred`, `email.rejected`, `email.unsubscribed`, `email.list_unsubscribed`, `email.opened`, and `email.clicked` events when reported; null otherwise.
+
+            '
+        is_prefetched:
+          type:
+          - boolean
+          - 'null'
+          description: 'True when the open was auto-fetched by an inbox privacy feature (Apple Mail Privacy Protection, the Gmail image proxy) rather than a person actually opening the message. Use it to calculate open rate accurately. Present on `email.opened` events only.
+
+            '
+        url:
+          type:
+          - string
+          - 'null'
+          description: The clicked URL. Present on `email.clicked` events, and on `email.unsubscribed` events when the recipient unsubscribed through a link in the message.
+        link_name:
+          type:
+          - string
+          - 'null'
+          description: The clicked link's own name, when the link in the message carried one, so a click can be reported by what the link said rather than where it pointed. Absent when the link had no name. Appears alongside `url` on `email.clicked` events, and on `email.unsubscribed` events when the recipient unsubscribed through a link.
+          example: Faster exports, docs
+        country:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code derived from the client IP. Present on `email.opened` and `email.clicked` events when available.
+          example: US
+        ip_address:
+          type:
+          - string
+          - 'null'
+          description: Client IP address (IPv4 or IPv6). Present on `email.opened` and `email.clicked` events when available.
+        user_agent:
+          type:
+          - string
+          - 'null'
+          description: Client user-agent string. Present on `email.opened` and `email.clicked` events when available.
+    EmailMessageStatus:
+      type: string
+      minLength: 1
+      enum:
+      - scheduled
+      - accepted
+      - processed
+      - deferred
+      - delivered
+      - partial_failure
+      - bounced
+      - complained
+      - rejected
+      - canceled
+      description: 'Aggregate delivery status of an email, derived from its recipients'' states.
+
+
+        In flight:
+
+
+        - `scheduled`: The message is queued to send at a future time and has not been dispatched yet.
+
+        - `accepted`: The initial status of an immediate send. The message is queued for its recipients.
+
+        - `processed`: Delivery is underway, so at least one recipient''s message is on its way out and none has failed.
+
+        - `deferred`: At least one recipient''s mailbox provider asked for a retry, and delivery attempts continue.
+
+
+        Final:
+
+
+        - `delivered`: Every recipient''s mail server accepted the message.
+
+        - `bounced`: Every recipient permanently failed (bounced or was rejected).
+
+        - `rejected`: Every recipient was rejected before a delivery attempt (for example, all recipients were suppressed).
+
+        - `partial_failure`: Some recipients permanently failed while others were delivered or are still in flight.
+
+        - `canceled`: A scheduled message was canceled before it was sent.
+
+
+        `complained` takes precedence over every other status: at least one recipient reported
+
+        the message as spam, regardless of what happened to the rest.
+
+        '
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EmailTemplateVersionID:
+      type: string
+      minLength: 1
+      pattern: ^emv_[0-9a-hjkmnp-tv-z]{26}$
+      example: emv_01krdgeqcxet5s7t44vh8rt9mg
+    EmailTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^emt_[0-9a-hjkmnp-tv-z]{26}$
+      example: emt_01krdgeqcxet5s7t44vh8rt9mg
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EmailID:
+      type: string
+      minLength: 1
+      pattern: ^em_[0-9a-hjkmnp-tv-z]{26}$
+      example: em_01krdgeqcxet5s7t44vh8rt9mg
+    TemplateSlug:
+      type: string
+      minLength: 1
+      maxLength: 63
+      pattern: ^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$
+      description: 'A template''s slug: what you send it by, for example `welcome-email`. Email and SMS slugs stay fixed after creation. WhatsApp slugs can change only before the first submission. A slug can contain lowercase letters, numbers, hyphens, and underscores, has to start and end with a letter or a number, and can be up to 63 characters long.
+
+        '
+      example: welcome-email
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - value
+      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
+
+
+        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
+
+
+        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+
+            '
+          example: category
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+
+            '
+          example: welcome
+    EmailEventType:
+      type: string
+      minLength: 1
+      description: 'Type of an event in a message''s per-recipient delivery timeline.
+
+
+        - `email.scheduled`: We accepted a send scheduled for a future time. Fires once for each message regardless of its recipient count.
+
+        - `email.accepted`: We accepted the send and are getting ready to deliver it. Fires once per requested recipient.
+
+        - `email.processed`: We queued the message for delivery to the recipient''s mail server.
+
+        - `email.deferred`: The recipient''s mail server temporarily refused the message. Delivery remains pending and is retried. Can fire more than once per recipient.
+
+        - `email.delivered`: The recipient''s mail server accepted the message.
+
+        - `email.bounced`: Delivery permanently failed at the recipient''s mail server.
+
+        - `email.out_of_band_bounce`: A bounce notification arrived after the message had already been accepted for delivery.
+
+        - `email.rejected`: We rejected the message before attempting delivery, for example because the recipient is suppressed.
+
+        - `email.canceled`: A scheduled send was canceled before it fired. Fires once for each message regardless of its recipient count.
+
+        - `email.opened`: The recipient opened the message. Can fire more than once per recipient.
+
+        - `email.clicked`: The recipient clicked a tracked link in the message. Can fire more than once per recipient.
+
+        - `email.unsubscribed`: The recipient opted out through a tracked unsubscribe link in the message.
+
+        - `email.list_unsubscribed`: The recipient opted out through the one-click unsubscribe control in their mail client.
+
+        - `email.complained`: The recipient reported the message as spam through their mailbox provider.
+
+
+        We can add new event types to this list over time, so treat a value you do not recognize as a new type rather than as an error.
+
+        '
+      x-extensible-enum:
+      - email.accepted
+      - email.bounced
+      - email.canceled
+      - email.clicked
+      - email.complained
+      - email.deferred
+      - email.delivered
+      - email.list_unsubscribed
+      - email.opened
+      - email.out_of_band_bounce
+      - email.processed
+      - email.rejected
+      - email.scheduled
+      - email.unsubscribed
+      example: email.delivered
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    EmailAddressInput:
+      description: 'A sender or recipient address. Accepts a plain email string (`jane@acme.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@acme.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request. Responses always return the object form.
+
+        '
+      oneOf:
+      - type: string
+        minLength: 5
+        maxLength: 998
+        pattern: ^[^\r\n]+$
+        title: Email string
+        description: Email address, optionally in RFC 5322 mailbox form with an embedded display name.
+        example: Jane Doe <jane@acme.com>
+      - $ref: '#/components/schemas/EmailAddress'
+    EmailAttachmentID:
+      type: string
+      minLength: 1
+      pattern: ^ea_[0-9a-hjkmnp-tv-z]{26}$
+      example: ea_01krdgeqcxet5s7t44vh8rt9mg
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    EmailMessageBatchRequest:
+      type: object
+      additionalProperties: false
+      description: Batch of email message send requests.
+      required:
+      - messages
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailMessageSendRequest'
+          minItems: 1
+          maxItems: 100
+          description: 'Email message send requests, up to 100. All items are validated before any are queued. Attachments are allowed on individual messages. Each message must stay within the 20 MB estimated generated message-size cap. The serialized JSON request body for the batch has a hard 20 MB cap.
+
+            '
+      example:
+        messages:
+        - from:
+            email: noreply@acme.com
+            name: Acme Support
+          to:
+          - email: delivered@messagebird.dev
+            name: Jane Doe
+          subject: 'Your receipt for order #1234'
+          text: Thanks for your purchase! Your receipt is attached.
+        - from:
+            email: noreply@acme.com
+            name: Acme Support
+          to:
+          - email: delivered@messagebird.dev
+            name: John Roe
+          subject: 'Your receipt for order #1235'
+          text: Thanks for your purchase! Your receipt is attached.
+    RecipientID:
+      type: string
+      minLength: 1
+      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
+      example: er_01krdgeqcxet5s7t44vh8rt9mg
+    EmailRecipientList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of recipient objects for this email send.
+            items:
+              $ref: '#/components/schemas/EmailRecipient'
+          next:
+            type: array
+            readOnly: true
+            description: 'What to do next, given what this page reports. Present only where the read computes it: an
+
+              empty list means the answer you were looking for is here and there is nothing further to
+
+              do. Absent entirely on reads that do not report next actions.
+
+              '
+            items:
+              $ref: '#/components/schemas/NextAction'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+  responses:
+    PayloadTooLarge:
+      description: Request body or message size exceeds the allowed limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooEarly:
+      description: The resource is not available yet. Retry shortly.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: The resource existed but is no longer available.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    CreatedAfter:
+      name: created_after
+      in: query
+      required: false
+      description: Limits the response to resources created at or after this timestamp. Combine it with `created_before` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-05-01T00:00:00Z'
+    CreatedBefore:
+      name: created_before
+      in: query
+      required: false
+      description: Limits the response to resources created before this timestamp. Combine it with `created_after` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-01T00:00:00Z'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    TagFilter:
+      name: tag
+      in: query
+      required: false
+      description: 'Filter by tag. Accepts `name` to match any record carrying that tag name, or `name:value` to match a specific tag pair (for example `category:welcome`). Repeat the parameter to add more tags. A record must match every tag listed to be returned.
+
+        '
+      schema:
+        type: array
+        items:
+          type: string
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

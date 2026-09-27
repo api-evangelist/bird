@@ -1,0 +1,986 @@
+openapi: 3.2.0
+info:
+  title: Bird Realtime Events API
+  version: 1.0.0
+  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+
+    Realtime.'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: realtime-events
+  description: Publish events to a Realtime app's channels from your server (the data plane). Sending to several channels at once broadcasts to all of them.
+paths:
+  /v1/realtime/apps/{realtime_app_id}/events:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    post:
+      operationId: publishRealtimeAppEvent
+      x-snippet-key: realtime.publish
+      summary: Publish a Realtime event
+      description: Publishes an event to one or more channels of a Realtime app. Listing several channels broadcasts the event to all of them in one call. Connected clients subscribed to those channels receive it in real time.
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimePublish'
+            examples:
+              onboarding-realtime:
+                summary: The first publish from the dashboard's onboarding step
+                value:
+                  event: order-updated
+                  channels:
+                  - orders
+                  data:
+                    id: 42
+                    status: shipped
+      responses:
+        '200':
+          description: The event was accepted for delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimePublishResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - sdk
+  /v1/realtime/apps/{realtime_app_id}/batch-events:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    post:
+      operationId: publishRealtimeAppBatch
+      x-snippet-key: realtime.publishBatch
+      summary: Publish a batch of Realtime events
+      description: Publishes up to 10 events (each to one channel) in a single request.
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeBatchPublish'
+      responses:
+        '200':
+          description: The events were accepted for delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeBatchPublishResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - sdk
+  /v1/realtime/apps/{realtime_app_id}/channels:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    get:
+      operationId: listRealtimeAppChannels
+      x-snippet-key: realtime.channels.list
+      summary: List Realtime channels
+      description: Lists the app's currently occupied channels, optionally filtered by name prefix.
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: prefix
+        in: query
+        required: false
+        description: Only channels whose name starts with this prefix (for example, `presence-`).
+        schema:
+          type: string
+      - name: include
+        in: query
+        required: false
+        description: Per-channel attributes to include. Repeatable. Requesting `member_count` without a presence-channel `prefix`, or `connection_count` when the app's connection-counting flag is off, returns a validation error (400).
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeChannelInclude'
+      responses:
+        '200':
+          description: The occupied channels.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeChannelsList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - sdk
+  /v1/realtime/apps/{realtime_app_id}/channels/{channel_name}:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    - name: channel_name
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeChannelName'
+      description: Name of the Realtime channel to retrieve.
+    get:
+      operationId: getRealtimeAppChannel
+      x-snippet-key: realtime.channels.get
+      summary: Get a Realtime channel
+      description: 'Returns a single channel''s occupancy and optional counts. A channel appears when its first connection subscribes and disappears when its last connection leaves. An unknown or unused name returns `200 OK` with `occupied: false`.'
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: include
+        in: query
+        required: false
+        description: Attributes to include. Repeatable. Requesting `member_count` for a non-presence channel, or `connection_count` when the app's connection-counting flag is off, returns a validation error (400).
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeChannelInclude'
+      responses:
+        '200':
+          description: The channel state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeChannelInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - sdk
+  /v1/realtime/apps/{realtime_app_id}/channels/{channel_name}/members:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    - name: channel_name
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeChannelName'
+      description: Name of the presence channel whose members to list.
+    get:
+      operationId: listRealtimeAppChannelMembers
+      x-snippet-key: realtime.channels.members
+      summary: List members on a presence channel
+      description: 'Lists the member IDs currently subscribed to a presence channel. IDs only: `member_info` (the profile data attached by your authorization endpoint) is delivered to subscribed clients over the realtime connection and is not available over REST.'
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      responses:
+        '200':
+          description: The members on the presence channel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeChannelMembers'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - make
+      - sdk
+  /v1/realtime/apps/{realtime_app_id}/members/{member_id}/disconnect:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    - name: member_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeMemberID'
+      description: Member ID whose connections to disconnect.
+    post:
+      operationId: disconnectRealtimeAppMember
+      x-snippet-key: realtime.members.disconnect
+      summary: Disconnect a member
+      description: Disconnects all of a member's active connections, for example on sign-out or ban.
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: The member's connections were disconnected.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - sdk
+  /v1/realtime/apps/{realtime_app_id}/members/{member_id}/events:
+    parameters:
+    - name: realtime_app_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeAppID'
+      description: ID of the Realtime app (`rap_` prefix), as returned when the app was created.
+    - name: member_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RealtimeMemberID'
+      description: The member to deliver the event to.
+    post:
+      operationId: sendRealtimeAppMemberEvent
+      x-snippet-key: realtime.members.send
+      summary: Send an event to a member
+      description: 'Delivers an event to one member of a Realtime app, addressing the person
+
+        rather than a channel. Every connection that member currently holds receives
+
+        it across tabs and devices, without requiring a dedicated channel.
+
+
+        The member must have signed in on the connection for it to be addressable.
+
+        Delivery is best-effort and not queued. A member with no active connections
+
+        at the time of the call does not receive the event.'
+      tags:
+      - realtime-events
+      security:
+      - BearerAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      - CookieAuth: []
+        RealtimeKey: []
+        RealtimeSecret: []
+      x-audiences:
+      - public
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeMemberPublish'
+      responses:
+        '204':
+          description: 'The event was accepted for delivery. No body: a member has no channel occupancy or counts to report, and whether they hold connections is not something a publish can confirm.'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - make
+      - sdk
+components:
+  headers:
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+  schemas:
+    RealtimeChannelCounts:
+      type: object
+      description: Per-channel counts, present only when requested via `include` and applicable.
+      properties:
+        member_count:
+          type: integer
+          format: int64
+          description: Distinct members (presence channels only; requires `include=member_count`).
+        connection_count:
+          type: integer
+          format: int64
+          description: 'Connections currently subscribed to this channel (requires `include=connection_count` and the app''s connection-counting flag). Channel-scoped: distinct from the app-wide peak connections metric.'
+    RealtimeChannelMembers:
+      type: object
+      additionalProperties: false
+      description: The members present on a presence channel.
+      required:
+      - members
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeChannelMember'
+    RealtimeBatchEvent:
+      type: object
+      additionalProperties: false
+      description: A single event published to one channel as part of a batch.
+      required:
+      - event
+      - channel
+      properties:
+        event:
+          $ref: '#/components/schemas/RealtimeEventName'
+        channel:
+          $ref: '#/components/schemas/RealtimeChannelName'
+        data:
+          $ref: '#/components/schemas/RealtimeEventData'
+        exclude_connection_id:
+          $ref: '#/components/schemas/RealtimeExcludeConnectionId'
+        include:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeChannelInclude'
+          description: Attributes of this event's channel to return alongside the publish (same semantics and validation errors as on the channel endpoints). Requesting attributes counts as one additional message toward usage.
+    RealtimePublish:
+      type: object
+      additionalProperties: false
+      description: 'A Realtime publish: delivers one event to one or more channels of the app. Listing several channels fans the event out to all of them (broadcast) in a single call.
+
+        '
+      required:
+      - event
+      - channels
+      properties:
+        event:
+          $ref: '#/components/schemas/RealtimeEventName'
+        channels:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RealtimeChannelName'
+          description: 'The channels to deliver the event to (up to 100 per call). Prefix with `private-` or `presence-` for authenticated channels. A `private-encrypted-` channel must be the only channel in its publish: each encrypted channel has its own key, so a fan-out would hand the other channels unreadable ciphertext.
+
+            '
+          example:
+          - orders
+          - orders-42
+        data:
+          $ref: '#/components/schemas/RealtimeEventData'
+        exclude_connection_id:
+          $ref: '#/components/schemas/RealtimeExcludeConnectionId'
+        include:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeChannelInclude'
+          description: Per-channel attributes to return alongside the publish, reflecting each channel's state at publish time. `member_count` is available only for presence channels. `connection_count` requires the app's connection-counting flag. Requesting attributes counts as one additional message toward usage.
+    RealtimeExcludeConnectionId:
+      type: string
+      minLength: 1
+      example: '123.4567'
+      description: Exclude this connection from delivery, to avoid echoing a change back to the client that triggered it. The value is the client's connection id, assigned when its connection is established.
+    RealtimeChannelListItem:
+      allOf:
+      - $ref: '#/components/schemas/RealtimeChannelCounts'
+      - type: object
+        additionalProperties: false
+        description: One occupied channel. A listed channel is occupied by definition; counts appear only when requested via `include` and applicable.
+        required:
+        - name
+        properties:
+          name:
+            $ref: '#/components/schemas/RealtimeChannelName'
+    RealtimeBatchPublishResult:
+      type: object
+      additionalProperties: false
+      description: 'The result of a Realtime batch publish. The events were accepted for delivery; delivery to connected clients is asynchronous.
+
+        '
+      properties:
+        data:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/RealtimeBatchPublishResultItem'
+          description: 'Per-event channel attributes at publish time, present only when at least one event asked for them via `include`. Positional: one item per event, in request order.'
+    RealtimePublishResult:
+      type: object
+      additionalProperties: false
+      description: 'The result of a Realtime publish. The event was accepted and fanned out to the requested channels; delivery to connected clients is asynchronous.
+
+        '
+      properties:
+        data:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/RealtimeChannelListItem'
+          description: Per-channel attributes at publish time, present only when the request asked for them via `include`; one item per distinct target channel, sorted by name.
+    RealtimeChannelName:
+      type: string
+      minLength: 1
+      maxLength: 164
+      pattern: ^[A-Za-z0-9_=@,.;-]+$
+      description: A Realtime channel name. Only letters, digits, and _ - = @ , . ; Prefix with `private-` or `presence-` for authenticated channels, or `private-encrypted-` for channels whose payloads are end-to-end encrypted with a key only you hold.
+      example: orders-42
+    RealtimeBatchPublishResultItem:
+      allOf:
+      - $ref: '#/components/schemas/RealtimeChannelCounts'
+      - type: object
+        additionalProperties: false
+        description: 'Attributes of one batch item''s channel at publish time. Items are positional: the n-th item corresponds to the n-th event in the request.'
+        required:
+        - channel
+        properties:
+          channel:
+            $ref: '#/components/schemas/RealtimeChannelName'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    RealtimeEventName:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.
+      example: order-updated
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    RealtimeAppID:
+      type: string
+      minLength: 1
+      pattern: ^rap_[0-9a-hjkmnp-tv-z]{26}$
+      example: rap_01krdgeqcxet5s7t44vh8rt9mg
+    RealtimeMemberPublish:
+      type: object
+      additionalProperties: false
+      description: An event addressed to one member rather than to a channel. Every connection that member currently holds receives it; if they hold none, the event is dropped.
+      required:
+      - event
+      properties:
+        event:
+          $ref: '#/components/schemas/RealtimeEventName'
+        data:
+          $ref: '#/components/schemas/RealtimeEventData'
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    RealtimeMemberID:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: ^[A-Za-z0-9._~!$&'()*+,;=:@-]+$
+      description: 'An app-defined member ID for your application''s end user, assigned when your auth server authorizes them. Use up to 128 URL-safe characters because member IDs appear directly in API request paths. The value can include `+ : @ . _ -`, but not `/ ? # %` or whitespace.'
+    RealtimeChannelInclude:
+      type: string
+      enum:
+      - member_count
+      - connection_count
+      description: A per-channel attribute to include in the response. `member_count` is presence-channels only; `connection_count` requires the app's connection-counting flag.
+    RealtimeEventData:
+      description: 'Arbitrary JSON payload delivered as the event data: an object, array, or scalar. Cap: 10 KB serialized.'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    RealtimeBatchPublish:
+      type: object
+      additionalProperties: false
+      description: A batch of events, each delivered to a single channel, in one request.
+      required:
+      - events
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: Up to 10 events per batch.
+          items:
+            $ref: '#/components/schemas/RealtimeBatchEvent'
+    RealtimeChannelInfo:
+      allOf:
+      - $ref: '#/components/schemas/RealtimeChannelCounts'
+      - type: object
+        additionalProperties: false
+        description: State of a single channel. Counts appear only when requested and applicable.
+        required:
+        - occupied
+        properties:
+          occupied:
+            type: boolean
+            description: Whether at least one client is subscribed.
+    RealtimeChannelMember:
+      type: object
+      additionalProperties: false
+      description: A member present on a presence channel.
+      required:
+      - member_id
+      properties:
+        member_id:
+          $ref: '#/components/schemas/RealtimeMemberID'
+    RealtimeChannelsList:
+      type: object
+      additionalProperties: false
+      description: The app's occupied channels. The Realtime service does not paginate this listing, so all occupied channels are returned in one response.
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: The occupied channels, sorted by name.
+          items:
+            $ref: '#/components/schemas/RealtimeChannelListItem'
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+
+        the format `bk_{region}_*`. The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '
