@@ -1083,179 +1083,249 @@ paths:
       - mcp
       - sdk
 components:
+  parameters:
+    CreatedBefore:
+      name: created_before
+      in: query
+      required: false
+      description: Limits the response to resources created before this timestamp. Combine it with `created_after` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-01T00:00:00Z'
+    CreatedAfter:
+      name: created_after
+      in: query
+      required: false
+      description: Limits the response to resources created at or after this timestamp. Combine it with `created_before` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-05-01T00:00:00Z'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    EmailBroadcastSearchFilter:
+      name: q
+      in: query
+      required: false
+      description: 'Case-insensitive substring match against the broadcast''s tag names and values, or the referenced template''s name.
+
+        '
+      schema:
+        type: string
+        maxLength: 200
+    EmailBroadcastStatusFilter:
+      name: status
+      in: query
+      required: false
+      description: 'Filter by lifecycle status. Repeat the parameter to match more than one status, for example `?status=accepted&status=sending`.
+
+        '
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/EmailBroadcastStatus'
+    EmailBroadcastTagFilter:
+      name: tag
+      in: query
+      required: false
+      description: 'Filter by tag. Pass `name` to match any broadcast that has that tag name, or pass `name:value` to match a specific tag pair, for example `campaign:spring_launch`.
+
+        '
+      schema:
+        type: string
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EmailBroadcastAudienceFilter:
+      name: audience_id
+      in: query
+      required: false
+      description: Filter by audience. Only broadcasts that use this audience are returned.
+      schema:
+        $ref: '#/components/schemas/AudienceID'
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
   schemas:
-    EmailRecipient:
+    AudienceID:
+      type: string
+      minLength: 1
+      pattern: ^adn_[0-9a-hjkmnp-tv-z]{26}$
+      example: adn_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorBody:
       type: object
       additionalProperties: false
       required:
-      - id
-      - parent_id
-      - role
-      - recipient
-      - status
-      - open_count
-      - click_count
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
       properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/RecipientID'
-          description: Recipient ID.
-        parent_id:
-          $ref: '#/components/schemas/EmailID'
-          description: ID of the message this recipient belongs to. For a message send, this is the message's own `em_`-prefixed ID. For a broadcast, it is the `em_`-prefixed ID of the copy addressed to this recipient. Read either one with [Get an email message](/docs/api/reference/get-email-message), which answers 404 for a broadcast copy the send has not recorded. No recipient status distinguishes a copy the send recorded from one it did not.
-        role:
-          $ref: '#/components/schemas/RecipientRole'
-          description: How this recipient appeared in the send request.
-        recipient:
-          type: string
-          format: email
-          minLength: 5
-          description: Recipient email address.
-        name:
-          type:
-          - string
-          - 'null'
-          description: Display name provided for this recipient on the send, or null if none was given.
-        status:
+        type:
           type: string
           minLength: 1
-          readOnly: true
+          description: Broad category for coarse client branching.
           enum:
-          - accepted
-          - processed
-          - deferred
-          - delivered
-          - bounced
-          - complained
-          - rejected
-          x-enum-varnames:
-          - EmailRecipientStatusAccepted
-          - EmailRecipientStatusProcessed
-          - EmailRecipientStatusDeferred
-          - EmailRecipientStatusDelivered
-          - EmailRecipientStatusBounced
-          - EmailRecipientStatusComplained
-          - EmailRecipientStatusRejected
-          description: 'Delivery status for this recipient:
-
-
-            - `accepted`: The send has been taken and is being prepared for delivery.
-
-            - `processed`: This recipient''s message is on its way out.
-
-            - `deferred`: The recipient''s mailbox provider asked for a retry, and delivery attempts continue.
-
-            - `delivered`: The recipient''s mail server accepted the message.
-
-            - `bounced`: Delivery permanently failed (see `bounce_type` for hard vs soft).
-
-            - `complained`: The recipient reported the message as spam.
-
-            - `rejected`: Delivery was never attempted (see `rejection_reason` for why).
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
 
             '
-        rejection_reason:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          enum:
-          - recipient_suppressed
-          - transmission_failed
-          - generation_failure
-          - policy_rejection
-          - domain_unverified
-          - quota_exceeded
-          - recipient_not_allowed
-          - null
-          description: "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n\n- `recipient_suppressed`: The recipient is on the workspace suppression list, so\n  delivery was never attempted.\n- `transmission_failed`: The message could not be transmitted for delivery.\n- `generation_failure`: The message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: The message was refused by sending policy.\n- `domain_unverified`: The sending domain was not verified.\n- `quota_exceeded`: The organization's send quota was reached.\n- `recipient_not_allowed`: A recipient was not permitted for this send (for shared\n  onboarding-domain sends, recipients must be verified workspace members).\n"
-        bounce_type:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          enum:
-          - hard
-          - soft
-          - undetermined
-          - admin
-          - block
-          - null
-          description: 'Bounce classification for `bounced` and `deferred` rows, or null when the recipient
-
-            has not bounced or the receiving server''s response has not been classified.
-
-
-            - `hard`: a permanent failure (invalid address or non-existent domain).
-
-            - `soft`: a transient failure (mailbox full or server temporarily unavailable).
-
-            - `block`: the receiving mail server blocked the sending IP for reputation reasons.
-
-            - `admin`: an administrative refusal (relaying denied or blocklisted domain).
-
-            - `undetermined`: the receiving server''s response is ambiguous.
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
 
             '
-        bounce_code:
-          type:
-          - string
-          - 'null'
+          items:
+            $ref: '#/components/schemas/NextAction'
+    EmailBroadcastCounts:
+      type: object
+      additionalProperties: false
+      required:
+      - broadcast_id
+      - status
+      - total
+      - addressable
+      - sendable
+      description: 'How many people a broadcast would reach right now, narrowing from everyone in the audience down to the ones it could actually be sent to.
+
+
+        These are live numbers, worked out at the moment you ask. Audience membership and suppressions change, so they can drift between now and when the broadcast sends.
+
+
+        **They are about the audience, not about delivery, and sending does not change them.** Once the broadcast has sent, its own `recipient_count` is the number that actually went out, and what each of those recipients did with the message is in [the broadcast''s recipients](/docs/api/reference/list-email-broadcast-recipients) and [its events](/docs/api/reference/list-email-broadcast-events). `status` is here so you can tell which question these numbers are answering, and `broadcast_id` names what they are about.
+
+        '
+      properties:
+        broadcast_id:
           readOnly: true
-          description: SMTP reply code returned by the receiving mail server for `bounced` and `deferred` rows, or null when none was provided.
-          example: '550'
-        bounce_description:
-          type:
-          - string
-          - 'null'
+          description: The broadcast these counts are for.
+          allOf:
+          - $ref: '#/components/schemas/EmailBroadcastID'
+        status:
           readOnly: true
-          description: Human-readable reason the receiving mail server gave for the bounce or deferral, or null when none was provided.
-          example: 5.1.1 Unknown user
-        processed_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
+          example: draft
+          description: 'Where the broadcast is in its lifecycle, so the counts read in context. Anything past `draft` or `scheduled` means these numbers describe an audience the broadcast has already been sent to, not one it is about to reach.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/EmailBroadcastStatus'
+        next:
+          type: array
           readOnly: true
-          description: When the message was prepared and queued for delivery to the recipient's mail server, or null if that has not happened yet.
-        delivered_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: When the recipient's mail server accepted the message, or null if not yet delivered.
-        processing_latency_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: Time between the send being accepted and the message being prepared for delivery, in milliseconds. Null until processed.
-        delivery_latency_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: Time between the message being prepared and the receiving mail server accepting it, in milliseconds. Null until delivered.
-        total_latency_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: End-to-end accept → delivered time for this recipient, in milliseconds. Null until delivered.
-        open_count:
+          description: 'What to do next, given where the broadcast is. On a broadcast that has already sent this names
+
+            the reads that carry delivery outcomes, which these counts never do. An empty list means there
+
+            is nothing to do; the field is absent entirely on responses that do not report next actions.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+        total:
           type: integer
+          format: int64
+          minimum: 0
           readOnly: true
-          default: 0
-          description: Number of open events for this recipient.
-        click_count:
+          example: 13000
+          description: How many contacts are in the audience.
+        addressable:
           type: integer
+          format: int64
+          minimum: 0
           readOnly: true
-          default: 0
-          description: Number of click events for this recipient.
+          example: 12500
+          description: How many of those contacts have an email address. A contact with no address is not counted. This is never higher than `total`.
+        sendable:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 12000
+          description: 'How many of the addressable contacts are not suppressed for this broadcast''s category, which is who the email would actually go to. This is never higher than `addressable`. Which suppressions apply depends on the category, so the same audience can give a higher number for a transactional broadcast than for a marketing one. A transactional broadcast still reaches people who unsubscribed from or complained about marketing mail, and a marketing broadcast does not.
+
+            '
     EmailSendAllowanceWindow:
       type: string
       minLength: 1
@@ -1276,43 +1346,52 @@ components:
         When both apply, the tighter of the two is reported.
 
         '
-    EmailBroadcastID:
+    RecipientID:
       type: string
       minLength: 1
-      pattern: ^eb_[0-9a-hjkmnp-tv-z]{26}$
-      example: eb_01krdgeqcxet5s7t44vh8rt9mg
-    EmailAddress:
+      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
+      example: er_01krdgeqcxet5s7t44vh8rt9mg
+    EmailBroadcastClickedLink:
       type: object
       additionalProperties: false
-      description: An email address with an optional display name.
       required:
-      - email
+      - url
+      - name
+      - click_count
+      - recipient_count
+      description: 'One destination URL a broadcast''s recipients clicked, with its exact click and recipient totals. Grouped over every click event the broadcast has, not a sample.
+
+        '
       properties:
-        email:
-          type: string
-          format: email
-          minLength: 5
-          description: Email address.
-          example: jane@acme.com
-        name:
+        url:
           type: string
           minLength: 1
-          maxLength: 256
-          pattern: ^[^\r\n]+$
-          description: Display name shown alongside the address in mail clients.
-          example: Jane Doe
-    EmailBroadcastList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of broadcast objects.
-            items:
-              $ref: '#/components/schemas/EmailBroadcast'
-      - $ref: '#/components/schemas/_ListEnvelope'
+          readOnly: true
+          example: https://acme.com/whats-new/faster-exports
+          description: The clicked URL.
+        name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What the link said, resolved by the name used by the most clicks that carried one. Null when no click through this URL ever carried a name.
+
+            '
+          example: Faster exports, docs
+        click_count:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 431
+          description: Total clicks through this URL, including clicks that carried no link name.
+        recipient_count:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 388
+          description: Number of distinct recipients who clicked this URL at least once.
     EmailEventList:
       allOf:
       - type: object
@@ -1337,191 +1416,152 @@ components:
             items:
               $ref: '#/components/schemas/NextAction'
       - $ref: '#/components/schemas/_ListEnvelope'
-    EmailBroadcastSendQuota:
+    EmailBroadcastID:
+      type: string
+      minLength: 1
+      pattern: ^eb_[0-9a-hjkmnp-tv-z]{26}$
+      example: eb_01krdgeqcxet5s7t44vh8rt9mg
+    EmailBroadcastTemplate:
       type: object
       additionalProperties: false
       required:
-      - recipients
-      - allowed
-      - limited_by
-      description: 'How much of a broadcast the organization''s email send allowance covers, read before the broadcast is sent. The allowance is shared with every other email the organization sends, so `allowed` moves as those sends land, and `recipients` moves as audience membership and suppressions change. Treat both as a live estimate rather than a promise: a broadcast whose recipients all fit today can still run into the allowance if other sends consume it first.
+      - id
+      description: 'The template a broadcast sends, and the exact version of it the broadcast is fixed to. The template cannot be one that requires every send to name a language, because a broadcast never names one, so a template that insists on it has nothing to work with.
 
         '
       properties:
-        recipients:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 12000
-          description: 'Number of contacts the broadcast would send to right now, after contacts without an email address and contacts suppressed for the broadcast''s category are dropped. The same number the broadcast''s audience counts report as sendable.
+        id:
+          $ref: '#/components/schemas/EmailTemplateID'
+          description: 'Which template the broadcast sends. Which version of it the send is fixed to is `version_id`.
 
             '
-        allowed:
-          type: integer
-          format: int64
-          minimum: 0
+        version_id:
+          oneOf:
+          - $ref: '#/components/schemas/EmailTemplateVersionID'
+          - type: 'null'
           readOnly: true
-          example: 5000
-          description: 'Number of those recipients the organization''s email send allowance covers. Equal to `recipients` when nothing limits the send, and lower when part of the audience runs past what is left of it. A part-covered send goes out in whole batches, so this is cut back to a batch boundary rather than to the exact number of emails left: it can sit below `remaining` rather than matching it, and should be read rather than worked out from `limit` and `remaining`. 0 means none of them would go out, either because the audience is larger than the whole allowance, which is refused rather than sent in part, or because too little of the allowance is left to carry any of it.
+          description: 'The template version this broadcast is fixed to. It is chosen when the broadcast is prepared for sending, so publishing a new version while the broadcast is going out cannot change what the rest of the recipients get. Null until the broadcast is prepared.
 
             '
-        limited_by:
-          readOnly: true
-          example: monthly
-          $ref: '#/components/schemas/EmailSendAllowanceWindow'
-        limit:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 50000
-          description: 'Size of the allowance named by `limited_by`, in emails. Omitted when nothing limits the send.
-
-            '
-        remaining:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 7000
-          description: 'How much of that allowance is left in the current window, in emails. Omitted when nothing limits the send.
-
-            '
-    RecipientRole:
+    EmailTemplateID:
       type: string
       minLength: 1
-      enum:
-      - to
-      - cc
-      - bcc
-      description: Envelope position of a recipient on an outbound email event.
-      example: to
-    EmailBroadcastStatus:
-      type: string
-      minLength: 1
-      enum:
-      - draft
-      - scheduled
-      - accepted
-      - sending
-      - sent
-      - canceling
-      - canceled
-      - failed
-      description: 'Where the broadcast itself has got to. This is separate from what happened to individual recipients, which the broadcast''s own `sent_count`, `delivered_count`, `bounced_count` and `complained_count` tell you. Those four are fields on the broadcast, not on everything that carries this status, and reading the broadcast''s recipients or its events gives the same outcomes one recipient at a time.
-
-
-        - `draft`: Created, and not sent or scheduled yet.
-
-        - `scheduled`: Due to send at `scheduled_at`. You can still edit it, and you can still change the time, right up until sending starts.
-
-        - `accepted`: Taken for immediate sending. Nothing has gone out yet.
-
-        - `sending`: On its way. Some recipients have been sent to and some have not.
-
-        - `sent`: Every recipient has been sent to.
-
-        - `canceling`: A cancellation is under way and the remaining sends are stopping.
-
-        - `canceled`: The cancellation finished. Anything already on its way to a recipient when you canceled cannot be pulled back.
-
-        - `failed`: The broadcast could not be sent. Reading the broadcast gives `failure_reason`, which says why. If it had already started sending, the recipients it reached keep their delivery status and carry on producing events.
-
-
-        A draft is deleted rather than canceled, because it was never sent.
-
-        '
-    EmailBroadcastCreateRequest:
+      pattern: ^emt_[0-9a-hjkmnp-tv-z]{26}$
+      example: emt_01krdgeqcxet5s7t44vh8rt9mg
+    EmailBroadcastSendNowRequest:
       type: object
       additionalProperties: false
-      description: 'A broadcast sends one email to a whole audience. Every field here is optional, so you can create an empty draft and fill it in later. To actually send, a broadcast needs three things: a `from` address on a verified domain, an `audience_id`, and a `template`.
-
-
-        Leave `send` false, which is the default, and you get a draft. Update it as often as you like, then send it when you are ready. Set `send` to true and the broadcast goes out as soon as it is created, or at `scheduled_at` if you set one.
-
-        '
       properties:
-        from:
-          $ref: '#/components/schemas/EmailAddressInput'
-          description: The address the broadcast sends from. Give it as a plain address, as `Jane <jane@acme.com>` to include a display name, or as an object with an address and a name. The domain has to be one this workspace has verified.
-        audience_id:
-          $ref: '#/components/schemas/AudienceID'
-          description: The audience this broadcast sends to. We take the audience's contacts as they stand when the send starts and drop any suppressed addresses, and what is left is who gets the email.
-        template:
-          $ref: '#/components/schemas/EmailBroadcastTemplate'
-          description: The template the broadcast sends. You can leave it out on a draft, but a broadcast cannot send without one. The template's published version is fixed when the broadcast is prepared for sending, and each recipient's contact properties are filled into the content as the email goes out.
-        reply_to:
-          type: array
-          items:
-            $ref: '#/components/schemas/EmailAddressInput'
-          minItems: 1
-          maxItems: 25
-          description: Where replies to this broadcast should go. Give each address as a plain address, as `Jane <jane@acme.com>` to include a display name, or as an object with an address and a name. You can list more than one.
-        headers:
-          type: object
-          maxProperties: 25
-          additionalProperties:
-            type: string
-            maxLength: 998
-          description: 'Custom email headers to set on the broadcast, as name and value pairs. Up to 25 of them, each value up to 998 characters. Two names are ours and cannot be set here: `List-Unsubscribe` and `List-Unsubscribe-Post` are dropped if you send them, whatever the category. We add the one-click unsubscribe pair to a marketing broadcast ourselves, and a transactional broadcast has neither header.
-
-            '
-        tags:
-          type: array
-          items:
-            $ref: '#/components/schemas/Tag'
-          maxItems: 20
-          description: Labels on this broadcast, each one a `name` and a `value`, up to 20 of them. You can filter the broadcast list by a tag, break your stats down by one, and read them back off webhook payloads. Use tags for anything you want to find broadcasts by later, and `metadata` for data you only want handed back to you.
-        metadata:
-          type: object
-          description: Any JSON you want to keep on the broadcast. We store it, hand it back when you read the broadcast, and include it in webhook payloads, and you can break stats down by a path inside it such as `metadata.order_id`. It can be up to 2 KB once serialized.
-          additionalProperties: true
-        track_opens:
-          type: boolean
-          default: true
-          description: Whether to track opens for this broadcast.
-        track_clicks:
-          type: boolean
-          default: true
-          description: Whether to track link clicks for this broadcast.
-        ip_pool_id:
-          type: string
-          pattern: ^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$
-          description: The IP pool to send this broadcast from. Pass a pool ID, or `ipp_shared` to send through the shared pool on purpose. Leave it out and the broadcast uses your organization's default pool. A pool we do not recognize, or one with no IPs available to send from, is refused with a `422`.
-        category:
-          type: string
-          enum:
-          - marketing
-          - transactional
-          default: marketing
-          description: 'What kind of email this is. A broadcast sets this itself rather than taking it from its template, and it decides two things: which suppressions apply, and whether we add an unsubscribe header.
-
-
-            `marketing`, the default, is held back from every suppressed address and has the one-click unsubscribe headers. `transactional` still goes to addresses suppressed for a complaint or an unsubscribe, and has no unsubscribe header. Only use `transactional` for genuine operational mail such as a terms-of-service update or a service outage notice. Marketing content sent this way still reaches people who have already unsubscribed from you.
-
-            '
-        send:
-          type: boolean
-          default: false
-          description: Whether to send the broadcast as soon as it is created. Set it to true and the broadcast goes out immediately, or at `scheduled_at` if you set one. Leave it false, which is the default, and you get a draft you can update and send later.
         scheduled_at:
           type: string
           format: date-time
-          description: 'When to send the broadcast. It has to be at least 30 seconds and at most 365 days from now. It requires `send` to be true, so a `scheduled_at` on its own is refused rather than saved on the draft.
+          description: When to send the broadcast. It has to be at least 30 seconds and at most 365 days from now. Leave it out to send straight away.
+      example:
+        scheduled_at: '2026-12-01T09:00:00Z'
+    EmailEventType:
+      type: string
+      minLength: 1
+      description: 'Type of an event in a message''s per-recipient delivery timeline.
+
+
+        - `email.scheduled`: We accepted a send scheduled for a future time. Fires once for each message regardless of its recipient count.
+
+        - `email.accepted`: We accepted the send and are getting ready to deliver it. Fires once per requested recipient.
+
+        - `email.processed`: We queued the message for delivery to the recipient''s mail server.
+
+        - `email.deferred`: The recipient''s mail server temporarily refused the message. Delivery remains pending and is retried. Can fire more than once per recipient.
+
+        - `email.delivered`: The recipient''s mail server accepted the message.
+
+        - `email.bounced`: Delivery permanently failed at the recipient''s mail server.
+
+        - `email.out_of_band_bounce`: A bounce notification arrived after the message had already been accepted for delivery.
+
+        - `email.rejected`: We rejected the message before attempting delivery, for example because the recipient is suppressed.
+
+        - `email.canceled`: A scheduled send was canceled before it fired. Fires once for each message regardless of its recipient count.
+
+        - `email.opened`: The recipient opened the message. Can fire more than once per recipient.
+
+        - `email.clicked`: The recipient clicked a tracked link in the message. Can fire more than once per recipient.
+
+        - `email.unsubscribed`: The recipient opted out through a tracked unsubscribe link in the message.
+
+        - `email.list_unsubscribed`: The recipient opted out through the one-click unsubscribe control in their mail client.
+
+        - `email.complained`: The recipient reported the message as spam through their mailbox provider.
+
+
+        We can add new event types to this list over time, so treat a value you do not recognize as a new type rather than as an error.
+
+        '
+      x-extensible-enum:
+      - email.accepted
+      - email.bounced
+      - email.canceled
+      - email.clicked
+      - email.complained
+      - email.deferred
+      - email.delivered
+      - email.list_unsubscribed
+      - email.opened
+      - email.out_of_band_bounce
+      - email.processed
+      - email.rejected
+      - email.scheduled
+      - email.unsubscribed
+      example: email.delivered
+    EmailBroadcastClickedLinkList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      - total
+      properties:
+        data:
+          type: array
+          description: The broadcast's clicked URLs, most-clicked first, capped at 100 rows.
+          items:
+            $ref: '#/components/schemas/EmailBroadcastClickedLink'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct URLs the broadcast''s recipients clicked, regardless of the cap on `data`. When it exceeds the number of rows returned, the list was capped at the 100 most-clicked URLs.
 
             '
-      example:
-        from: newsletter@acme.com
-        audience_id: adn_01krdgeqcxet5s7t44vh8rt9mg
-        template:
-          id: emt_01krdgeqcxet5s7t44vh8rt9mg
-        category: marketing
-        tags:
-        - name: campaign
-          value: spring_launch
-        metadata:
-          campaign_id: '12345'
+          example: 57
+    EmailTemplateVersionID:
+      type: string
+      minLength: 1
+      pattern: ^emv_[0-9a-hjkmnp-tv-z]{26}$
+      example: emv_01krdgeqcxet5s7t44vh8rt9mg
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
     EmailEvent:
       type: object
       additionalProperties: false
@@ -1688,341 +1728,6 @@ components:
           - string
           - 'null'
           description: Client user-agent string. Present on `email.opened` and `email.clicked` events when available.
-    EmailBroadcastClickedLinkList:
-      type: object
-      additionalProperties: false
-      required:
-      - data
-      - total
-      properties:
-        data:
-          type: array
-          description: The broadcast's clicked URLs, most-clicked first, capped at 100 rows.
-          items:
-            $ref: '#/components/schemas/EmailBroadcastClickedLink'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct URLs the broadcast''s recipients clicked, regardless of the cap on `data`. When it exceeds the number of rows returned, the list was capped at the 100 most-clicked URLs.
-
-            '
-          example: 57
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    EmailTemplateVersionID:
-      type: string
-      minLength: 1
-      pattern: ^emv_[0-9a-hjkmnp-tv-z]{26}$
-      example: emv_01krdgeqcxet5s7t44vh8rt9mg
-    EmailTemplateID:
-      type: string
-      minLength: 1
-      pattern: ^emt_[0-9a-hjkmnp-tv-z]{26}$
-      example: emt_01krdgeqcxet5s7t44vh8rt9mg
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    EmailID:
-      type: string
-      minLength: 1
-      pattern: ^em_[0-9a-hjkmnp-tv-z]{26}$
-      example: em_01krdgeqcxet5s7t44vh8rt9mg
-    Tag:
-      type: object
-      additionalProperties: false
-      required:
-      - name
-      - value
-      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
-
-
-        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
-
-
-        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
-
-        '
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 32
-          pattern: ^[A-Za-z0-9_-]+$
-          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
-
-            '
-          example: category
-        value:
-          type: string
-          minLength: 1
-          maxLength: 64
-          pattern: ^[A-Za-z0-9_-]+$
-          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
-
-            '
-          example: welcome
-    EmailEventType:
-      type: string
-      minLength: 1
-      description: 'Type of an event in a message''s per-recipient delivery timeline.
-
-
-        - `email.scheduled`: We accepted a send scheduled for a future time. Fires once for each message regardless of its recipient count.
-
-        - `email.accepted`: We accepted the send and are getting ready to deliver it. Fires once per requested recipient.
-
-        - `email.processed`: We queued the message for delivery to the recipient''s mail server.
-
-        - `email.deferred`: The recipient''s mail server temporarily refused the message. Delivery remains pending and is retried. Can fire more than once per recipient.
-
-        - `email.delivered`: The recipient''s mail server accepted the message.
-
-        - `email.bounced`: Delivery permanently failed at the recipient''s mail server.
-
-        - `email.out_of_band_bounce`: A bounce notification arrived after the message had already been accepted for delivery.
-
-        - `email.rejected`: We rejected the message before attempting delivery, for example because the recipient is suppressed.
-
-        - `email.canceled`: A scheduled send was canceled before it fired. Fires once for each message regardless of its recipient count.
-
-        - `email.opened`: The recipient opened the message. Can fire more than once per recipient.
-
-        - `email.clicked`: The recipient clicked a tracked link in the message. Can fire more than once per recipient.
-
-        - `email.unsubscribed`: The recipient opted out through a tracked unsubscribe link in the message.
-
-        - `email.list_unsubscribed`: The recipient opted out through the one-click unsubscribe control in their mail client.
-
-        - `email.complained`: The recipient reported the message as spam through their mailbox provider.
-
-
-        We can add new event types to this list over time, so treat a value you do not recognize as a new type rather than as an error.
-
-        '
-      x-extensible-enum:
-      - email.accepted
-      - email.bounced
-      - email.canceled
-      - email.clicked
-      - email.complained
-      - email.deferred
-      - email.delivered
-      - email.list_unsubscribed
-      - email.opened
-      - email.out_of_band_bounce
-      - email.processed
-      - email.rejected
-      - email.scheduled
-      - email.unsubscribed
-      example: email.delivered
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
-    EmailBroadcastClickedLink:
-      type: object
-      additionalProperties: false
-      required:
-      - url
-      - name
-      - click_count
-      - recipient_count
-      description: 'One destination URL a broadcast''s recipients clicked, with its exact click and recipient totals. Grouped over every click event the broadcast has, not a sample.
-
-        '
-      properties:
-        url:
-          type: string
-          minLength: 1
-          readOnly: true
-          example: https://acme.com/whats-new/faster-exports
-          description: The clicked URL.
-        name:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'What the link said, resolved by the name used by the most clicks that carried one. Null when no click through this URL ever carried a name.
-
-            '
-          example: Faster exports, docs
-        click_count:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 431
-          description: Total clicks through this URL, including clicks that carried no link name.
-        recipient_count:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 388
-          description: Number of distinct recipients who clicked this URL at least once.
-    AudienceID:
-      type: string
-      minLength: 1
-      pattern: ^adn_[0-9a-hjkmnp-tv-z]{26}$
-      example: adn_01krdgeqcxet5s7t44vh8rt9mg
-    EmailAddressInput:
-      description: 'A sender or recipient address. Accepts a plain email string (`jane@acme.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@acme.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request. Responses always return the object form.
-
-        '
-      oneOf:
-      - type: string
-        minLength: 5
-        maxLength: 998
-        pattern: ^[^\r\n]+$
-        title: Email string
-        description: Email address, optionally in RFC 5322 mailbox form with an embedded display name.
-        example: Jane Doe <jane@acme.com>
-      - $ref: '#/components/schemas/EmailAddress'
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
     EmailBroadcast:
       type: object
       additionalProperties: false
@@ -2291,6 +1996,258 @@ components:
           type: string
           minLength: 1
           description: What is wrong with this field.
+    EmailAddressInput:
+      description: 'A sender or recipient address. Accepts a plain email string (`jane@acme.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@acme.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request. Responses always return the object form.
+
+        '
+      oneOf:
+      - type: string
+        minLength: 5
+        maxLength: 998
+        pattern: ^[^\r\n]+$
+        title: Email string
+        description: Email address, optionally in RFC 5322 mailbox form with an embedded display name.
+        example: Jane Doe <jane@acme.com>
+      - $ref: '#/components/schemas/EmailAddress'
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - value
+      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
+
+
+        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
+
+
+        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+
+            '
+          example: category
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+
+            '
+          example: welcome
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EmailRecipientList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of recipient objects for this email send.
+            items:
+              $ref: '#/components/schemas/EmailRecipient'
+          next:
+            type: array
+            readOnly: true
+            description: 'What to do next, given what this page reports. Present only where the read computes it: an
+
+              empty list means the answer you were looking for is here and there is nothing further to
+
+              do. Absent entirely on reads that do not report next actions.
+
+              '
+            items:
+              $ref: '#/components/schemas/NextAction'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    EmailBroadcastCreateRequest:
+      type: object
+      additionalProperties: false
+      description: 'A broadcast sends one email to a whole audience. Every field here is optional, so you can create an empty draft and fill it in later. To actually send, a broadcast needs three things: a `from` address on a verified domain, an `audience_id`, and a `template`.
+
+
+        Leave `send` false, which is the default, and you get a draft. Update it as often as you like, then send it when you are ready. Set `send` to true and the broadcast goes out as soon as it is created, or at `scheduled_at` if you set one.
+
+        '
+      properties:
+        from:
+          $ref: '#/components/schemas/EmailAddressInput'
+          description: The address the broadcast sends from. Give it as a plain address, as `Jane <jane@acme.com>` to include a display name, or as an object with an address and a name. The domain has to be one this workspace has verified.
+        audience_id:
+          $ref: '#/components/schemas/AudienceID'
+          description: The audience this broadcast sends to. We take the audience's contacts as they stand when the send starts and drop any suppressed addresses, and what is left is who gets the email.
+        template:
+          $ref: '#/components/schemas/EmailBroadcastTemplate'
+          description: The template the broadcast sends. You can leave it out on a draft, but a broadcast cannot send without one. The template's published version is fixed when the broadcast is prepared for sending, and each recipient's contact properties are filled into the content as the email goes out.
+        reply_to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddressInput'
+          minItems: 1
+          maxItems: 25
+          description: Where replies to this broadcast should go. Give each address as a plain address, as `Jane <jane@acme.com>` to include a display name, or as an object with an address and a name. You can list more than one.
+        headers:
+          type: object
+          maxProperties: 25
+          additionalProperties:
+            type: string
+            maxLength: 998
+          description: 'Custom email headers to set on the broadcast, as name and value pairs. Up to 25 of them, each value up to 998 characters. Two names are ours and cannot be set here: `List-Unsubscribe` and `List-Unsubscribe-Post` are dropped if you send them, whatever the category. We add the one-click unsubscribe pair to a marketing broadcast ourselves, and a transactional broadcast has neither header.
+
+            '
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          maxItems: 20
+          description: Labels on this broadcast, each one a `name` and a `value`, up to 20 of them. You can filter the broadcast list by a tag, break your stats down by one, and read them back off webhook payloads. Use tags for anything you want to find broadcasts by later, and `metadata` for data you only want handed back to you.
+        metadata:
+          type: object
+          description: Any JSON you want to keep on the broadcast. We store it, hand it back when you read the broadcast, and include it in webhook payloads, and you can break stats down by a path inside it such as `metadata.order_id`. It can be up to 2 KB once serialized.
+          additionalProperties: true
+        track_opens:
+          type: boolean
+          default: true
+          description: Whether to track opens for this broadcast.
+        track_clicks:
+          type: boolean
+          default: true
+          description: Whether to track link clicks for this broadcast.
+        ip_pool_id:
+          type: string
+          pattern: ^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$
+          description: The IP pool to send this broadcast from. Pass a pool ID, or `ipp_shared` to send through the shared pool on purpose. Leave it out and the broadcast uses your organization's default pool. A pool we do not recognize, or one with no IPs available to send from, is refused with a `422`.
+        category:
+          type: string
+          enum:
+          - marketing
+          - transactional
+          default: marketing
+          description: 'What kind of email this is. A broadcast sets this itself rather than taking it from its template, and it decides two things: which suppressions apply, and whether we add an unsubscribe header.
+
+
+            `marketing`, the default, is held back from every suppressed address and has the one-click unsubscribe headers. `transactional` still goes to addresses suppressed for a complaint or an unsubscribe, and has no unsubscribe header. Only use `transactional` for genuine operational mail such as a terms-of-service update or a service outage notice. Marketing content sent this way still reaches people who have already unsubscribed from you.
+
+            '
+        send:
+          type: boolean
+          default: false
+          description: Whether to send the broadcast as soon as it is created. Set it to true and the broadcast goes out immediately, or at `scheduled_at` if you set one. Leave it false, which is the default, and you get a draft you can update and send later.
+        scheduled_at:
+          type: string
+          format: date-time
+          description: 'When to send the broadcast. It has to be at least 30 seconds and at most 365 days from now. It requires `send` to be true, so a `scheduled_at` on its own is refused rather than saved on the draft.
+
+            '
+      example:
+        from: newsletter@acme.com
+        audience_id: adn_01krdgeqcxet5s7t44vh8rt9mg
+        template:
+          id: emt_01krdgeqcxet5s7t44vh8rt9mg
+        category: marketing
+        tags:
+        - name: campaign
+          value: spring_launch
+        metadata:
+          campaign_id: '12345'
+    EmailBroadcastSendQuota:
+      type: object
+      additionalProperties: false
+      required:
+      - recipients
+      - allowed
+      - limited_by
+      description: 'How much of a broadcast the organization''s email send allowance covers, read before the broadcast is sent. The allowance is shared with every other email the organization sends, so `allowed` moves as those sends land, and `recipients` moves as audience membership and suppressions change. Treat both as a live estimate rather than a promise: a broadcast whose recipients all fit today can still run into the allowance if other sends consume it first.
+
+        '
+      properties:
+        recipients:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 12000
+          description: 'Number of contacts the broadcast would send to right now, after contacts without an email address and contacts suppressed for the broadcast''s category are dropped. The same number the broadcast''s audience counts report as sendable.
+
+            '
+        allowed:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 5000
+          description: 'Number of those recipients the organization''s email send allowance covers. Equal to `recipients` when nothing limits the send, and lower when part of the audience runs past what is left of it. A part-covered send goes out in whole batches, so this is cut back to a batch boundary rather than to the exact number of emails left: it can sit below `remaining` rather than matching it, and should be read rather than worked out from `limit` and `remaining`. 0 means none of them would go out, either because the audience is larger than the whole allowance, which is refused rather than sent in part, or because too little of the allowance is left to carry any of it.
+
+            '
+        limited_by:
+          readOnly: true
+          example: monthly
+          $ref: '#/components/schemas/EmailSendAllowanceWindow'
+        limit:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 50000
+          description: 'Size of the allowance named by `limited_by`, in emails. Omitted when nothing limits the send.
+
+            '
+        remaining:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          example: 7000
+          description: 'How much of that allowance is left in the current window, in emails. Omitted when nothing limits the send.
+
+            '
     EmailBroadcastUpdateRequest:
       type: object
       additionalProperties: false
@@ -2364,111 +2321,15 @@ components:
         category: marketing
         template:
           id: emt_01krdgeqcxet5s7t44vh8rt9mg
-    EmailBroadcastCounts:
+    Error:
       type: object
       additionalProperties: false
       required:
-      - broadcast_id
-      - status
-      - total
-      - addressable
-      - sendable
-      description: 'How many people a broadcast would reach right now, narrowing from everyone in the audience down to the ones it could actually be sent to.
-
-
-        These are live numbers, worked out at the moment you ask. Audience membership and suppressions change, so they can drift between now and when the broadcast sends.
-
-
-        **They are about the audience, not about delivery, and sending does not change them.** Once the broadcast has sent, its own `recipient_count` is the number that actually went out, and what each of those recipients did with the message is in [the broadcast''s recipients](/docs/api/reference/list-email-broadcast-recipients) and [its events](/docs/api/reference/list-email-broadcast-events). `status` is here so you can tell which question these numbers are answering, and `broadcast_id` names what they are about.
-
-        '
+      - error
       properties:
-        broadcast_id:
-          readOnly: true
-          description: The broadcast these counts are for.
-          allOf:
-          - $ref: '#/components/schemas/EmailBroadcastID'
-        status:
-          readOnly: true
-          example: draft
-          description: 'Where the broadcast is in its lifecycle, so the counts read in context. Anything past `draft` or `scheduled` means these numbers describe an audience the broadcast has already been sent to, not one it is about to reach.
-
-            '
-          allOf:
-          - $ref: '#/components/schemas/EmailBroadcastStatus'
-        next:
-          type: array
-          readOnly: true
-          description: 'What to do next, given where the broadcast is. On a broadcast that has already sent this names
-
-            the reads that carry delivery outcomes, which these counts never do. An empty list means there
-
-            is nothing to do; the field is absent entirely on responses that do not report next actions.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
-        total:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 13000
-          description: How many contacts are in the audience.
-        addressable:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 12500
-          description: How many of those contacts have an email address. A contact with no address is not counted. This is never higher than `total`.
-        sendable:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          example: 12000
-          description: 'How many of the addressable contacts are not suppressed for this broadcast''s category, which is who the email would actually go to. This is never higher than `addressable`. Which suppressions apply depends on the category, so the same audience can give a higher number for a transactional broadcast than for a marketing one. A transactional broadcast still reaches people who unsubscribed from or complained about marketing mail, and a marketing broadcast does not.
-
-            '
-    RecipientID:
-      type: string
-      minLength: 1
-      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
-      example: er_01krdgeqcxet5s7t44vh8rt9mg
-    EmailBroadcastTemplate:
-      type: object
-      additionalProperties: false
-      required:
-      - id
-      description: 'The template a broadcast sends, and the exact version of it the broadcast is fixed to. The template cannot be one that requires every send to name a language, because a broadcast never names one, so a template that insists on it has nothing to work with.
-
-        '
-      properties:
-        id:
-          $ref: '#/components/schemas/EmailTemplateID'
-          description: 'Which template the broadcast sends. Which version of it the send is fixed to is `version_id`.
-
-            '
-        version_id:
-          oneOf:
-          - $ref: '#/components/schemas/EmailTemplateVersionID'
-          - type: 'null'
-          readOnly: true
-          description: 'The template version this broadcast is fixed to. It is chosen when the broadcast is prepared for sending, so publishing a new version while the broadcast is going out cannot change what the rest of the recipients get. Null until the broadcast is prepared.
-
-            '
-    EmailBroadcastSendNowRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        scheduled_at:
-          type: string
-          format: date-time
-          description: When to send the broadcast. It has to be at least 30 seconds and at most 365 days from now. Leave it out to send straight away.
-      example:
-        scheduled_at: '2026-12-01T09:00:00Z'
-    EmailRecipientList:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EmailBroadcastList:
       allOf:
       - type: object
         required:
@@ -2476,152 +2337,260 @@ components:
         properties:
           data:
             type: array
-            description: Page of recipient objects for this email send.
+            description: Page of broadcast objects.
             items:
-              $ref: '#/components/schemas/EmailRecipient'
-          next:
-            type: array
-            readOnly: true
-            description: 'What to do next, given what this page reports. Present only where the read computes it: an
-
-              empty list means the answer you were looking for is here and there is nothing further to
-
-              do. Absent entirely on reads that do not report next actions.
-
-              '
-            items:
-              $ref: '#/components/schemas/NextAction'
+              $ref: '#/components/schemas/EmailBroadcast'
       - $ref: '#/components/schemas/_ListEnvelope'
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+    EmailRecipient:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - parent_id
+      - role
+      - recipient
+      - status
+      - open_count
+      - click_count
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/RecipientID'
+          description: Recipient ID.
+        parent_id:
+          $ref: '#/components/schemas/EmailID'
+          description: ID of the message this recipient belongs to. For a message send, this is the message's own `em_`-prefixed ID. For a broadcast, it is the `em_`-prefixed ID of the copy addressed to this recipient. Read either one with [Get an email message](/docs/api/reference/get-email-message), which answers 404 for a broadcast copy the send has not recorded. No recipient status distinguishes a copy the send recorded from one it did not.
+        role:
+          $ref: '#/components/schemas/RecipientRole'
+          description: How this recipient appeared in the send request.
+        recipient:
+          type: string
+          format: email
+          minLength: 5
+          description: Recipient email address.
+        name:
+          type:
+          - string
+          - 'null'
+          description: Display name provided for this recipient on the send, or null if none was given.
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          enum:
+          - accepted
+          - processed
+          - deferred
+          - delivered
+          - bounced
+          - complained
+          - rejected
+          x-enum-varnames:
+          - EmailRecipientStatusAccepted
+          - EmailRecipientStatusProcessed
+          - EmailRecipientStatusDeferred
+          - EmailRecipientStatusDelivered
+          - EmailRecipientStatusBounced
+          - EmailRecipientStatusComplained
+          - EmailRecipientStatusRejected
+          description: 'Delivery status for this recipient:
+
+
+            - `accepted`: The send has been taken and is being prepared for delivery.
+
+            - `processed`: This recipient''s message is on its way out.
+
+            - `deferred`: The recipient''s mailbox provider asked for a retry, and delivery attempts continue.
+
+            - `delivered`: The recipient''s mail server accepted the message.
+
+            - `bounced`: Delivery permanently failed (see `bounce_type` for hard vs soft).
+
+            - `complained`: The recipient reported the message as spam.
+
+            - `rejected`: Delivery was never attempted (see `rejection_reason` for why).
+
+            '
+        rejection_reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          enum:
+          - recipient_suppressed
+          - transmission_failed
+          - generation_failure
+          - policy_rejection
+          - domain_unverified
+          - quota_exceeded
+          - recipient_not_allowed
+          - null
+          description: "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n\n- `recipient_suppressed`: The recipient is on the workspace suppression list, so\n  delivery was never attempted.\n- `transmission_failed`: The message could not be transmitted for delivery.\n- `generation_failure`: The message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: The message was refused by sending policy.\n- `domain_unverified`: The sending domain was not verified.\n- `quota_exceeded`: The organization's send quota was reached.\n- `recipient_not_allowed`: A recipient was not permitted for this send (for shared\n  onboarding-domain sends, recipients must be verified workspace members).\n"
+        bounce_type:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          enum:
+          - hard
+          - soft
+          - undetermined
+          - admin
+          - block
+          - null
+          description: 'Bounce classification for `bounced` and `deferred` rows, or null when the recipient
+
+            has not bounced or the receiving server''s response has not been classified.
+
+
+            - `hard`: a permanent failure (invalid address or non-existent domain).
+
+            - `soft`: a transient failure (mailbox full or server temporarily unavailable).
+
+            - `block`: the receiving mail server blocked the sending IP for reputation reasons.
+
+            - `admin`: an administrative refusal (relaying denied or blocklisted domain).
+
+            - `undetermined`: the receiving server''s response is ambiguous.
+
+            '
+        bounce_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: SMTP reply code returned by the receiving mail server for `bounced` and `deferred` rows, or null when none was provided.
+          example: '550'
+        bounce_description:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Human-readable reason the receiving mail server gave for the bounce or deferral, or null when none was provided.
+          example: 5.1.1 Unknown user
+        processed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the message was prepared and queued for delivery to the recipient's mail server, or null if that has not happened yet.
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the recipient's mail server accepted the message, or null if not yet delivered.
+        processing_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Time between the send being accepted and the message being prepared for delivery, in milliseconds. Null until processed.
+        delivery_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Time between the message being prepared and the receiving mail server accepting it, in milliseconds. Null until delivered.
+        total_latency_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: End-to-end accept → delivered time for this recipient, in milliseconds. Null until delivered.
+        open_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of open events for this recipient.
+        click_count:
+          type: integer
+          readOnly: true
+          default: 0
+          description: Number of click events for this recipient.
+    EmailID:
+      type: string
+      minLength: 1
+      pattern: ^em_[0-9a-hjkmnp-tv-z]{26}$
+      example: em_01krdgeqcxet5s7t44vh8rt9mg
+    RecipientRole:
+      type: string
+      minLength: 1
+      enum:
+      - to
+      - cc
+      - bcc
+      description: Envelope position of a recipient on an outbound email event.
+      example: to
+    EmailBroadcastStatus:
+      type: string
+      minLength: 1
+      enum:
+      - draft
+      - scheduled
+      - accepted
+      - sending
+      - sent
+      - canceling
+      - canceled
+      - failed
+      description: 'Where the broadcast itself has got to. This is separate from what happened to individual recipients, which the broadcast''s own `sent_count`, `delivered_count`, `bounced_count` and `complained_count` tell you. Those four are fields on the broadcast, not on everything that carries this status, and reading the broadcast''s recipients or its events gives the same outcomes one recipient at a time.
+
+
+        - `draft`: Created, and not sent or scheduled yet.
+
+        - `scheduled`: Due to send at `scheduled_at`. You can still edit it, and you can still change the time, right up until sending starts.
+
+        - `accepted`: Taken for immediate sending. Nothing has gone out yet.
+
+        - `sending`: On its way. Some recipients have been sent to and some have not.
+
+        - `sent`: Every recipient has been sent to.
+
+        - `canceling`: A cancellation is under way and the remaining sends are stopping.
+
+        - `canceled`: The cancellation finished. Anything already on its way to a recipient when you canceled cannot be pulled back.
+
+        - `failed`: The broadcast could not be sent. Reading the broadcast gives `failure_reason`, which says why. If it had already started sending, the recipients it reached keep their delivery status and carry on producing events.
+
+
+        A draft is deleted rather than canceled, because it was never sent.
 
         '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    ContentDisposition:
-      description: 'Indicates the response is a file attachment and carries the suggested
-
-        download filename, for example `attachment; filename="invoice-2600042.pdf"`.
-
-        '
-      schema:
-        type: string
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    EmailBroadcastSearchFilter:
-      name: q
-      in: query
-      required: false
-      description: 'Case-insensitive substring match against the broadcast''s tag names and values, or the referenced template''s name.
-
-        '
-      schema:
-        type: string
-        maxLength: 200
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    EmailBroadcastTagFilter:
-      name: tag
-      in: query
-      required: false
-      description: 'Filter by tag. Pass `name` to match any broadcast that has that tag name, or pass `name:value` to match a specific tag pair, for example `campaign:spring_launch`.
-
-        '
-      schema:
-        type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-    CreatedAfter:
-      name: created_after
-      in: query
-      required: false
-      description: Limits the response to resources created at or after this timestamp. Combine it with `created_before` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
-      schema:
-        type: string
-        format: date-time
-        example: '2026-05-01T00:00:00Z'
-    CreatedBefore:
-      name: created_before
-      in: query
-      required: false
-      description: Limits the response to resources created before this timestamp. Combine it with `created_after` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
-      schema:
-        type: string
-        format: date-time
-        example: '2026-06-01T00:00:00Z'
-    EmailBroadcastStatusFilter:
-      name: status
-      in: query
-      required: false
-      description: 'Filter by lifecycle status. Repeat the parameter to match more than one status, for example `?status=accepted&status=sending`.
-
-        '
-      style: form
-      explode: true
-      schema:
-        type: array
-        items:
-          $ref: '#/components/schemas/EmailBroadcastStatus'
-    EmailBroadcastAudienceFilter:
-      name: audience_id
-      in: query
-      required: false
-      description: Filter by audience. Only broadcasts that use this audience are returned.
-      schema:
-        $ref: '#/components/schemas/AudienceID'
+    EmailAddress:
+      type: object
+      additionalProperties: false
+      description: An email address with an optional display name.
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          description: Email address.
+          example: jane@acme.com
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^[^\r\n]+$
+          description: Display name shown alongside the address in mail clients.
+          example: Jane Doe
   responses:
     InternalError:
       description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentRequired:
+      description: Insufficient balance
       content:
         application/json:
           schema:
@@ -2639,6 +2608,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     ServiceUnavailable:
       description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
 
@@ -2650,8 +2625,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    PaymentRequired:
-      description: Insufficient balance
+    Conflict:
+      description: Resource conflict
       content:
         application/json:
           schema:
@@ -2660,12 +2635,6 @@ components:
       description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
 
         '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
       content:
         application/json:
           schema:
@@ -2682,18 +2651,49 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    ContentDisposition:
+      description: 'Indicates the response is a file attachment and carries the suggested
+
+        download filename, for example `attachment; filename="invoice-2600042.pdf"`.
+
+        '
+      schema:
+        type: string
   securitySchemes:
     BearerAuth:
       type: http

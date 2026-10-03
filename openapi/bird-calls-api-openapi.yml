@@ -95,21 +95,6 @@ paths:
           description: Call not found
 components:
   schemas:
-    Pagination:
-      type: object
-      properties:
-        totalCount:
-          type: integer
-          description: The total number of items available.
-        pageCount:
-          type: integer
-          description: The total number of pages.
-        currentPage:
-          type: integer
-          description: The current page number.
-        perPage:
-          type: integer
-          description: The number of items per page.
     CallResponse:
       type: object
       properties:
@@ -117,63 +102,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Call'
-    CallList:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Call'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
-    CallFlowCreate:
-      type: object
-      required:
-      - steps
-      properties:
-        title:
-          type: string
-          description: A human-readable title for the call flow.
-        record:
-          type: boolean
-          description: Whether to record the entire call.
-        steps:
-          type: array
-          description: A sequence of steps that define the call flow behavior.
-          items:
-            $ref: '#/components/schemas/CallFlowStep'
-    Call:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the call.
-        status:
-          type: string
-          description: The status of the call.
-          enum:
-          - queued
-          - starting
-          - ongoing
-          - ended
-        source:
-          type: string
-          description: The caller ID number.
-        destination:
-          type: string
-          description: The destination number or SIP URI.
-        createdAt:
-          type: string
-          format: date-time
-          description: The date and time when the call was created.
-        updatedAt:
-          type: string
-          format: date-time
-          description: The date and time when the call was last updated.
-        endedAt:
-          type: string
-          format: date-time
-          description: The date and time when the call ended.
     CallCreate:
       type: object
       required:
@@ -213,6 +141,78 @@ components:
         options:
           type: object
           description: Action-specific options for the step.
+    CallList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    Call:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the call.
+        status:
+          type: string
+          description: The status of the call.
+          enum:
+          - queued
+          - starting
+          - ongoing
+          - ended
+        source:
+          type: string
+          description: The caller ID number.
+        destination:
+          type: string
+          description: The destination number or SIP URI.
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time when the call was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: The date and time when the call was last updated.
+        endedAt:
+          type: string
+          format: date-time
+          description: The date and time when the call ended.
+    CallFlowCreate:
+      type: object
+      required:
+      - steps
+      properties:
+        title:
+          type: string
+          description: A human-readable title for the call flow.
+        record:
+          type: boolean
+          description: Whether to record the entire call.
+        steps:
+          type: array
+          description: A sequence of steps that define the call flow behavior.
+          items:
+            $ref: '#/components/schemas/CallFlowStep'
+    Pagination:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+          description: The total number of items available.
+        pageCount:
+          type: integer
+          description: The total number of pages.
+        currentPage:
+          type: integer
+          description: The current page number.
+        perPage:
+          type: integer
+          description: The number of items per page.
     VoiceWebhookCreate:
       type: object
       required:
@@ -233,14 +233,6 @@ components:
       description: The unique identifier of the call.
       schema:
         type: string
-    perPageParam:
-      name: perPage
-      in: query
-      required: false
-      description: The number of items per page.
-      schema:
-        type: integer
-        default: 10
     pageParam:
       name: page
       in: query
@@ -249,6 +241,14 @@ components:
       schema:
         type: integer
         default: 1
+    perPageParam:
+      name: perPage
+      in: query
+      required: false
+      description: The number of items per page.
+      schema:
+        type: integer
+        default: 10
   securitySchemes:
     accessKey:
       type: apiKey

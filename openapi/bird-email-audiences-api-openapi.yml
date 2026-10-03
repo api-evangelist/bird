@@ -500,130 +500,7 @@ paths:
       - n8n
       - sdk
 components:
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
   schemas:
-    AudienceCreateRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - name
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: Display name for the audience.
-        description:
-          type: string
-          maxLength: 500
-          description: Longer description of who this audience is.
-        type:
-          type: string
-          enum:
-          - static
-          x-enum-varnames:
-          - AudienceTypeStatic
-          default: static
-          description: How the audience's recipients are determined. `static` is an explicit member list you manage by adding and removing contacts.
-      example:
-        name: Newsletter subscribers
-        description: Contacts who opted into the monthly product newsletter
-    Audience:
-      allOf:
-      - type: object
-        required:
-        - id
-        - name
-        - type
-        - created_at
-        - updated_at
-        properties:
-          id:
-            readOnly: true
-            $ref: '#/components/schemas/AudienceID'
-            description: ID of the audience, accepted by every operation that takes an `audience_id`.
-          name:
-            type: string
-            minLength: 1
-            maxLength: 100
-            description: Display name for the audience.
-          description:
-            type:
-            - string
-            - 'null'
-            maxLength: 500
-            description: Longer description of who this audience is.
-          type:
-            type: string
-            minLength: 1
-            enum:
-            - static
-            x-enum-varnames:
-            - AudienceTypeStatic
-            default: static
-            description: How the audience's recipients are determined. `static` is an explicit member list you manage by adding and removing contacts.
-      - $ref: '#/components/schemas/Timestamps'
     AudienceContactsRemoveRequest:
       type: object
       additionalProperties: false
@@ -640,191 +517,11 @@ components:
       example:
         contact_ids:
         - con_01krdgeqcxet5s7t44vh8rt9mg
-    AudienceContactsAddRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - contact_ids
-      properties:
-        contact_ids:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/ContactID'
-          description: Contacts to add to the audience. Adding a contact that is already a member has no effect and keeps its original join time. Duplicate IDs in the list are collapsed. If any ID does not exist in the workspace, the whole request fails with a validation error and no contacts are added.
-      example:
-        contact_ids:
-        - con_01krdgeqcxet5s7t44vh8rt9mg
-    AudienceUpdateRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: New display name for the audience. Omit to keep the current name. The name cannot be cleared, and a whitespace-only value returns a validation error.
-        description:
-          type:
-          - string
-          - 'null'
-          maxLength: 500
-          description: Longer description of who this audience is. Set to null to clear.
-      example:
-        name: Newsletter subscribers
-    AudienceList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of audience objects.
-            items:
-              $ref: '#/components/schemas/Audience'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    Contact:
-      allOf:
-      - type: object
-        required:
-        - id
-        - email
-        - phone_number
-        - created_at
-        - updated_at
-        properties:
-          id:
-            readOnly: true
-            $ref: '#/components/schemas/ContactID'
-            description: ID of the contact, accepted by every operation that takes a `contact_id`.
-          email:
-            type:
-            - string
-            - 'null'
-            format: email
-            maxLength: 254
-            description: The contact's email address, in its stored form, trimmed and lowercased before uniqueness is checked. Unique within the workspace. `null` when the contact has no email address.
-          phone_number:
-            type:
-            - string
-            - 'null'
-            minLength: 5
-            maxLength: 16
-            description: 'The contact''s phone number in normalized international form: a leading `+` and four to 15 digits. We normalize formatting but do not verify the number against numbering-plan metadata. The number is unique within the workspace. Because carriers recycle disconnected numbers, use `external_id` as the durable key for your own records. `null` when the contact has no phone number.'
-          first_name:
-            type:
-            - string
-            - 'null'
-            maxLength: 100
-            description: The contact's first name. Available in broadcast templates as `bird.contact.first_name`.
-          last_name:
-            type:
-            - string
-            - 'null'
-            maxLength: 100
-            description: The contact's last name. Available in broadcast templates as `bird.contact.last_name`.
-          external_id:
-            type:
-            - string
-            - 'null'
-            maxLength: 254
-            description: Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.
-          data:
-            type: object
-            additionalProperties: true
-            description: 'Custom property values for this contact, available in broadcast templates as `bird.contact.<key>`. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property''s declared type (strings up to `500` characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.
-
-              '
-          audiences:
-            type: array
-            readOnly: true
-            description: The audiences this contact belongs to, most-recently-joined first. Only present when listing contacts; omitted from every other contact operation.
-            items:
-              $ref: '#/components/schemas/AudienceRef'
-      - $ref: '#/components/schemas/Timestamps'
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    AudienceMemberList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of audience members, each a contact paired with the time it joined the audience.
-            items:
-              $ref: '#/components/schemas/AudienceMember'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    AudienceMember:
-      type: object
-      additionalProperties: false
-      required:
-      - contact
-      - joined_at
-      properties:
-        contact:
-          $ref: '#/components/schemas/Contact'
-        joined_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When this contact joined the audience. Members are listed in join order, most recent first.
-        audiences:
-          type: array
-          readOnly: true
-          description: The audiences this contact belongs to, including the one being listed, most-recently-joined first.
-          items:
-            $ref: '#/components/schemas/AudienceRef'
+    AudienceID:
+      type: string
+      minLength: 1
+      pattern: ^adn_[0-9a-hjkmnp-tv-z]{26}$
+      example: adn_01krdgeqcxet5s7t44vh8rt9mg
     ErrorBody:
       type: object
       additionalProperties: false
@@ -905,33 +602,124 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    AudienceID:
-      type: string
-      minLength: 1
-      pattern: ^adn_[0-9a-hjkmnp-tv-z]{26}$
-      example: adn_01krdgeqcxet5s7t44vh8rt9mg
+    AudienceList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of audience objects.
+            items:
+              $ref: '#/components/schemas/Audience'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    Audience:
+      allOf:
+      - type: object
+        required:
+        - id
+        - name
+        - type
+        - created_at
+        - updated_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/AudienceID'
+            description: ID of the audience, accepted by every operation that takes an `audience_id`.
+          name:
+            type: string
+            minLength: 1
+            maxLength: 100
+            description: Display name for the audience.
+          description:
+            type:
+            - string
+            - 'null'
+            maxLength: 500
+            description: Longer description of who this audience is.
+          type:
+            type: string
+            minLength: 1
+            enum:
+            - static
+            x-enum-varnames:
+            - AudienceTypeStatic
+            default: static
+            description: How the audience's recipients are determined. `static` is an explicit member list you manage by adding and removing contacts.
+      - $ref: '#/components/schemas/Timestamps'
+    AudienceMemberList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of audience members, each a contact paired with the time it joined the audience.
+            items:
+              $ref: '#/components/schemas/AudienceMember'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    AudienceContactsAddRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - contact_ids
+      properties:
+        contact_ids:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/ContactID'
+          description: Contacts to add to the audience. Adding a contact that is already a member has no effect and keeps its original join time. Duplicate IDs in the list are collapsed. If any ID does not exist in the workspace, the whole request fails with a validation error and no contacts are added.
+      example:
+        contact_ids:
+        - con_01krdgeqcxet5s7t44vh8rt9mg
+    AudienceUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: New display name for the audience. Omit to keep the current name. The name cannot be cleared, and a whitespace-only value returns a validation error.
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          description: Longer description of who this audience is. Set to null to clear.
+      example:
+        name: Newsletter subscribers
     ContactID:
       type: string
       minLength: 1
       pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
       example: con_01krdgeqcxet5s7t44vh8rt9mg
-    AudienceRef:
+    AudienceMember:
       type: object
       additionalProperties: false
       required:
-      - id
-      - name
-      description: A compact reference to an audience, carrying its ID and display name.
+      - contact
+      - joined_at
       properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/AudienceID'
-          description: ID of the referenced audience.
-        name:
+        contact:
+          $ref: '#/components/schemas/Contact'
+        joined_at:
           type: string
+          format: date-time
           minLength: 1
-          maxLength: 100
-          description: The audience's display name.
+          readOnly: true
+          description: When this contact joined the audience. Members are listed in join order, most recent first.
+        audiences:
+          type: array
+          readOnly: true
+          description: The audiences this contact belongs to, including the one being listed, most-recently-joined first.
+          items:
+            $ref: '#/components/schemas/AudienceRef'
     _ListEnvelope:
       type: object
       required:
@@ -957,23 +745,6 @@ components:
           - 'null'
           description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
           example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
     Timestamps:
       type: object
       required:
@@ -992,6 +763,206 @@ components:
           minLength: 1
           readOnly: true
           example: '2026-05-25T16:42:01Z'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    AudienceRef:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      description: A compact reference to an audience, carrying its ID and display name.
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/AudienceID'
+          description: ID of the referenced audience.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The audience's display name.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    AudienceCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Display name for the audience.
+        description:
+          type: string
+          maxLength: 500
+          description: Longer description of who this audience is.
+        type:
+          type: string
+          enum:
+          - static
+          x-enum-varnames:
+          - AudienceTypeStatic
+          default: static
+          description: How the audience's recipients are determined. `static` is an explicit member list you manage by adding and removing contacts.
+      example:
+        name: Newsletter subscribers
+        description: Contacts who opted into the monthly product newsletter
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    Contact:
+      allOf:
+      - type: object
+        required:
+        - id
+        - email
+        - phone_number
+        - created_at
+        - updated_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/ContactID'
+            description: ID of the contact, accepted by every operation that takes a `contact_id`.
+          email:
+            type:
+            - string
+            - 'null'
+            format: email
+            maxLength: 254
+            description: The contact's email address, in its stored form, trimmed and lowercased before uniqueness is checked. Unique within the workspace. `null` when the contact has no email address.
+          phone_number:
+            type:
+            - string
+            - 'null'
+            minLength: 5
+            maxLength: 16
+            description: 'The contact''s phone number in normalized international form: a leading `+` and four to 15 digits. We normalize formatting but do not verify the number against numbering-plan metadata. The number is unique within the workspace. Because carriers recycle disconnected numbers, use `external_id` as the durable key for your own records. `null` when the contact has no phone number.'
+          first_name:
+            type:
+            - string
+            - 'null'
+            maxLength: 100
+            description: The contact's first name. Available in broadcast templates as `bird.contact.first_name`.
+          last_name:
+            type:
+            - string
+            - 'null'
+            maxLength: 100
+            description: The contact's last name. Available in broadcast templates as `bird.contact.last_name`.
+          external_id:
+            type:
+            - string
+            - 'null'
+            maxLength: 254
+            description: Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.
+          data:
+            type: object
+            additionalProperties: true
+            description: 'Custom property values for this contact, available in broadcast templates as `bird.contact.<key>`. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property''s declared type (strings up to `500` characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.
+
+              '
+          audiences:
+            type: array
+            readOnly: true
+            description: The audiences this contact belongs to, most-recently-joined first. Only present when listing contacts; omitted from every other contact operation.
+            items:
+              $ref: '#/components/schemas/AudienceRef'
+      - $ref: '#/components/schemas/Timestamps'
+  parameters:
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
   responses:
     InternalError:
       description: Internal server error
@@ -1008,6 +979,12 @@ components:
           $ref: '#/components/headers/RateLimit-Policy'
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -1031,8 +1008,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
+    NotFound:
+      description: Resource not found
       content:
         application/json:
           schema:
@@ -1043,14 +1020,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
@@ -1061,6 +1032,35 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

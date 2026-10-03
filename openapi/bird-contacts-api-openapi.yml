@@ -294,23 +294,53 @@ paths:
     - url: https://rest.messagebird.com
       description: Production Server
 components:
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
+      schema:
+        type: string
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+    limitParam:
+      name: limit
+      in: query
+      required: false
+      description: The maximum number of items to return.
+      schema:
+        type: integer
+        default: 20
+    contactIdParam:
+      name: contactId
+      in: path
+      required: true
+      description: The unique identifier of the contact.
+      schema:
+        type: string
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      description: The number of items to skip.
+      schema:
+        type: integer
+        default: 0
   schemas:
-    Contact:
+    ContactList:
       type: object
       properties:
-        id:
-          type: string
-        displayName:
-          type: string
-        identifiers:
+        results:
           type: array
           items:
-            type: object
-        attributes:
-          type: object
-        createdAt:
+            $ref: '#/components/schemas/Contact'
+        nextPageToken:
           type: string
-          format: date-time
     CreateContact:
       type: object
       properties:
@@ -327,15 +357,91 @@ components:
                 type: string
         attributes:
           type: object
-    ContactList:
+    Contact:
       type: object
       properties:
-        results:
+        id:
+          type: string
+        displayName:
+          type: string
+        identifiers:
           type: array
           items:
-            $ref: '#/components/schemas/Contact'
-        nextPageToken:
+            type: object
+        attributes:
+          type: object
+        createdAt:
           type: string
+          format: date-time
+    ContactCreate:
+      type: object
+      required:
+      - msisdn
+      properties:
+        msisdn:
+          type: string
+          description: The phone number of the contact in international format.
+        firstName:
+          type: string
+          description: The first name of the contact.
+        lastName:
+          type: string
+          description: The last name of the contact.
+        custom1:
+          type: string
+          description: Custom field 1.
+        custom2:
+          type: string
+          description: Custom field 2.
+        custom3:
+          type: string
+          description: Custom field 3.
+        custom4:
+          type: string
+          description: Custom field 4.
+    ContactList_2:
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied to the result set.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of contacts.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact_2'
+    ContactUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+          description: The first name of the contact.
+        lastName:
+          type: string
+          description: The last name of the contact.
+        msisdn:
+          type: string
+          description: The phone number of the contact.
+        custom1:
+          type: string
+          description: Custom field 1.
+        custom2:
+          type: string
+          description: Custom field 2.
+        custom3:
+          type: string
+          description: Custom field 3.
+        custom4:
+          type: string
+          description: Custom field 4.
     Contact_2:
       type: object
       properties:
@@ -393,112 +499,6 @@ components:
           type: string
           format: date-time
           description: The date and time when the contact was last updated.
-    ContactUpdate:
-      type: object
-      properties:
-        firstName:
-          type: string
-          description: The first name of the contact.
-        lastName:
-          type: string
-          description: The last name of the contact.
-        msisdn:
-          type: string
-          description: The phone number of the contact.
-        custom1:
-          type: string
-          description: Custom field 1.
-        custom2:
-          type: string
-          description: Custom field 2.
-        custom3:
-          type: string
-          description: Custom field 3.
-        custom4:
-          type: string
-          description: Custom field 4.
-    ContactCreate:
-      type: object
-      required:
-      - msisdn
-      properties:
-        msisdn:
-          type: string
-          description: The phone number of the contact in international format.
-        firstName:
-          type: string
-          description: The first name of the contact.
-        lastName:
-          type: string
-          description: The last name of the contact.
-        custom1:
-          type: string
-          description: Custom field 1.
-        custom2:
-          type: string
-          description: Custom field 2.
-        custom3:
-          type: string
-          description: Custom field 3.
-        custom4:
-          type: string
-          description: Custom field 4.
-    ContactList_2:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied to the result set.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of contacts.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Contact_2'
-  parameters:
-    ContactId:
-      name: contactId
-      in: path
-      required: true
-      schema:
-        type: string
-    WorkspaceId:
-      name: workspaceId
-      in: path
-      required: true
-      description: Bird workspace identifier.
-      schema:
-        type: string
-    contactIdParam:
-      name: contactId
-      in: path
-      required: true
-      description: The unique identifier of the contact.
-      schema:
-        type: string
-    offsetParam:
-      name: offset
-      in: query
-      required: false
-      description: The number of items to skip.
-      schema:
-        type: integer
-        default: 0
-    limitParam:
-      name: limit
-      in: query
-      required: false
-      description: The maximum number of items to return.
-      schema:
-        type: integer
-        default: 20
   securitySchemes:
     AccessKey:
       type: apiKey

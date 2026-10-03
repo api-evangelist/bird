@@ -100,26 +100,27 @@ components:
           description: 'The entity types to extract. If not specified, all entity types will be extracted.
 
             '
-    ListSupportedLanguagesResponse:
+    SupportedLanguageEntry:
       type: object
-      description: A response containing the supported languages and their entity types.
+      description: A language and its supported entity types.
       properties:
-        languages:
+        languageCode:
+          type: string
+          example: ENG
+          description: The ISO-639-3 language code.
+        languageName:
+          type: string
+          example: English
+          description: The English name of the language.
+        supportedEntityTypes:
           type: array
           items:
-            $ref: '#/components/schemas/SupportedLanguageEntry'
-          description: The collection of supported languages with their entity types.
-    PredictEntitiesResponse:
-      type: object
-      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
-
-        '
-      properties:
-        entities:
-          type: array
-          items:
-            $ref: '#/components/schemas/Entity'
-          description: The collection of recognized named entities.
+            type: string
+          example:
+          - DATE_TIME
+          - LOCATION
+          - PERSON
+          description: The entity types supported for this language.
     EntityValue:
       type: object
       description: A structured value for a recognized entity.
@@ -132,6 +133,15 @@ components:
           type: object
           additionalProperties: true
           description: The structured value of the entity (varies by type).
+    ListSupportedLanguagesResponse:
+      type: object
+      description: A response containing the supported languages and their entity types.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportedLanguageEntry'
+          description: The collection of supported languages with their entity types.
     Entity:
       type: object
       description: A recognized named entity with one or more possible interpretations.
@@ -159,6 +169,17 @@ components:
           description: 'One or more possible interpretations of this entity. Most recognized entities will contain only one interpretation.
 
             '
+    PredictEntitiesResponse:
+      type: object
+      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
+
+        '
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+          description: The collection of recognized named entities.
     Error:
       type: object
       properties:
@@ -171,27 +192,6 @@ components:
           items:
             type: object
             additionalProperties: true
-    SupportedLanguageEntry:
-      type: object
-      description: A language and its supported entity types.
-      properties:
-        languageCode:
-          type: string
-          example: ENG
-          description: The ISO-639-3 language code.
-        languageName:
-          type: string
-          example: English
-          description: The English name of the language.
-        supportedEntityTypes:
-          type: array
-          items:
-            type: string
-          example:
-          - DATE_TIME
-          - LOCATION
-          - PERSON
-          description: The entity types supported for this language.
   securitySchemes:
     AccessKey:
       type: apiKey

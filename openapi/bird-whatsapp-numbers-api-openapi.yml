@@ -304,192 +304,6 @@ paths:
       - sdk
 components:
   schemas:
-    WhatsAppNumberProfile:
-      type: object
-      additionalProperties: false
-      description: The business profile WhatsApp shows to people this number messages. It is read from WhatsApp on each request rather than from a stored copy, so it is always current and a WhatsApp outage makes it briefly unavailable.
-      properties:
-        display_name:
-          type: string
-          readOnly: true
-          description: 'The name WhatsApp verifies for this number. Once WhatsApp approves it, it appears at the top of a chat with this number; `display_name_status` is what says whether it has. Set when the number was connected, and changed from the dashboard or the CLI, as [WhatsApp phone numbers](/docs/guides/whatsapp/phone-number-setup) explains. This field still returns the current name until a requested change completes.
-
-            '
-          example: Lucky Shrub
-        display_name_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDisplayNameStatus'
-          readOnly: true
-          description: 'Where WhatsApp''s review of the display name stands. A name still under review is not yet shown at the top of a chat.
-
-            '
-        new_display_name:
-          type: string
-          readOnly: true
-          description: 'The display name whose change has been requested, whether or not WhatsApp is reviewing it. Absent when no change is pending.
-
-            '
-          example: Lucky Shrub Garden Center
-        new_display_name_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDisplayNameStatus'
-          readOnly: true
-          description: 'Where the requested display name stands with WhatsApp, including whether it is being reviewed or was accepted for immediate use without a review. Absent when no change is pending. If WhatsApp accepts the name it becomes `display_name`. Every other outcome leaves the number on the name it already had: `declined` is WhatsApp refusing the name, and `expired` is a request that no longer stands and has to be made again.
-
-            '
-        username:
-          type: string
-          readOnly: true
-          description: 'The username WhatsApp users can find this number by, without an `@`. Absent when the number has no username. Once set it cannot be removed through this API.
-
-            '
-          example: goldcrest.support
-        username_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppUsernameStatus'
-          readOnly: true
-          description: 'Where the username stands with WhatsApp. Absent when the number has no username.
-
-            '
-        about:
-          type: string
-          maxLength: 139
-          description: The short line shown under the business name in a chat.
-          example: Open Monday to Friday, 9am to 6pm CET.
-        address:
-          type: string
-          maxLength: 256
-          description: The business address shown on the profile.
-          example: Trompenburgstraat 2C, 1079 TX Amsterdam
-        description:
-          type: string
-          maxLength: 256
-          description: The longer description shown on the profile.
-          example: Bird is the platform for messaging with your customers.
-        email:
-          type: string
-          format: email
-          maxLength: 128
-          description: The contact email shown on the profile.
-          example: hello@bird.com
-        vertical:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessVertical'
-          description: The industry WhatsApp shows on the profile.
-        websites:
-          type: array
-          maxItems: 2
-          items:
-            type: string
-            maxLength: 256
-          description: Up to two websites shown on the profile.
-          example:
-          - https://bird.com
-        profile_picture_url:
-          type: string
-          readOnly: true
-          description: A link to the profile picture WhatsApp currently shows. WhatsApp signs this link and it expires within days, so load it when you display it and never store it. It is served with permissive cross-origin headers, so a browser can load it directly.
-          example: https://pps.whatsapp.net/v/t61.24694-24/643148303_1005107588793925.jpg
-    WhatsAppNumberSortField:
-      type: string
-      enum:
-      - created_at
-      default: created_at
-      description: Sortable fields for a WhatsApp number list.
-    WhatsAppDisplayNameStatus:
-      type: string
-      description: Where WhatsApp's review of the display name stands. `available_without_review` means the name met WhatsApp's criteria for immediate use without a review step, and `none` means no display name has been submitted yet. WhatsApp adds states over time, so a value outside this list can be returned.
-      x-extensible-enum:
-      - approved
-      - available_without_review
-      - declined
-      - expired
-      - non_exists
-      - pending_review
-      - none
-      example: approved
-    AllocatedNumberID:
-      type: string
-      minLength: 1
-      pattern: ^(nda|nal)_[0-9a-hjkmnp-tv-z]{26}$
-      example: nda_01krdgeqcxet5s7t44vh8rt9mg
-      description: Identifier of a number allocated to your workspace, as returned in the id field of `GET /v1/numbers`.
-    WhatsAppNumberError:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      required:
-      - code
-      description: Why a number's connection was refused for good. `code` is the standardized reason. `description` explains the failure where one was recorded, and `meta_error_code` carries WhatsApp's own code when available. It accompanies the `failed` status only; a number still being retried carries no error.
-      properties:
-        code:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppNumberErrorCode'
-          readOnly: true
-          description: Standardized failure reason.
-        description:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'Why the connection failed: WhatsApp''s own words, in the language of the account it refused, when WhatsApp answered; our own explanation when the number was refused before WhatsApp was asked; a generic sentence when WhatsApp refused without giving a reason. Absent when the attempt failed without ever reaching WhatsApp, which leaves `code` as the only account of the failure. Show it to the person who owns the number; never match on its text.'
-          example: 'Cannot Create Certificate: Please ensure two-factor authentication is disabled.'
-        meta_error_code:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'WhatsApp''s most specific code for the refusal: its error subcode where it sent one, otherwise its top-level code. Null when WhatsApp did not provide a code. Treat it as an opaque string.'
-          example: '2388001'
-    WhatsAppNumberEvent:
-      type: object
-      additionalProperties: false
-      required:
-      - id
-      - type
-      - summary
-      - metadata
-      - created_at
-      properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/WhatsAppNumberEventID'
-          description: Event ID.
-        type:
-          type: string
-          minLength: 1
-          description: 'Type of number event. `whatsapp_number.messaging_limit_updated` and `whatsapp_number.profile_name_update` are reported by WhatsApp as they happen; `whatsapp_number.quality_rating_updated` is observed when Bird next reads the number, so it can lag the change by up to an hour. `whatsapp_number.status_changed` records every move of the `status` field on the number itself, whichever side caused it. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.'
-          x-extensible-enum:
-          - whatsapp_number.created
-          - whatsapp_number.messaging_limit_updated
-          - whatsapp_number.profile_name_update
-          - whatsapp_number.quality_rating_updated
-          - whatsapp_number.status_changed
-          example: whatsapp_number.quality_rating_updated
-        summary:
-          type: string
-          minLength: 1
-          description: Human-readable summary of what changed.
-          example: Quality rating dropped to medium.
-        metadata:
-          type: object
-          description: Structured details for the event. `from` and `to` carry the values that changed, and `from` is absent when the number had no prior value to report. A status change into `failed` also carries the `reason`; a display-name decision carries `new_display_name`, `decision`, and, when WhatsApp named one for a rejection, `rejection_reason`. A messaging-limit change also carries the `trigger` WhatsApp named for it, such as `onboarding` or `throughput_upgrade`, when it named one. A `whatsapp_number.created` event carries the `source` the number came from, and its `phone_number` once one is known.
-          additionalProperties: true
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          description: When the event was recorded.
-    WhatsAppNumberID:
-      type: string
-      minLength: 1
-      pattern: ^wan_[0-9a-hjkmnp-tv-z]{26}$
-      example: wan_01krdgeqcxet5s7t44vh8rt9mg
-    SortOrder:
-      type: string
-      enum:
-      - asc
-      - desc
-      description: Sort direction, ascending or descending.
     WhatsAppUsernameStatus:
       type: string
       description: Where the username stands with WhatsApp. WhatsApp adds states over time, so a value outside this list can be returned.
@@ -498,122 +312,6 @@ components:
       - reserved
       - deleted
       example: approved
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    WhatsAppNumberEventList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of number events, newest first by default.
-            items:
-              $ref: '#/components/schemas/WhatsAppNumberEvent'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    WhatsAppDataLocalizationRegion:
-      type: string
-      minLength: 2
-      enum:
-      - AU
-      - ID
-      - IN
-      - JP
-      - SG
-      - KR
-      - DE
-      - CH
-      - GB
-      - BR
-      - BH
-      - ZA
-      - AE
-      - CA
-      description: 'A country where WhatsApp can store a business phone number''s message content at rest, as its two-letter ISO 3166 code.
-
-        '
-      example: DE
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    WhatsAppNumberQualityRating:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - green
-      - yellow
-      - red
-      - unknown
-      description: WhatsApp quality rating for a business phone number, based on recipient feedback. `green`, `yellow`, and `red` indicate decreasing quality; sustained `red` can restrict the number. `unknown` is itself a reported rating. This is separate from a template-language quality score. Accept unrecognized values.
-      example: green
-    WhatsAppNumberList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: The WhatsApp numbers your workspace can send from.
-            items:
-              $ref: '#/components/schemas/WhatsAppNumber'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    WhatsAppNumberMessagingLimit:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - tier_50
-      - tier_250
-      - tier_1k
-      - tier_10k
-      - tier_100k
-      - tier_unlimited
-      description: 'How many unique WhatsApp users can be messaged outside a customer service window in a rolling 24 hours, as WhatsApp''s own tier token. WhatsApp calculates this for the business portfolio, and every number in that portfolio shares it; it is not this number''s private capacity, and one number can consume all of it. Values are WhatsApp''s own tokens, lower-cased. Open enum: WhatsApp documents a 2,000 limit its published tier vocabulary has no token for, so treat an unrecognized value as a tier WhatsApp added.'
-      example: tier_250
     ErrorBody:
       type: object
       additionalProperties: false
@@ -694,92 +392,100 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    WhatsAppNumberScope:
+    WhatsAppNumberErrorCode:
       type: string
       minLength: 1
-      enum:
-      - system
-      - workspace
-      example: workspace
-    WhatsAppNumberEventID:
-      type: string
-      minLength: 1
-      pattern: ^wne_[0-9a-hjkmnp-tv-z]{26}$
-      example: wne_01krdgeqcxet5s7t44vh8rt9mg
-    WhatsAppBusinessVertical:
-      type: string
-      description: The industry WhatsApp shows on the business profile. WhatsApp adds categories over time, so a value outside this list can be returned.
       x-extensible-enum:
-      - other
-      - auto
-      - beauty
-      - apparel
-      - edu
-      - entertain
-      - event_plan
-      - finance
-      - grocery
-      - govt
-      - hotel
-      - health
-      - nonprofit
-      - prof_services
-      - retail
-      - travel
-      - restaurant
-      - alcohol
-      - online_gambling
-      - physical_gambling
-      - otc_drugs
-      example: retail
-    WhatsAppNumberEventSortField:
+      - registration_pin_rejected
+      - registration_pin_rate_limited
+      - registration_attempts_exhausted
+      - number_verification_required
+      - number_not_registered
+      - number_already_linked
+      - number_already_in_use
+      - verification_code_not_received
+      - verification_rate_limited
+      - business_account_locked
+      - credit_currency_mismatch
+      - permission_denied
+      - invalid_request
+      - internal_error
+      description: 'Standardized number-connection failure:
+
+
+        - `registration_pin_rejected`: WhatsApp refused the two-step verification PIN.
+
+        - `registration_pin_rate_limited`: Too many PIN attempts occurred recently.
+
+        - `registration_attempts_exhausted`: Registration is blocked for 72 hours.
+
+        - `number_verification_required`: WhatsApp requires the number to be verified again.
+
+        - `number_not_registered`: WhatsApp does not hold the number as registered.
+
+        - `number_already_linked`: Another WhatsApp integration uses the number.
+
+        - `number_already_in_use`: WhatsApp cannot accept the number.
+
+        - `verification_code_not_received`: The verification text did not arrive.
+
+        - `verification_rate_limited`: WhatsApp declined to send this number another verification code, having been asked too often. It clears with time; retrying sooner extends it.
+
+        - `business_account_locked`: WhatsApp locked the business account.
+
+        - `credit_currency_mismatch`: WhatsApp bills the business account in a currency your organization is not billed in. Connect the number under a business account WhatsApp bills in that same currency, or one WhatsApp has set no currency on: an account''s billing currency cannot be changed once WhatsApp sets it.
+
+        - `permission_denied`: WhatsApp refused access to the account.
+
+        - `invalid_request`: WhatsApp rejected the connection details.
+
+        - `internal_error`: The service could not classify or resolve the failure.
+
+
+        This is an open enum. Accept unrecognized values.
+
+        '
+      example: registration_pin_rejected
+    WhatsAppNumberList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: The WhatsApp numbers your workspace can send from.
+            items:
+              $ref: '#/components/schemas/WhatsAppNumber'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    WhatsAppNumberQualityRating:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - green
+      - yellow
+      - red
+      - unknown
+      description: WhatsApp quality rating for a business phone number, based on recipient feedback. `green`, `yellow`, and `red` indicate decreasing quality; sustained `red` can restrict the number. `unknown` is itself a reported rating. This is separate from a template-language quality score. Accept unrecognized values.
+      example: green
+    WhatsAppDisplayNameStatus:
+      type: string
+      description: Where WhatsApp's review of the display name stands. `available_without_review` means the name met WhatsApp's criteria for immediate use without a review step, and `none` means no display name has been submitted yet. WhatsApp adds states over time, so a value outside this list can be returned.
+      x-extensible-enum:
+      - approved
+      - available_without_review
+      - declined
+      - expired
+      - non_exists
+      - pending_review
+      - none
+      example: approved
+    WhatsAppNumberSortField:
       type: string
       enum:
       - created_at
       default: created_at
-      description: Sortable fields for a WhatsApp number's event list.
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
+      description: Sortable fields for a WhatsApp number list.
     WhatsAppNumber:
       type: object
       additionalProperties: false
@@ -927,13 +633,6 @@ components:
           minLength: 1
           readOnly: true
           description: When this number was last changed.
-    WhatsAppNumberThroughputLevel:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - standard
-      description: How fast WhatsApp lets this number send, as WhatsApp's own level token. `standard` is 80 messages per second; WhatsApp upgrades an eligible number to 1,000 per second automatically. Values are WhatsApp's own tokens, lower-cased. This enum is open because WhatsApp publishes no vocabulary for the field. The `standard` value is the only value Bird has measured. The upgraded level's token remains unknown until a number returns it.
-      example: standard
     WhatsAppNumberStatus:
       type: string
       minLength: 1
@@ -952,75 +651,425 @@ components:
       - restricted
       description: Operational state of a business phone number. The `preparing` status means the service is verifying a managed number. The `awaiting_signup` status means verification finished and you must complete signup. The `pending` status is WhatsApp's own token for a number it does not hold as registered, and is also returned when no WhatsApp status has been stored, including after setup completes. It does not by itself establish whether setup is complete. The `connected` status means registration completed. The `failed` status means connection was refused permanently. Other values are WhatsApp's own operational states for a number already connected. This is an open enum. Accept unrecognized values.
       example: connected
-    WhatsAppNumberErrorCode:
+    AllocatedNumberID:
+      type: string
+      minLength: 1
+      pattern: ^(nda|nal)_[0-9a-hjkmnp-tv-z]{26}$
+      example: nda_01krdgeqcxet5s7t44vh8rt9mg
+      description: Identifier of a number allocated to your workspace, as returned in the id field of `GET /v1/numbers`.
+    WhatsAppNumberEventList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of number events, newest first by default.
+            items:
+              $ref: '#/components/schemas/WhatsAppNumberEvent'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    WhatsAppNumberEventID:
+      type: string
+      minLength: 1
+      pattern: ^wne_[0-9a-hjkmnp-tv-z]{26}$
+      example: wne_01krdgeqcxet5s7t44vh8rt9mg
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    WhatsAppNumberMessagingLimit:
       type: string
       minLength: 1
       x-extensible-enum:
-      - registration_pin_rejected
-      - registration_pin_rate_limited
-      - registration_attempts_exhausted
-      - number_verification_required
-      - number_not_registered
-      - number_already_linked
-      - number_already_in_use
-      - verification_code_not_received
-      - verification_rate_limited
-      - business_account_locked
-      - credit_currency_mismatch
-      - permission_denied
-      - invalid_request
-      - internal_error
-      description: 'Standardized number-connection failure:
+      - tier_50
+      - tier_250
+      - tier_1k
+      - tier_10k
+      - tier_100k
+      - tier_unlimited
+      description: 'How many unique WhatsApp users can be messaged outside a customer service window in a rolling 24 hours, as WhatsApp''s own tier token. WhatsApp calculates this for the business portfolio, and every number in that portfolio shares it; it is not this number''s private capacity, and one number can consume all of it. Values are WhatsApp''s own tokens, lower-cased. Open enum: WhatsApp documents a 2,000 limit its published tier vocabulary has no token for, so treat an unrecognized value as a tier WhatsApp added.'
+      example: tier_250
+    WhatsAppBusinessVertical:
+      type: string
+      description: The industry WhatsApp shows on the business profile. WhatsApp adds categories over time, so a value outside this list can be returned.
+      x-extensible-enum:
+      - other
+      - auto
+      - beauty
+      - apparel
+      - edu
+      - entertain
+      - event_plan
+      - finance
+      - grocery
+      - govt
+      - hotel
+      - health
+      - nonprofit
+      - prof_services
+      - retail
+      - travel
+      - restaurant
+      - alcohol
+      - online_gambling
+      - physical_gambling
+      - otc_drugs
+      example: retail
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
 
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
 
-        - `registration_pin_rejected`: WhatsApp refused the two-step verification PIN.
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
 
-        - `registration_pin_rate_limited`: Too many PIN attempts occurred recently.
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
 
-        - `registration_attempts_exhausted`: Registration is blocked for 72 hours.
+            '
+    WhatsAppNumberEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - summary
+      - metadata
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/WhatsAppNumberEventID'
+          description: Event ID.
+        type:
+          type: string
+          minLength: 1
+          description: 'Type of number event. `whatsapp_number.messaging_limit_updated` and `whatsapp_number.profile_name_update` are reported by WhatsApp as they happen; `whatsapp_number.quality_rating_updated` is observed when Bird next reads the number, so it can lag the change by up to an hour. `whatsapp_number.status_changed` records every move of the `status` field on the number itself, whichever side caused it. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.'
+          x-extensible-enum:
+          - whatsapp_number.created
+          - whatsapp_number.messaging_limit_updated
+          - whatsapp_number.profile_name_update
+          - whatsapp_number.quality_rating_updated
+          - whatsapp_number.status_changed
+          example: whatsapp_number.quality_rating_updated
+        summary:
+          type: string
+          minLength: 1
+          description: Human-readable summary of what changed.
+          example: Quality rating dropped to medium.
+        metadata:
+          type: object
+          description: Structured details for the event. `from` and `to` carry the values that changed, and `from` is absent when the number had no prior value to report. A status change into `failed` also carries the `reason`; a display-name decision carries `new_display_name`, `decision`, and, when WhatsApp named one for a rejection, `rejection_reason`. A messaging-limit change also carries the `trigger` WhatsApp named for it, such as `onboarding` or `throughput_upgrade`, when it named one. A `whatsapp_number.created` event carries the `source` the number came from, and its `phone_number` once one is known.
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the event was recorded.
+    WhatsAppNumberError:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      required:
+      - code
+      description: Why a number's connection was refused for good. `code` is the standardized reason. `description` explains the failure where one was recorded, and `meta_error_code` carries WhatsApp's own code when available. It accompanies the `failed` status only; a number still being retried carries no error.
+      properties:
+        code:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppNumberErrorCode'
+          readOnly: true
+          description: Standardized failure reason.
+        description:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Why the connection failed: WhatsApp''s own words, in the language of the account it refused, when WhatsApp answered; our own explanation when the number was refused before WhatsApp was asked; a generic sentence when WhatsApp refused without giving a reason. Absent when the attempt failed without ever reaching WhatsApp, which leaves `code` as the only account of the failure. Show it to the person who owns the number; never match on its text.'
+          example: 'Cannot Create Certificate: Please ensure two-factor authentication is disabled.'
+        meta_error_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'WhatsApp''s most specific code for the refusal: its error subcode where it sent one, otherwise its top-level code. Null when WhatsApp did not provide a code. Treat it as an opaque string.'
+          example: '2388001'
+    WhatsAppNumberScope:
+      type: string
+      minLength: 1
+      enum:
+      - system
+      - workspace
+      example: workspace
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    WhatsAppNumberThroughputLevel:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - standard
+      description: How fast WhatsApp lets this number send, as WhatsApp's own level token. `standard` is 80 messages per second; WhatsApp upgrades an eligible number to 1,000 per second automatically. Values are WhatsApp's own tokens, lower-cased. This enum is open because WhatsApp publishes no vocabulary for the field. The `standard` value is the only value Bird has measured. The upgraded level's token remains unknown until a number returns it.
+      example: standard
+    WhatsAppNumberProfile:
+      type: object
+      additionalProperties: false
+      description: The business profile WhatsApp shows to people this number messages. It is read from WhatsApp on each request rather than from a stored copy, so it is always current and a WhatsApp outage makes it briefly unavailable.
+      properties:
+        display_name:
+          type: string
+          readOnly: true
+          description: 'The name WhatsApp verifies for this number. Once WhatsApp approves it, it appears at the top of a chat with this number; `display_name_status` is what says whether it has. Set when the number was connected, and changed from the dashboard or the CLI, as [WhatsApp phone numbers](/docs/guides/whatsapp/phone-number-setup) explains. This field still returns the current name until a requested change completes.
 
-        - `number_verification_required`: WhatsApp requires the number to be verified again.
+            '
+          example: Lucky Shrub
+        display_name_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDisplayNameStatus'
+          readOnly: true
+          description: 'Where WhatsApp''s review of the display name stands. A name still under review is not yet shown at the top of a chat.
 
-        - `number_not_registered`: WhatsApp does not hold the number as registered.
+            '
+        new_display_name:
+          type: string
+          readOnly: true
+          description: 'The display name whose change has been requested, whether or not WhatsApp is reviewing it. Absent when no change is pending.
 
-        - `number_already_linked`: Another WhatsApp integration uses the number.
+            '
+          example: Lucky Shrub Garden Center
+        new_display_name_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDisplayNameStatus'
+          readOnly: true
+          description: 'Where the requested display name stands with WhatsApp, including whether it is being reviewed or was accepted for immediate use without a review. Absent when no change is pending. If WhatsApp accepts the name it becomes `display_name`. Every other outcome leaves the number on the name it already had: `declined` is WhatsApp refusing the name, and `expired` is a request that no longer stands and has to be made again.
 
-        - `number_already_in_use`: WhatsApp cannot accept the number.
+            '
+        username:
+          type: string
+          readOnly: true
+          description: 'The username WhatsApp users can find this number by, without an `@`. Absent when the number has no username. Once set it cannot be removed through this API.
 
-        - `verification_code_not_received`: The verification text did not arrive.
+            '
+          example: goldcrest.support
+        username_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppUsernameStatus'
+          readOnly: true
+          description: 'Where the username stands with WhatsApp. Absent when the number has no username.
 
-        - `verification_rate_limited`: WhatsApp declined to send this number another verification code, having been asked too often. It clears with time; retrying sooner extends it.
-
-        - `business_account_locked`: WhatsApp locked the business account.
-
-        - `credit_currency_mismatch`: WhatsApp bills the business account in a currency your organization is not billed in. Connect the number under a business account WhatsApp bills in that same currency, or one WhatsApp has set no currency on: an account''s billing currency cannot be changed once WhatsApp sets it.
-
-        - `permission_denied`: WhatsApp refused access to the account.
-
-        - `invalid_request`: WhatsApp rejected the connection details.
-
-        - `internal_error`: The service could not classify or resolve the failure.
-
-
-        This is an open enum. Accept unrecognized values.
+            '
+        about:
+          type: string
+          maxLength: 139
+          description: The short line shown under the business name in a chat.
+          example: Open Monday to Friday, 9am to 6pm CET.
+        address:
+          type: string
+          maxLength: 256
+          description: The business address shown on the profile.
+          example: Trompenburgstraat 2C, 1079 TX Amsterdam
+        description:
+          type: string
+          maxLength: 256
+          description: The longer description shown on the profile.
+          example: Bird is the platform for messaging with your customers.
+        email:
+          type: string
+          format: email
+          maxLength: 128
+          description: The contact email shown on the profile.
+          example: hello@bird.com
+        vertical:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessVertical'
+          description: The industry WhatsApp shows on the profile.
+        websites:
+          type: array
+          maxItems: 2
+          items:
+            type: string
+            maxLength: 256
+          description: Up to two websites shown on the profile.
+          example:
+          - https://bird.com
+        profile_picture_url:
+          type: string
+          readOnly: true
+          description: A link to the profile picture WhatsApp currently shows. WhatsApp signs this link and it expires within days, so load it when you display it and never store it. It is served with permissive cross-origin headers, so a browser can load it directly.
+          example: https://pps.whatsapp.net/v/t61.24694-24/643148303_1005107588793925.jpg
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+    WhatsAppDataLocalizationRegion:
+      type: string
+      minLength: 2
+      enum:
+      - AU
+      - ID
+      - IN
+      - JP
+      - SG
+      - KR
+      - DE
+      - CH
+      - GB
+      - BR
+      - BH
+      - ZA
+      - AE
+      - CA
+      description: 'A country where WhatsApp can store a business phone number''s message content at rest, as its two-letter ISO 3166 code.
 
         '
-      example: registration_pin_rejected
+      example: DE
+    WhatsAppNumberID:
+      type: string
+      minLength: 1
+      pattern: ^wan_[0-9a-hjkmnp-tv-z]{26}$
+      example: wan_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppNumberEventSortField:
+      type: string
+      enum:
+      - created_at
+      default: created_at
+      description: Sortable fields for a WhatsApp number's event list.
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
 
@@ -1029,6 +1078,20 @@ components:
         type: integer
         minimum: 0
       example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   parameters:
     StartingAfter:
       name: starting_after
@@ -1064,69 +1127,6 @@ components:
       schema:
         $ref: '#/components/schemas/SortOrder'
         default: desc
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

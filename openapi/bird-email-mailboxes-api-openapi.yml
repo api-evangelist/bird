@@ -687,162 +687,132 @@ paths:
       - n8n
       - sdk
 components:
-  schemas:
-    MailboxCreate:
-      type: object
-      additionalProperties: false
-      description: Parameters for creating a mailbox.
-      properties:
-        local_part:
-          type: string
-          minLength: 1
-          maxLength: 64
-          pattern: ^[A-Za-z0-9._-]+$
-          description: The local part of the mailbox address (the part before `@`). Letters, digits, dots, underscores, and hyphens. Stored lowercase. On the shared `inbox.ai` domain, separators must sit between letters or digits. Leading, trailing, and repeated separators are not allowed. Reserved names such as `postmaster` and `abuse` are unavailable. Choosing your own local part uses one of your plan's custom-handle allowance slots; generated addresses remain available. Omit this field to generate a random local part.
-          example: concierge
-        domain:
-          type: string
-          minLength: 1
-          maxLength: 255
-          default: inbox.ai
-          description: The domain the address lives under. Defaults to `inbox.ai`, our shared mailbox domain. Creating a mailbox claims the shared address for your organization on a first-come, first-served basis. The address remains reserved to your organization after the mailbox is deleted. You can instead use one of your own domains enabled for receiving email.
-          example: mail.acme.com
-        display_name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: Display name used as the sender name on mail from this mailbox.
-          example: Acme Concierge
-        default_reply_to:
-          type: string
-          format: email
-          minLength: 5
-          description: Default `Reply-To` address stamped on mail sent from this mailbox.
-        receive_policy:
-          type: string
-          enum:
-          - open
-          - replies_only
-          - allowlist
-          - drop
-          default: open
-          description: "Which inbound mail the mailbox accepts:\n\n- `open`: Accepts everything not blocked by a rule.\n- `replies_only`: Accepts only replies to messages this mailbox has\n  sent. A reply must match a message the mailbox sent. Landing in an\n  existing thread by itself does not count.\n- `allowlist`: Accepts only senders matching an allow rule.\n- `drop`: Stores nothing.\n"
-        retention_tier:
-          type: string
-          enum:
-          - 30d
-          - 90d
-          - 1y
-          default: 30d
-          description: How long message metadata, extracted text, and attachments are kept. Original bodies and inbound raw MIME are limited to 30 days on every tier. Longer tiers require a plan that includes them.
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Your own key/value data to attach to the mailbox. Up to 2 KB. Keys starting with `__bird` are reserved.
-      example:
-        local_part: concierge
-        display_name: Acme Concierge
-        receive_policy: open
-        retention_tier: 30d
-    EmailStatsSeriesPeriod:
-      type: object
-      additionalProperties: false
-      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
+  parameters:
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    StatsTimezone:
+      name: timezone
+      in: query
+      required: false
+      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
 
         '
+      schema:
+        type: string
+        minLength: 1
+        example: Asia/Kathmandu
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+  schemas:
+    ErrorBody:
+      type: object
+      additionalProperties: false
       required:
-      - from
-      - to
-      - grain
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
       properties:
-        from:
+        type:
           type: string
           minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.
-          example: '2026-05-01'
-        to:
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
           type: string
           minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
-          example: '2026-05-31'
-        grain:
-          $ref: '#/components/schemas/StatsGrain'
-          readOnly: true
-        data_as_of:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response reflects data from up to a few seconds ago. Use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
 
             '
-          example: '2026-05-25T14:03:10Z'
-    MailboxID:
-      type: string
-      minLength: 1
-      pattern: ^mbx_[0-9a-hjkmnp-tv-z]{26}$
-      example: mbx_01krdgeqcxet5s7t44vh8rt9mg
-    MailboxStatsResponse:
-      type: object
-      additionalProperties: false
-      description: 'A mailbox''s sent and received email statistics: a period-wide summary plus a bucketed time series. `period` echoes the range and grain actually used. `data` is one row per bucket in chronological order.
-
-        '
-      required:
-      - period
-      - summary
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsSeriesPeriod'
-        summary:
-          $ref: '#/components/schemas/MailboxStatsSummary'
-        data:
+        details:
           type: array
-          readOnly: true
-          description: One row per bucket in the period, in chronological order. Buckets with no activity are included with zero counts.
+          description: Per-field validation errors. Present only on validation_error responses.
           items:
-            $ref: '#/components/schemas/MailboxStatsPoint'
-    EmailLatencyStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
 
-
-        - `processing`: Time from accepting the send to handing the message off for delivery. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
-
-        - `delivery`: Time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behavior. Measured per delivered recipient; null when no deliveries occurred in the bucket.
-
-        - `total`: End-to-end time from accepting the send to delivery, and the number most worth watching against your own delivery targets. Measured per delivered recipient; null when no deliveries occurred in the bucket.
-
-
-        Each family is reported independently. A family is omitted when no qualifying
-
-        event contributed a latency measurement in the bucket. This also applies when
-
-        the workspace has not recorded latency for that stage yet. The `processing`
-
-        family can therefore be present while `delivery` and `total` are absent. A
-
-        client must handle a missing family, and a null p50/p95/p99 within a present
-
-        family, by rendering a placeholder rather than assuming a number.
-
-        '
-      properties:
-        processing:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
-        delivery:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
-        total:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
-    ReceiveRuleList:
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    MailboxList:
       allOf:
       - type: object
         required:
@@ -851,141 +821,8 @@ components:
           data:
             type: array
             items:
-              $ref: '#/components/schemas/ReceiveRule'
+              $ref: '#/components/schemas/Mailbox'
       - $ref: '#/components/schemas/_ListEnvelope'
-    ReceiveRuleID:
-      type: string
-      minLength: 1
-      pattern: ^erl_[0-9a-hjkmnp-tv-z]{26}$
-      example: erl_01krdgeqcxet5s7t44vh8rt9mg
-    InboundAddressID:
-      type: string
-      minLength: 1
-      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
-      example: ina_01krdgeqcxet5s7t44vh8rt9mg
-    MailboxUpdate:
-      type: object
-      additionalProperties: false
-      description: Fields to update on a mailbox. Omitted fields are unchanged. Fields set to `null` are cleared. The address and domain are immutable.
-      properties:
-        display_name:
-          type:
-          - string
-          - 'null'
-          maxLength: 255
-          description: Display name used as the sender name on mail from this mailbox. `null` clears it.
-        default_reply_to:
-          type:
-          - string
-          - 'null'
-          format: email
-          description: Default `Reply-To` address stamped on mail sent from this mailbox. `null` clears it.
-        receive_policy:
-          type: string
-          enum:
-          - open
-          - replies_only
-          - allowlist
-          - drop
-          description: "Which inbound mail the mailbox accepts:\n\n- `open`: Accepts everything not blocked by a rule.\n- `replies_only`: Accepts only replies to messages this mailbox has\n  sent. A reply must match a message the mailbox sent. Landing in an\n  existing thread by itself does not count.\n- `allowlist`: Accepts only senders matching an allow rule.\n- `drop`: Stores nothing.\n"
-        retention_tier:
-          type: string
-          enum:
-          - 30d
-          - 90d
-          - 1y
-          description: How long message metadata, extracted text, and attachments are kept. Original bodies and inbound raw MIME are limited to 30 days on every tier. Longer tiers require a plan that includes them. Lowering the tier requires `confirm=true` when messages would be affected; accepted changes hide those messages immediately. Deletion waits at least ten minutes and until the retention update finishes.
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Replaces the mailbox's key/value data. Up to 2 KB. Keys starting with `__bird` are reserved.
-      example:
-        display_name: Acme Concierge
-        retention_tier: 30d
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    EmailLatencyQuantiles:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Approximate p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. All three are null when no qualifying event contributed a measurement.
-
-        '
-      required:
-      - p50_ms
-      - p95_ms
-      - p99_ms
-      properties:
-        p50_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
-          example: 420
-        p95_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
-          example: 1820
-        p99_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
-          example: 4920
     EmailBounceStatsWithRates:
       type: object
       additionalProperties: false
@@ -1090,86 +927,17 @@ components:
 
             '
           example: 0.0029
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
+    ReceiveRuleList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/ReceiveRule'
+      - $ref: '#/components/schemas/_ListEnvelope'
     EmailEngagementStats:
       type: object
       additionalProperties: false
@@ -1267,97 +1035,6 @@ components:
 
             '
           example: 0.0009
-    MailboxStatsPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Per-mailbox email activity for one time bucket, bucketed by event time. Sent-mail metrics use the same delivery, engagement, and latency breakdowns as the email stats endpoints. `received` counts mail that arrived at the mailbox. Buckets with no activity are included with zero counts and `null` latency percentiles.
-
-        '
-      required:
-      - bucket
-      - sends_accepted
-      - delivery
-      - engagement
-      - latency
-      - received
-      properties:
-        bucket:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The day (`YYYY-MM-DD`) or instant (RFC 3339, on the bucket boundary) this point covers, matching the period's grain.
-          example: '2026-07-21'
-        sends_accepted:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct email messages the mailbox sent that were accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other sent-mail metric in `delivery` and `engagement` is recipient-level or event-level.
-
-            '
-          example: 12
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct emails the mailbox received in this bucket.
-          example: 34
-    MailboxOwner:
-      type: object
-      additionalProperties: false
-      description: The principal that owns the mailbox. Always the workspace.
-      required:
-      - type
-      - id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          enum:
-          - workspace
-          readOnly: true
-          description: Owner principal type.
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/WorkspaceID'
-          description: Owner principal ID.
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
     Mailbox:
       type: object
       additionalProperties: false
@@ -1497,140 +1174,55 @@ components:
           format: date-time
           readOnly: true
           description: When the mailbox was deleted, or `null` if active. Deletion stops receiving; restore is available for 30 days unless permanent erasure has started.
-    MailboxStatsSummary:
+    MailboxOwner:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Single-row aggregate of the mailbox''s email activity across the full requested period. Counts are sums of per-bucket counts across the window. Latency percentiles are computed across the whole period rather than summed per bucket. Rates are `null` when their denominator is zero.
-
-        '
+      description: The principal that owns the mailbox. Always the workspace.
       required:
-      - sends_accepted
-      - delivery
-      - engagement
-      - latency
-      - received
-      properties:
-        sends_accepted:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct email messages the mailbox sent that were accepted, counted at the message level and summed per bucket across the period.
-          example: 231
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct emails the mailbox received, summed per bucket across the period.
-          example: 519
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    MailboxList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            items:
-              $ref: '#/components/schemas/Mailbox'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    ReceiveRule:
-      type: object
-      additionalProperties: false
-      description: 'An allow or block entry on a mailbox, evaluated when inbound mail arrives. Matching is against the message''s envelope sender; domain entries also match subdomains. A given entry can be allow or block, never both.
-
-        '
-      required:
+      - type
       - id
-      - mailbox_id
-      - action
-      - entry
-      - entry_type
-      - note
-      - created_at
       properties:
+        type:
+          type: string
+          minLength: 1
+          enum:
+          - workspace
+          readOnly: true
+          description: Owner principal type.
         id:
           readOnly: true
-          $ref: '#/components/schemas/ReceiveRuleID'
-          description: Identifies this rule for deletion. There is no update operation.
-        mailbox_id:
-          readOnly: true
-          $ref: '#/components/schemas/MailboxID'
-          description: The mailbox the rule applies to.
+          $ref: '#/components/schemas/WorkspaceID'
+          description: Owner principal ID.
+    ReceiveRuleCreate:
+      type: object
+      additionalProperties: false
+      description: Parameters for adding a receive rule to a mailbox.
+      required:
+      - action
+      - entry
+      properties:
         action:
           type: string
           minLength: 1
           enum:
           - allow
           - block
-          readOnly: true
-          description: 'What the rule does when it matches. Block rules always win: over allow rules and over the reply admission on allowlist mailboxes.'
+          description: What the rule does when it matches. Block rules always win. To flip an entry's action, delete the existing rule and re-create it.
         entry:
           type: string
           minLength: 1
           maxLength: 255
-          readOnly: true
-          description: The sender address or domain the rule matches. Domains also match their subdomains.
+          description: The sender address (`alice@example.com`) or domain (`example.com`) to match. Domains also match their subdomains. Stored lowercase.
           example: partner.example.com
-        entry_type:
-          type: string
-          minLength: 1
-          enum:
-          - address
-          - domain
-          readOnly: true
-          description: Whether the entry is a full address or a domain.
         note:
-          type:
-          - string
-          - 'null'
-          maxLength: 512
-          readOnly: true
-          description: Your own note about why the rule exists. `null` when unset.
-        created_at:
           type: string
-          format: date-time
           minLength: 1
-          readOnly: true
-          description: When the rule was created.
-    StatsGrain:
-      type: string
-      minLength: 1
-      enum:
-      - day
-      - hour
-      readOnly: true
-      description: The bucket grain of the series, either `day` or `hour`.
-      example: day
+          maxLength: 512
+          description: Your own note about why the rule exists.
+      example:
+        action: allow
+        entry: partner.example.com
+        note: Approved partner senders
     EmailDeliveryStats:
       type: object
       additionalProperties: false
@@ -1787,45 +1379,497 @@ components:
       minLength: 1
       pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
       example: ws_01krdgeqcxet5s7t44vh8rt9mg
-    ReceiveRuleCreate:
+    MailboxStatsResponse:
       type: object
       additionalProperties: false
-      description: Parameters for adding a receive rule to a mailbox.
+      description: 'A mailbox''s sent and received email statistics: a period-wide summary plus a bucketed time series. `period` echoes the range and grain actually used. `data` is one row per bucket in chronological order.
+
+        '
       required:
+      - period
+      - summary
+      - data
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsSeriesPeriod'
+        summary:
+          $ref: '#/components/schemas/MailboxStatsSummary'
+        data:
+          type: array
+          readOnly: true
+          description: One row per bucket in the period, in chronological order. Buckets with no activity are included with zero counts.
+          items:
+            $ref: '#/components/schemas/MailboxStatsPoint'
+    MailboxStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Per-mailbox email activity for one time bucket, bucketed by event time. Sent-mail metrics use the same delivery, engagement, and latency breakdowns as the email stats endpoints. `received` counts mail that arrived at the mailbox. Buckets with no activity are included with zero counts and `null` latency percentiles.
+
+        '
+      required:
+      - bucket
+      - sends_accepted
+      - delivery
+      - engagement
+      - latency
+      - received
+      properties:
+        bucket:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The day (`YYYY-MM-DD`) or instant (RFC 3339, on the bucket boundary) this point covers, matching the period's grain.
+          example: '2026-07-21'
+        sends_accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Distinct email messages the mailbox sent that were accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other sent-mail metric in `delivery` and `engagement` is recipient-level or event-level.
+
+            '
+          example: 12
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct emails the mailbox received in this bucket.
+          example: 34
+    MailboxID:
+      type: string
+      minLength: 1
+      pattern: ^mbx_[0-9a-hjkmnp-tv-z]{26}$
+      example: mbx_01krdgeqcxet5s7t44vh8rt9mg
+    EmailStatsSeriesPeriod:
+      type: object
+      additionalProperties: false
+      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
+
+        '
+      required:
+      - from
+      - to
+      - grain
+      properties:
+        from:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.
+          example: '2026-05-01'
+        to:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
+          example: '2026-05-31'
+        grain:
+          $ref: '#/components/schemas/StatsGrain'
+          readOnly: true
+        data_as_of:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response reflects data from up to a few seconds ago. Use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
+
+            '
+          example: '2026-05-25T14:03:10Z'
+    MailboxCreate:
+      type: object
+      additionalProperties: false
+      description: Parameters for creating a mailbox.
+      properties:
+        local_part:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9._-]+$
+          description: The local part of the mailbox address (the part before `@`). Letters, digits, dots, underscores, and hyphens. Stored lowercase. On the shared `inbox.ai` domain, separators must sit between letters or digits. Leading, trailing, and repeated separators are not allowed. Reserved names such as `postmaster` and `abuse` are unavailable. Choosing your own local part uses one of your plan's custom-handle allowance slots; generated addresses remain available. Omit this field to generate a random local part.
+          example: concierge
+        domain:
+          type: string
+          minLength: 1
+          maxLength: 255
+          default: inbox.ai
+          description: The domain the address lives under. Defaults to `inbox.ai`, our shared mailbox domain. Creating a mailbox claims the shared address for your organization on a first-come, first-served basis. The address remains reserved to your organization after the mailbox is deleted. You can instead use one of your own domains enabled for receiving email.
+          example: mail.acme.com
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Display name used as the sender name on mail from this mailbox.
+          example: Acme Concierge
+        default_reply_to:
+          type: string
+          format: email
+          minLength: 5
+          description: Default `Reply-To` address stamped on mail sent from this mailbox.
+        receive_policy:
+          type: string
+          enum:
+          - open
+          - replies_only
+          - allowlist
+          - drop
+          default: open
+          description: "Which inbound mail the mailbox accepts:\n\n- `open`: Accepts everything not blocked by a rule.\n- `replies_only`: Accepts only replies to messages this mailbox has\n  sent. A reply must match a message the mailbox sent. Landing in an\n  existing thread by itself does not count.\n- `allowlist`: Accepts only senders matching an allow rule.\n- `drop`: Stores nothing.\n"
+        retention_tier:
+          type: string
+          enum:
+          - 30d
+          - 90d
+          - 1y
+          default: 30d
+          description: How long message metadata, extracted text, and attachments are kept. Original bodies and inbound raw MIME are limited to 30 days on every tier. Longer tiers require a plan that includes them.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Your own key/value data to attach to the mailbox. Up to 2 KB. Keys starting with `__bird` are reserved.
+      example:
+        local_part: concierge
+        display_name: Acme Concierge
+        receive_policy: open
+        retention_tier: 30d
+    EmailLatencyStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
+
+
+        - `processing`: Time from accepting the send to handing the message off for delivery. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
+
+        - `delivery`: Time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behavior. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+
+        - `total`: End-to-end time from accepting the send to delivery, and the number most worth watching against your own delivery targets. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+
+
+        Each family is reported independently. A family is omitted when no qualifying
+
+        event contributed a latency measurement in the bucket. This also applies when
+
+        the workspace has not recorded latency for that stage yet. The `processing`
+
+        family can therefore be present while `delivery` and `total` are absent. A
+
+        client must handle a missing family, and a null p50/p95/p99 within a present
+
+        family, by rendering a placeholder rather than assuming a number.
+
+        '
+      properties:
+        processing:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+        delivery:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+        total:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+    EmailLatencyQuantiles:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Approximate p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. All three are null when no qualifying event contributed a measurement.
+
+        '
+      required:
+      - p50_ms
+      - p95_ms
+      - p99_ms
+      properties:
+        p50_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 420
+        p95_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 1820
+        p99_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 4920
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ReceiveRuleID:
+      type: string
+      minLength: 1
+      pattern: ^erl_[0-9a-hjkmnp-tv-z]{26}$
+      example: erl_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    ReceiveRule:
+      type: object
+      additionalProperties: false
+      description: 'An allow or block entry on a mailbox, evaluated when inbound mail arrives. Matching is against the message''s envelope sender; domain entries also match subdomains. A given entry can be allow or block, never both.
+
+        '
+      required:
+      - id
+      - mailbox_id
       - action
       - entry
+      - entry_type
+      - note
+      - created_at
       properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/ReceiveRuleID'
+          description: Identifies this rule for deletion. There is no update operation.
+        mailbox_id:
+          readOnly: true
+          $ref: '#/components/schemas/MailboxID'
+          description: The mailbox the rule applies to.
         action:
           type: string
           minLength: 1
           enum:
           - allow
           - block
-          description: What the rule does when it matches. Block rules always win. To flip an entry's action, delete the existing rule and re-create it.
+          readOnly: true
+          description: 'What the rule does when it matches. Block rules always win: over allow rules and over the reply admission on allowlist mailboxes.'
         entry:
           type: string
           minLength: 1
           maxLength: 255
-          description: The sender address (`alice@example.com`) or domain (`example.com`) to match. Domains also match their subdomains. Stored lowercase.
+          readOnly: true
+          description: The sender address or domain the rule matches. Domains also match their subdomains.
           example: partner.example.com
-        note:
+        entry_type:
           type: string
           minLength: 1
+          enum:
+          - address
+          - domain
+          readOnly: true
+          description: Whether the entry is a full address or a domain.
+        note:
+          type:
+          - string
+          - 'null'
           maxLength: 512
-          description: Your own note about why the rule exists.
+          readOnly: true
+          description: Your own note about why the rule exists. `null` when unset.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the rule was created.
+    InboundAddressID:
+      type: string
+      minLength: 1
+      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
+      example: ina_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    MailboxUpdate:
+      type: object
+      additionalProperties: false
+      description: Fields to update on a mailbox. Omitted fields are unchanged. Fields set to `null` are cleared. The address and domain are immutable.
+      properties:
+        display_name:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+          description: Display name used as the sender name on mail from this mailbox. `null` clears it.
+        default_reply_to:
+          type:
+          - string
+          - 'null'
+          format: email
+          description: Default `Reply-To` address stamped on mail sent from this mailbox. `null` clears it.
+        receive_policy:
+          type: string
+          enum:
+          - open
+          - replies_only
+          - allowlist
+          - drop
+          description: "Which inbound mail the mailbox accepts:\n\n- `open`: Accepts everything not blocked by a rule.\n- `replies_only`: Accepts only replies to messages this mailbox has\n  sent. A reply must match a message the mailbox sent. Landing in an\n  existing thread by itself does not count.\n- `allowlist`: Accepts only senders matching an allow rule.\n- `drop`: Stores nothing.\n"
+        retention_tier:
+          type: string
+          enum:
+          - 30d
+          - 90d
+          - 1y
+          description: How long message metadata, extracted text, and attachments are kept. Original bodies and inbound raw MIME are limited to 30 days on every tier. Longer tiers require a plan that includes them. Lowering the tier requires `confirm=true` when messages would be affected; accepted changes hide those messages immediately. Deletion waits at least ten minutes and until the retention update finishes.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Replaces the mailbox's key/value data. Up to 2 KB. Keys starting with `__bird` are reserved.
       example:
-        action: allow
-        entry: partner.example.com
-        note: Approved partner senders
+        display_name: Acme Concierge
+        retention_tier: 30d
+    MailboxStatsSummary:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Single-row aggregate of the mailbox''s email activity across the full requested period. Counts are sums of per-bucket counts across the window. Latency percentiles are computed across the whole period rather than summed per bucket. Rates are `null` when their denominator is zero.
+
+        '
+      required:
+      - sends_accepted
+      - delivery
+      - engagement
+      - latency
+      - received
+      properties:
+        sends_accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct email messages the mailbox sent that were accepted, counted at the message level and summed per bucket across the period.
+          example: 231
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct emails the mailbox received, summed per bucket across the period.
+          example: 519
+    StatsGrain:
+      type: string
+      minLength: 1
+      enum:
+      - day
+      - hour
+      readOnly: true
+      description: The bucket grain of the series, either `day` or `hour`.
+      example: day
   responses:
-    PaymentRequired:
-      description: Insufficient balance
+    InternalError:
+      description: Internal server error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    InternalError:
-      description: Internal server error
+    PaymentRequired:
+      description: Insufficient balance
       content:
         application/json:
           schema:
@@ -1839,6 +1883,12 @@ components:
           $ref: '#/components/headers/RateLimit-Policy'
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -1862,8 +1912,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
+    NotFound:
+      description: Resource not found
       content:
         application/json:
           schema:
@@ -1874,14 +1924,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
@@ -1893,20 +1937,6 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
 
@@ -1921,50 +1951,20 @@ components:
         type: string
         enum:
         - 'true'
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-    StatsTimezone:
-      name: timezone
-      in: query
-      required: false
-      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
 
         '
       schema:
         type: string
-        minLength: 1
-        example: Asia/Kathmandu
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

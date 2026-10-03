@@ -73,12 +73,6 @@ components:
       schema:
         type: string
   schemas:
-    TranscriptionCreate:
-      type: object
-      properties:
-        language:
-          type: string
-          description: The language of the recording for transcription.
     TranscriptionList:
       type: object
       properties:
@@ -113,6 +107,12 @@ components:
           type: string
           format: date-time
           description: The date and time when the transcription was last updated.
+    TranscriptionCreate:
+      type: object
+      properties:
+        language:
+          type: string
+          description: The language of the recording for transcription.
     TranscriptionResponse:
       type: object
       properties:

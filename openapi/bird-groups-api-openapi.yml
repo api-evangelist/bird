@@ -211,7 +211,114 @@ paths:
         '404':
           description: Resource not found
 components:
+  parameters:
+    groupIdParam:
+      name: groupId
+      in: path
+      required: true
+      description: The unique identifier of the group.
+      schema:
+        type: string
+    limitParam:
+      name: limit
+      in: query
+      required: false
+      description: The maximum number of items to return.
+      schema:
+        type: integer
+        default: 20
+    contactIdParam:
+      name: contactId
+      in: path
+      required: true
+      description: The unique identifier of the contact.
+      schema:
+        type: string
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      description: The number of items to skip.
+      schema:
+        type: integer
+        default: 0
   schemas:
+    GroupList:
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied to the result set.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of groups.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+    ContactList:
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied to the result set.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of contacts.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the group.
+        href:
+          type: string
+          format: uri
+          description: The URL of the group resource.
+        name:
+          type: string
+          description: The name of the group.
+        contacts:
+          type: object
+          description: Links to the contacts in the group.
+          properties:
+            href:
+              type: string
+              format: uri
+            totalCount:
+              type: integer
+        createdDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the group was created.
+        updatedDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the group was last updated.
+    GroupCreate:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: The name of the group.
     Contact:
       type: object
       properties:
@@ -269,113 +376,6 @@ components:
           type: string
           format: date-time
           description: The date and time when the contact was last updated.
-    GroupCreate:
-      type: object
-      required:
-      - name
-      properties:
-        name:
-          type: string
-          description: The name of the group.
-    Group:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the group.
-        href:
-          type: string
-          format: uri
-          description: The URL of the group resource.
-        name:
-          type: string
-          description: The name of the group.
-        contacts:
-          type: object
-          description: Links to the contacts in the group.
-          properties:
-            href:
-              type: string
-              format: uri
-            totalCount:
-              type: integer
-        createdDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the group was created.
-        updatedDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the group was last updated.
-    GroupList:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied to the result set.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of groups.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Group'
-    ContactList:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied to the result set.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of contacts.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Contact'
-  parameters:
-    groupIdParam:
-      name: groupId
-      in: path
-      required: true
-      description: The unique identifier of the group.
-      schema:
-        type: string
-    contactIdParam:
-      name: contactId
-      in: path
-      required: true
-      description: The unique identifier of the contact.
-      schema:
-        type: string
-    offsetParam:
-      name: offset
-      in: query
-      required: false
-      description: The number of items to skip.
-      schema:
-        type: integer
-        default: 0
-    limitParam:
-      name: limit
-      in: query
-      required: false
-      description: The maximum number of items to return.
-      schema:
-        type: integer
-        default: 20
   securitySchemes:
     accessKey:
       type: apiKey

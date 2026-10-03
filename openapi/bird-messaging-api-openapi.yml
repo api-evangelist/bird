@@ -96,6 +96,33 @@ components:
             $ref: '#/components/schemas/Message'
         nextPageToken:
           type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
+    MessageBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+          - image
+          - file
+          - html
+        text:
+          type: object
+          properties:
+            text:
+              type: string
     Message:
       type: object
       properties:
@@ -117,33 +144,6 @@ components:
         createdAt:
           type: string
           format: date-time
-    MessageBody:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-          - text
-          - image
-          - file
-          - html
-        text:
-          type: object
-          properties:
-            text:
-              type: string
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
     CreateMessage:
       type: object
       required:

@@ -81,6 +81,19 @@ paths:
           description: Unauthorized
 components:
   schemas:
+    AvailableNumberList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableNumber'
+        count:
+          type: integer
+          description: The number of items returned.
+        limit:
+          type: integer
+          description: The limit applied.
     AvailableNumber:
       type: object
       properties:
@@ -116,19 +129,6 @@ components:
         initialContractDuration:
           type: integer
           description: The initial contract duration in months.
-    AvailableNumberList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AvailableNumber'
-        count:
-          type: integer
-          description: The number of items returned.
-        limit:
-          type: integer
-          description: The limit applied.
   securitySchemes:
     accessKey:
       type: apiKey

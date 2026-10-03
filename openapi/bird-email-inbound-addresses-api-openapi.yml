@@ -250,190 +250,7 @@ paths:
       - mcp
       - n8n
 components:
-  parameters:
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-  headers:
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
   schemas:
-    InboundAddressList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of inbound addresses, newest first.
-            items:
-              $ref: '#/components/schemas/InboundAddress'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    InboundAddressID:
-      type: string
-      minLength: 1
-      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
-      example: ina_01krdgeqcxet5s7t44vh8rt9mg
-    InboundAddressCreate:
-      type: object
-      additionalProperties: false
-      description: Parameters for minting a new inbound address.
-      properties:
-        label:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: Your own label for this address, typically the source mailbox it maps to.
-          example: Support mailbox
-      example:
-        label: Support mailbox
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    InboundAddress:
-      type: object
-      additionalProperties: false
-      description: 'An email address we create for you, which receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address. Every message sent to it becomes a received email you can retrieve.
-
-        '
-      required:
-      - id
-      - address
-      - label
-      - created_at
-      - updated_at
-      properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/InboundAddressID'
-          description: Inbound address ID.
-        address:
-          type: string
-          format: email
-          minLength: 5
-          readOnly: true
-          description: The address to forward your mailbox to. We generate it when the inbound address is created.
-          example: a1b2c3@inbound.eu.bird.com
-        label:
-          type:
-          - string
-          - 'null'
-          maxLength: 255
-          description: Your own label for this address, typically the source mailbox it maps to. `null` when unset.
-          example: Support mailbox
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the inbound address was created.
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the inbound address was last updated.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -514,6 +331,61 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
+    InboundAddressList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of inbound addresses, newest first.
+            items:
+              $ref: '#/components/schemas/InboundAddress'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    InboundAddress:
+      type: object
+      additionalProperties: false
+      description: 'An email address we create for you, which receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address. Every message sent to it becomes a received email you can retrieve.
+
+        '
+      required:
+      - id
+      - address
+      - label
+      - created_at
+      - updated_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/InboundAddressID'
+          description: Inbound address ID.
+        address:
+          type: string
+          format: email
+          minLength: 5
+          readOnly: true
+          description: The address to forward your mailbox to. We generate it when the inbound address is created.
+          example: a1b2c3@inbound.eu.bird.com
+        label:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+          description: Your own label for this address, typically the source mailbox it maps to. `null` when unset.
+          example: Support mailbox
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the inbound address was created.
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the inbound address was last updated.
     _ListEnvelope:
       type: object
       required:
@@ -570,6 +442,72 @@ components:
           example: Support mailbox
       example:
         label: Sales mailbox
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    InboundAddressID:
+      type: string
+      minLength: 1
+      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
+      example: ina_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    InboundAddressCreate:
+      type: object
+      additionalProperties: false
+      description: Parameters for minting a new inbound address.
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Your own label for this address, typically the source mailbox it maps to.
+          example: Support mailbox
+      example:
+        label: Support mailbox
   responses:
     InternalError:
       description: Internal server error
@@ -586,6 +524,12 @@ components:
           $ref: '#/components/headers/RateLimit-Policy'
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -609,12 +553,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
     BadRequest:
       description: Bad request
       content:
@@ -627,12 +565,74 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
   securitySchemes:
     BearerAuth:
       type: http

@@ -142,35 +142,6 @@ components:
       schema:
         type: string
   schemas:
-    HlrLookup:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the HLR lookup.
-        network:
-          type: integer
-          description: The MCC-MNC code of the mobile network operator.
-        reference:
-          type: string
-          description: The client reference.
-        status:
-          type: string
-          description: The status of the HLR lookup.
-          enum:
-          - sent
-          - absent
-          - active
-          - unknown
-          - failed
-        createdDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the HLR lookup was created.
-        statusDatetime:
-          type: string
-          format: date-time
-          description: The date and time of the last status update.
     Hlr:
       type: object
       properties:
@@ -204,6 +175,35 @@ components:
           type: string
           format: date-time
           description: The date and time when the HLR was created.
+        statusDatetime:
+          type: string
+          format: date-time
+          description: The date and time of the last status update.
+    HlrLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the HLR lookup.
+        network:
+          type: integer
+          description: The MCC-MNC code of the mobile network operator.
+        reference:
+          type: string
+          description: The client reference.
+        status:
+          type: string
+          description: The status of the HLR lookup.
+          enum:
+          - sent
+          - absent
+          - active
+          - unknown
+          - failed
+        createdDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the HLR lookup was created.
         statusDatetime:
           type: string
           format: date-time

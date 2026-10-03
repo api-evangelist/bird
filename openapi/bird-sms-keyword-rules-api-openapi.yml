@@ -324,207 +324,15 @@ paths:
       - n8n
       - sdk
 components:
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    XWorkspaceId:
-      name: X-Workspace-Id
-      in: header
-      required: false
-      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
-      schema:
-        type: string
-        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   schemas:
-    SMSKeywordRuleUpdate:
-      type: object
-      additionalProperties: false
-      description: 'Changes the reply and the added keywords. What a rule applies to (its operation, country, language and number) is fixed once created: those decide which inbound messages reach it, so changing one would make it a different rule. Delete it and create the one you want.
-
-        '
-      properties:
-        keywords:
-          type: array
-          description: 'Replaces the extra keywords this rule matches, on top of the ones Bird ships. Send an empty array to keep Bird''s keywords only. Omit to leave the current ones unchanged.
-
-            '
-          items:
-            type: string
-            minLength: 1
-          example:
-          - pizza
-          - menu
-        reply:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          description: 'Replaces the message sent back when a keyword matches, except on a `confirm` rule, which never sends one whatever this is set to. Set it to null together with `confirmed_self_managed` to switch the auto-reply off. Omit to leave it unchanged.
-
-            '
-          example: You have been unsubscribed and will receive no further messages.
-        confirmed_self_managed:
-          type: boolean
-          description: 'Set this with `reply: null` to confirm you send this reply from your own system. Required to switch the auto-reply off, and rejected when a reply is given.
-
-            '
-          example: true
-    SMSKeywordRuleScope:
+    SMSKeywordRuleID:
       type: string
       minLength: 1
-      readOnly: true
-      enum:
-      - system
-      - workspace
-      description: 'Whether the rule is one of Bird''s defaults (`system`) or one your workspace created (`workspace`). A `workspace` rule takes precedence over Bird''s default for the same country, so it is how you replace a reply without losing the keywords Bird ships.
+      pattern: ^(sks|skw)_[0-9a-hjkmnp-tv-z]{26}$
+      example: skw_01krdgeqcxet5s7t44vh8rt9mg
+      description: 'Identifier of a keyword rule. An `sks_` id is one of Bird''s defaults, which you can read but not change; an `skw_` id is a rule your workspace created.
 
         '
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
     ErrorBody:
       type: object
       additionalProperties: false
@@ -605,45 +413,16 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    SMSKeywordRuleCreate:
+    SMSKeywordRuleUpdate:
       type: object
       additionalProperties: false
-      required:
-      - operation
+      description: 'Changes the reply and the added keywords. What a rule applies to (its operation, country, language and number) is fixed once created: those decide which inbound messages reach it, so changing one would make it a different rule. Delete it and create the one you want.
+
+        '
       properties:
-        operation:
-          $ref: '#/components/schemas/SMSKeywordOperation'
-        country:
-          type:
-          - string
-          - 'null'
-          minLength: 2
-          maxLength: 2
-          description: 'The country this rule applies in, as an ISO 3166-1 alpha-2 code. It matches a message two ways: one received on any of your numbers in this country, and one sent by a subscriber whose own number is in it, wherever they text you. Rules for the country a message arrives in always outrank rules for the country its sender is in; within each, your rule wins over Bird''s keywords for that country. To confine a rule to one of your numbers, set `number` instead. Required for `stop`, `start` and `help`, because those replace what Bird ships for one country and a worldwide rule would replace every country''s. Omit it only for `custom`, which then applies everywhere you send. Derived from `number` when you supply an E.164 number and leave this out; a short code carries no country, so a rule for one must name it.
-
-            '
-          example: NL
-        language:
-          type:
-          - string
-          - 'null'
-          minLength: 2
-          description: 'Which language this rule replaces, in countries where Bird ships keywords in more than one. Required there and rejected elsewhere. Listing the country''s rules shows whether it applies and which languages are available.
-
-            '
-          example: fr
-        number:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          description: 'Narrows the rule to one number you hold, in E.164 format or as a short code. Omit to cover every number you hold in the country. The number must be one of yours and able to receive messages.
-
-            '
-          example: '+18005551234'
         keywords:
           type: array
-          description: 'Extra keywords to match, on top of the ones Bird already ships for this operation and country. Omit to keep Bird''s keywords and change only the reply, including keywords Bird adds later. You cannot remove one of Bird''s keywords, and a keyword Bird has bound to another operation cannot be reused here. Required for `custom`, which inherits none.
+          description: 'Replaces the extra keywords this rule matches, on top of the ones Bird ships. Send an empty array to keep Bird''s keywords only. Omit to leave the current ones unchanged.
 
             '
           items:
@@ -657,13 +436,13 @@ components:
           - string
           - 'null'
           minLength: 1
-          description: 'The message to send back when a keyword matches, except on a `confirm` rule, which never sends one whatever this is set to. Set it to null together with `confirmed_self_managed` to send nothing at all.
+          description: 'Replaces the message sent back when a keyword matches, except on a `confirm` rule, which never sends one whatever this is set to. Set it to null together with `confirmed_self_managed` to switch the auto-reply off. Omit to leave it unchanged.
 
             '
           example: You have been unsubscribed and will receive no further messages.
         confirmed_self_managed:
           type: boolean
-          description: 'Set this with `reply: null` to confirm you send this reply from your own system, which switches Bird''s auto-reply off for the rule. Required to send no reply, and rejected when a reply is given, so the two can never disagree.
+          description: 'Set this with `reply: null` to confirm you send this reply from your own system. Required to switch the auto-reply off, and rejected when a reply is given.
 
             '
           example: true
@@ -788,19 +567,78 @@ components:
           readOnly: true
           description: When the rule was last changed. On one of Bird's defaults this is when Bird last changed the keywords or the reply for that country.
           example: '2026-08-12T09:00:00Z'
-    SMSKeywordRuleList:
+    SMSKeywordRuleScope:
+      type: string
+      minLength: 1
+      readOnly: true
+      enum:
+      - system
+      - workspace
+      description: 'Whether the rule is one of Bird''s defaults (`system`) or one your workspace created (`workspace`). A `workspace` rule takes precedence over Bird''s default for the same country, so it is how you replace a reply without losing the keywords Bird ships.
+
+        '
+    SMSKeywordRuleCreate:
       type: object
       additionalProperties: false
       required:
-      - data
+      - operation
       properties:
-        data:
+        operation:
+          $ref: '#/components/schemas/SMSKeywordOperation'
+        country:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          maxLength: 2
+          description: 'The country this rule applies in, as an ISO 3166-1 alpha-2 code. It matches a message two ways: one received on any of your numbers in this country, and one sent by a subscriber whose own number is in it, wherever they text you. Rules for the country a message arrives in always outrank rules for the country its sender is in; within each, your rule wins over Bird''s keywords for that country. To confine a rule to one of your numbers, set `number` instead. Required for `stop`, `start` and `help`, because those replace what Bird ships for one country and a worldwide rule would replace every country''s. Omit it only for `custom`, which then applies everywhere you send. Derived from `number` when you supply an E.164 number and leave this out; a short code carries no country, so a rule for one must name it.
+
+            '
+          example: NL
+        language:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          description: 'Which language this rule replaces, in countries where Bird ships keywords in more than one. Required there and rejected elsewhere. Listing the country''s rules shows whether it applies and which languages are available.
+
+            '
+          example: fr
+        number:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: 'Narrows the rule to one number you hold, in E.164 format or as a short code. Omit to cover every number you hold in the country. The number must be one of yours and able to receive messages.
+
+            '
+          example: '+18005551234'
+        keywords:
           type: array
-          description: 'The keyword rules that apply to your workspace, Bird''s defaults included. Ordered most specific first, so the first rule whose keywords match an inbound message is the one that runs. The set is small and returned in full; this list is not paginated.
+          description: 'Extra keywords to match, on top of the ones Bird already ships for this operation and country. Omit to keep Bird''s keywords and change only the reply, including keywords Bird adds later. You cannot remove one of Bird''s keywords, and a keyword Bird has bound to another operation cannot be reused here. Required for `custom`, which inherits none.
 
             '
           items:
-            $ref: '#/components/schemas/SMSKeywordRule'
+            type: string
+            minLength: 1
+          example:
+          - pizza
+          - menu
+        reply:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: 'The message to send back when a keyword matches, except on a `confirm` rule, which never sends one whatever this is set to. Set it to null together with `confirmed_self_managed` to send nothing at all.
+
+            '
+          example: You have been unsubscribed and will receive no further messages.
+        confirmed_self_managed:
+          type: boolean
+          description: 'Set this with `reply: null` to confirm you send this reply from your own system, which switches Bird''s auto-reply off for the rule. Required to send no reply, and rejected when a reply is given, so the two can never disagree.
+
+            '
+          example: true
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -818,14 +656,54 @@ components:
           type: string
           minLength: 1
           description: What is wrong with this field.
-    SMSKeywordRuleID:
-      type: string
-      minLength: 1
-      pattern: ^(sks|skw)_[0-9a-hjkmnp-tv-z]{26}$
-      example: skw_01krdgeqcxet5s7t44vh8rt9mg
-      description: 'Identifier of a keyword rule. An `sks_` id is one of Bird''s defaults, which you can read but not change; an `skw_` id is a rule your workspace created.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
 
-        '
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
     SMSKeywordOperation:
       type: string
       minLength: 1
@@ -838,6 +716,128 @@ components:
       - custom
       description: "What Bird does when an inbound message matches the rule.\n\n- `stop` unsubscribes the sender from further messages.\n- `start` resubscribes them.\n- `help` replies with your support information.\n- `info` replies with your program information. It behaves exactly as `help` does and is\n  separate so a country whose INFO answer must differ from its HELP answer can carry both.\n  Where Bird ships no `info` rule for a country, INFO is one of that country's `help`\n  keywords and answers with the `help` reply.\n- `confirm` marks a double opt-in reply. It sends nothing today, so answer it from your own\n  handler.\n- `custom` replies with the text you configured and has no other effect.\n\nBird's built-in rules fix the operation for `stop`, `start` and `help`; you can change their\nreply but not what they do. The same holds for `info` in any country where Bird ships an\n`info` rule. This is an open enum. Accept unrecognized values.\n"
       example: stop
+    SMSKeywordRuleList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: 'The keyword rules that apply to your workspace, Bird''s defaults included. Ordered most specific first, so the first rule whose keywords match an inbound message is the one that runs. The set is small and returned in full; this list is not paginated.
+
+            '
+          items:
+            $ref: '#/components/schemas/SMSKeywordRule'
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
   securitySchemes:
     BearerAuth:
       type: http

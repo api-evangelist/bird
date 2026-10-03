@@ -210,27 +210,6 @@ components:
           type: string
           example: I'd like to order something
           description: The phrase that might contain an intent.
-    LanguageList:
-      type: object
-      description: List of recognized languages.
-      properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Language'
-          description: The collection of languages.
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
     Dataset:
       type: object
       description: 'A collection of phrases with the corresponding intents. There can be multiple matching phrases per intent.
@@ -300,6 +279,27 @@ components:
           type: string
           example: NLD
           description: The ISO639-3 language code enum value.
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   securitySchemes:
     AccessKey:
       type: apiKey

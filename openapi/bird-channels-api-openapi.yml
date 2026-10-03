@@ -80,24 +80,6 @@ paths:
                 $ref: '#/components/schemas/Channel'
 components:
   schemas:
-    PresignedUpload:
-      type: object
-      properties:
-        mediaUrl:
-          type: string
-        uploadUrl:
-          type: string
-        uploadMethod:
-          type: string
-        uploadFormData:
-          type: object
-    CreatePresignedUpload:
-      type: object
-      required:
-      - contentType
-      properties:
-        contentType:
-          type: string
     ChannelList:
       type: object
       properties:
@@ -119,6 +101,24 @@ components:
         status:
           type: string
         connectorId:
+          type: string
+    PresignedUpload:
+      type: object
+      properties:
+        mediaUrl:
+          type: string
+        uploadUrl:
+          type: string
+        uploadMethod:
+          type: string
+        uploadFormData:
+          type: object
+    CreatePresignedUpload:
+      type: object
+      required:
+      - contentType
+      properties:
+        contentType:
           type: string
   parameters:
     WorkspaceId:

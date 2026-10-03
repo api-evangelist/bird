@@ -613,40 +613,131 @@ paths:
       - n8n
 components:
   schemas:
-    DomainCapabilities:
+    ErrorBody:
       type: object
       additionalProperties: false
       required:
-      - sending
-      - return_path
-      - dmarc
-      - tracking
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
       properties:
-        sending:
-          $ref: '#/components/schemas/DomainCapability'
-          description: 'Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
 
             '
-        return_path:
-          $ref: '#/components/schemas/DomainCapability'
-          description: 'Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF: no separate SPF record is needed.
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
 
             '
-        dmarc:
-          $ref: '#/components/schemas/DomainCapability'
-          description: 'DMARC policy check. Satisfied by any valid DMARC record covering the sending domain: on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.
-
-            '
-        tracking:
-          $ref: '#/components/schemas/DomainCapability'
-          description: 'Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.
-
-            '
-        inbound:
-          $ref: '#/components/schemas/DomainCapability'
-          description: 'Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to us. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured`: enabling is what actually starts delivery.
-
-            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    DomainEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - summary
+      - metadata
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/DomainEventID'
+          description: Event ID.
+        type:
+          type: string
+          minLength: 1
+          description: 'Type of domain event. `domain.status_changed` tracks ownership verification through the domain-level `status`. `domain.sending_status_changed` tracks readiness to send through `capabilities.sending`. The remaining `*_status_changed` types each track one DNS record''s verification. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.'
+          x-extensible-enum:
+          - domain.registered
+          - domain.settings_updated
+          - domain.return_path_changed
+          - domain.tracking_changed
+          - domain.tracking_removed
+          - domain.status_changed
+          - domain.sending_status_changed
+          - domain.dkim_status_changed
+          - domain.dmarc_status_changed
+          - domain.return_path_status_changed
+          - domain.tracking_status_changed
+          example: domain.status_changed
+        summary:
+          type: string
+          minLength: 1
+          description: Human-readable summary of what changed.
+          example: Domain verified — ownership confirmed.
+        metadata:
+          type: object
+          description: Structured details for the event. Status-change events carry `from` and `to`; record-level changes also carry `domain`, the affected hostname.
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the event was recorded.
     DomainCapabilityPending:
       type: object
       additionalProperties: false
@@ -673,6 +764,24 @@ components:
           - failed
           - temporary_failure
           example: pending
+    DomainReturnPathConfig:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      description: 'Return-path (bounce) domain configuration. The return-path domain receives bounce and complaint notifications for mail sent from this domain and is what mailbox providers check for SPF. Provide only the name part; we add the sending domain automatically.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: ^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$
+          description: 'Name part to use for the return-path domain. For example, `send` on `mail.acme.com` becomes `send.mail.acme.com`. Defaults to `send` when omitted at creation.
+
+            '
+          example: send
     Domain:
       type: object
       additionalProperties: false
@@ -815,60 +924,6 @@ components:
 
             '
           example: links
-    ShareDomainDnsRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - emails
-      properties:
-        emails:
-          type: array
-          minItems: 1
-          maxItems: 3
-          description: Email recipients for the domain's current DNS records. The first address is the direct recipient and the rest are copied on the same email; duplicates are ignored. Any invalid address fails the whole request with `422`.
-          items:
-            type: string
-            format: email
-            example: alice@example.com
-      example:
-        emails:
-        - alice@example.com
-        - bob@example.com
-    DomainCapability:
-      type: object
-      additionalProperties: false
-      required:
-      - status
-      properties:
-        status:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: "Capability verification status.\n\n- `pending`: verification has not run, or is currently running.\n- `verified`: all DNS records for this capability resolved with the\n  expected values.\n- `warning`: a record for this capability verified before and a recent\n  check no longer matches, but it is still within the grace period.\n  Sending is not yet affected; fix it before the grace period ends.\n- `failed`: DNS records resolved but at least one value is wrong.\n  Update your DNS to recover.\n- `temporary_failure`: DNS lookup failed transiently. Verification retries\n  automatically; do not change DNS records unless they are incorrect.\n- `not_configured`: the capability is not set up on this domain\n  (for example, no tracking domain configured).\n"
-          enum:
-          - pending
-          - verified
-          - warning
-          - failed
-          - temporary_failure
-          - not_configured
-          example: verified
-        domain:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'Hostname this capability is configured with: the return-path domain, the tracking domain, or the domain where the DMARC policy was found. `null` when not applicable or not configured.
-
-            '
-        pending:
-          $ref: '#/components/schemas/DomainCapabilityPending'
-        reason:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: "Machine-readable reason code for a failed capability status. Only set when\n`status` is `failed`. Use this to display a specific message to users rather\nthan a generic failure message.\n\n- `tracking_domain_in_use`: the link tracking subdomain is already claimed\n  by another organization.\n"
     DomainDKIM:
       type: object
       additionalProperties: false
@@ -899,6 +954,18 @@ components:
           readOnly: true
           description: RSA key size in bits.
           example: 2048
+    DomainDKIMConfig:
+      type: object
+      additionalProperties: false
+      description: DKIM signing configuration.
+      properties:
+        mode:
+          type: string
+          enum:
+          - txt
+          - delegated
+          default: txt
+          description: "How the DKIM public key is published in your DNS.\n\n- `txt` (default): you publish the DKIM public key as a TXT record. Key\n  rotation requires updating the record.\n- `delegated`: you publish a CNAME that points to a DKIM key we host and\n  rotate. This mode is unavailable for new configurations; supplying it\n  returns `422`.\n"
     DNSRecord:
       type: object
       additionalProperties: false
@@ -1010,6 +1077,101 @@ components:
             items:
               $ref: '#/components/schemas/Domain'
       - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    DomainEventID:
+      type: string
+      minLength: 1
+      pattern: ^dev_[0-9a-hjkmnp-tv-z]{26}$
+      example: dev_01krdgeqcxet5s7t44vh8rt9mg
+    WorkspaceID:
+      type: string
+      minLength: 1
+      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+      example: ws_01krdgeqcxet5s7t44vh8rt9mg
+    DomainCapabilities:
+      type: object
+      additionalProperties: false
+      required:
+      - sending
+      - return_path
+      - dmarc
+      - tracking
+      properties:
+        sending:
+          $ref: '#/components/schemas/DomainCapability'
+          description: 'Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.
+
+            '
+        return_path:
+          $ref: '#/components/schemas/DomainCapability'
+          description: 'Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF: no separate SPF record is needed.
+
+            '
+        dmarc:
+          $ref: '#/components/schemas/DomainCapability'
+          description: 'DMARC policy check. Satisfied by any valid DMARC record covering the sending domain: on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.
+
+            '
+        tracking:
+          $ref: '#/components/schemas/DomainCapability'
+          description: 'Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.
+
+            '
+        inbound:
+          $ref: '#/components/schemas/DomainCapability'
+          description: 'Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to us. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured`: enabling is what actually starts delivery.
+
+            '
+    _ListEnvelopeWithTotal:
+      allOf:
+      - $ref: '#/components/schemas/_ListEnvelope'
+      - type: object
+        properties:
+          total:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+            description: Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise `null`.
+    DomainID:
+      type: string
+      minLength: 1
+      pattern: ^dom_[0-9a-hjkmnp-tv-z]{26}$
+      example: dom_01krdgeqcxet5s7t44vh8rt9mg
+    ShareDomainDnsRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - emails
+      properties:
+        emails:
+          type: array
+          minItems: 1
+          maxItems: 3
+          description: Email recipients for the domain's current DNS records. The first address is the direct recipient and the rest are copied on the same email; duplicates are ignored. Any invalid address fails the whole request with `422`.
+          items:
+            type: string
+            format: email
+            example: alice@example.com
+      example:
+        emails:
+        - alice@example.com
+        - bob@example.com
+    DomainInboundConfig:
+      type: object
+      additionalProperties: false
+      required:
+      - enabled
+      description: 'Inbound (receiving) configuration. Enable inbound to receive email addressed to this domain. We return MX records to publish. After they verify, mail to any local-part at this domain is delivered as an inbound message and triggers the `email.received` webhook. Use a dedicated subdomain, such as `inbound.acme.com`, because using your apex domain would capture your corporate mail.
+
+        '
+      properties:
+        enabled:
+          type: boolean
+          description: 'Set `true` to enable receiving on this domain, `false` to disable it. Disabling tears receiving down and removes the MX records from `dns_records`; this is immediate in the normal case, and if a step needs retrying the capability clears as soon as teardown finishes.
+
+            '
+          example: true
     DomainSettings:
       type: object
       additionalProperties: false
@@ -1029,75 +1191,72 @@ components:
           description: 'Insert a tracking pixel in HTML email to record opens. You can enable this before your tracking domain has verified: it begins working once verification completes. A tracking domain must be configured; enabling it without one returns `409`.
 
             '
-    DomainEvent:
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
       type: object
       additionalProperties: false
       required:
-      - id
-      - type
-      - summary
-      - metadata
-      - created_at
+      - param
+      - message
       properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/DomainEventID'
-          description: Event ID.
-        type:
+        param:
           type: string
           minLength: 1
-          description: 'Type of domain event. `domain.status_changed` tracks ownership verification through the domain-level `status`. `domain.sending_status_changed` tracks readiness to send through `capabilities.sending`. The remaining `*_status_changed` types each track one DNS record''s verification. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.'
-          x-extensible-enum:
-          - domain.registered
-          - domain.settings_updated
-          - domain.return_path_changed
-          - domain.tracking_changed
-          - domain.tracking_removed
-          - domain.status_changed
-          - domain.sending_status_changed
-          - domain.dkim_status_changed
-          - domain.dmarc_status_changed
-          - domain.return_path_status_changed
-          - domain.tracking_status_changed
-          example: domain.status_changed
-        summary:
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
           type: string
           minLength: 1
-          description: Human-readable summary of what changed.
-          example: Domain verified — ownership confirmed.
-        metadata:
-          type: object
-          description: Structured details for the event. Status-change events carry `from` and `to`; record-level changes also carry `domain`, the affected hostname.
-          additionalProperties: true
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          description: When the event was recorded.
-    SortOrder:
-      type: string
-      enum:
-      - asc
-      - desc
-      description: Sort direction, ascending or descending.
-    DomainID:
-      type: string
-      minLength: 1
-      pattern: ^dom_[0-9a-hjkmnp-tv-z]{26}$
-      example: dom_01krdgeqcxet5s7t44vh8rt9mg
-    Error:
+          description: What is wrong with this field.
+    DomainCreate:
       type: object
       additionalProperties: false
       required:
-      - error
+      - domain
       properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    DomainEventID:
-      type: string
-      minLength: 1
-      pattern: ^dev_[0-9a-hjkmnp-tv-z]{26}$
-      example: dev_01krdgeqcxet5s7t44vh8rt9mg
+        domain:
+          type: string
+          format: hostname
+          minLength: 1
+          description: 'The domain you send from: the domain of your `from` addresses. Use a dedicated subdomain (for example, `mail.acme.com`) rather than your registered domain so sending reputation stays separate from other services on the domain.
+
+            '
+          example: mail.acme.com
+        return_path:
+          $ref: '#/components/schemas/DomainReturnPathConfig'
+        tracking:
+          $ref: '#/components/schemas/DomainTrackingConfig'
+        dkim:
+          $ref: '#/components/schemas/DomainDKIMConfig'
+        settings:
+          $ref: '#/components/schemas/DomainSettings'
+      example:
+        domain: mail.acme.com
     NextAction:
       type: object
       additionalProperties: false
@@ -1138,122 +1297,20 @@ components:
           description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
 
             '
-    DomainEventList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of domain events, newest first by default.
-            items:
-              $ref: '#/components/schemas/DomainEvent'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    DomainCreate:
+    Error:
       type: object
       additionalProperties: false
       required:
-      - domain
+      - error
       properties:
-        domain:
-          type: string
-          format: hostname
-          minLength: 1
-          description: 'The domain you send from: the domain of your `from` addresses. Use a dedicated subdomain (for example, `mail.acme.com`) rather than your registered domain so sending reputation stays separate from other services on the domain.
-
-            '
-          example: mail.acme.com
-        return_path:
-          $ref: '#/components/schemas/DomainReturnPathConfig'
-        tracking:
-          $ref: '#/components/schemas/DomainTrackingConfig'
-        dkim:
-          $ref: '#/components/schemas/DomainDKIMConfig'
-        settings:
-          $ref: '#/components/schemas/DomainSettings'
-      example:
-        domain: mail.acme.com
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
     DomainUpdate:
       type: object
       additionalProperties: false
@@ -1291,140 +1348,62 @@ components:
           open_tracking: true
         tracking:
           name: links
-    DomainDKIMConfig:
+    DomainCapability:
       type: object
       additionalProperties: false
-      description: DKIM signing configuration.
+      required:
+      - status
       properties:
-        mode:
+        status:
           type: string
+          minLength: 1
+          readOnly: true
+          description: "Capability verification status.\n\n- `pending`: verification has not run, or is currently running.\n- `verified`: all DNS records for this capability resolved with the\n  expected values.\n- `warning`: a record for this capability verified before and a recent\n  check no longer matches, but it is still within the grace period.\n  Sending is not yet affected; fix it before the grace period ends.\n- `failed`: DNS records resolved but at least one value is wrong.\n  Update your DNS to recover.\n- `temporary_failure`: DNS lookup failed transiently. Verification retries\n  automatically; do not change DNS records unless they are incorrect.\n- `not_configured`: the capability is not set up on this domain\n  (for example, no tracking domain configured).\n"
           enum:
-          - txt
-          - delegated
-          default: txt
-          description: "How the DKIM public key is published in your DNS.\n\n- `txt` (default): you publish the DKIM public key as a TXT record. Key\n  rotation requires updating the record.\n- `delegated`: you publish a CNAME that points to a DKIM key we host and\n  rotate. This mode is unavailable for new configurations; supplying it\n  returns `422`.\n"
-    DomainReturnPathConfig:
-      type: object
-      additionalProperties: false
-      required:
-      - name
-      description: 'Return-path (bounce) domain configuration. The return-path domain receives bounce and complaint notifications for mail sent from this domain and is what mailbox providers check for SPF. Provide only the name part; we add the sending domain automatically.
-
-        '
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 63
-          pattern: ^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$
-          description: 'Name part to use for the return-path domain. For example, `send` on `mail.acme.com` becomes `send.mail.acme.com`. Defaults to `send` when omitted at creation.
+          - pending
+          - verified
+          - warning
+          - failed
+          - temporary_failure
+          - not_configured
+          example: verified
+        domain:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Hostname this capability is configured with: the return-path domain, the tracking domain, or the domain where the DMARC policy was found. `null` when not applicable or not configured.
 
             '
-          example: send
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
+        pending:
+          $ref: '#/components/schemas/DomainCapabilityPending'
+        reason:
           type:
           - string
           - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    _ListEnvelopeWithTotal:
+          readOnly: true
+          description: "Machine-readable reason code for a failed capability status. Only set when\n`status` is `failed`. Use this to display a specific message to users rather\nthan a generic failure message.\n\n- `tracking_domain_in_use`: the link tracking subdomain is already claimed\n  by another organization.\n"
+    DomainEventList:
       allOf:
-      - $ref: '#/components/schemas/_ListEnvelope'
       - type: object
+        required:
+        - data
         properties:
-          total:
-            type:
-            - integer
-            - 'null'
-            format: int64
-            minimum: 0
-            description: Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise `null`.
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    DomainInboundConfig:
-      type: object
-      additionalProperties: false
-      required:
-      - enabled
-      description: 'Inbound (receiving) configuration. Enable inbound to receive email addressed to this domain. We return MX records to publish. After they verify, mail to any local-part at this domain is delivered as an inbound message and triggers the `email.received` webhook. Use a dedicated subdomain, such as `inbound.acme.com`, because using your apex domain would capture your corporate mail.
-
-        '
-      properties:
-        enabled:
-          type: boolean
-          description: 'Set `true` to enable receiving on this domain, `false` to disable it. Disabling tears receiving down and removes the MX records from `dns_records`; this is immediate in the normal case, and if a step needs retrying the capability clears as soon as teardown finishes.
-
-            '
-          example: true
-    WorkspaceID:
-      type: string
-      minLength: 1
-      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
-      example: ws_01krdgeqcxet5s7t44vh8rt9mg
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
+          data:
+            type: array
+            description: Page of domain events, newest first by default.
+            items:
+              $ref: '#/components/schemas/DomainEvent'
+      - $ref: '#/components/schemas/_ListEnvelope'
   parameters:
+    IncludeTotal:
+      name: include_total
+      in: query
+      required: false
+      description: When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
+      schema:
+        type: boolean
+        default: false
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -1447,14 +1426,6 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
-    IncludeTotal:
-      name: include_total
-      in: query
-      required: false
-      description: When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
-      schema:
-        type: boolean
-        default: false
     PaginationLimit:
       name: limit
       in: query
@@ -1495,6 +1466,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     ServiceUnavailable:
       description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
 
@@ -1514,12 +1491,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
     BadRequest:
       description: Bad request
       content:
@@ -1532,8 +1503,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
@@ -1544,6 +1515,35 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

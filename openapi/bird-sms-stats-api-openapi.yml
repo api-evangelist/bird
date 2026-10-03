@@ -1430,101 +1430,34 @@ paths:
       - sdk
 components:
   schemas:
-    SMSInboundCountryStatsPoint:
+    SMSStatsSeriesPeriod:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Received-message volume for one country.
-
-        '
-      required:
-      - country
-      - received
-      properties:
-        country:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The country of the Bird number the messages arrived on, as an ISO 3166-1 alpha-2 code. This identifies where the message was received. It does not identify the sender's country.
-          example: US
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages received on numbers in this country during the period.
-          example: 1840
-    SMSStatsResponse:
-      type: object
-      additionalProperties: false
-      description: 'Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
-
-        '
-      required:
-      - period
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSeriesPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: One row per day or hour in chronological order. Buckets with no activity contain zero counts.
-          items:
-            $ref: '#/components/schemas/SMSStatsPoint'
-    SMSStatusStatsPoint:
-      type: object
-      additionalProperties: false
-      description: The number of messages that ended the requested period in a single lifecycle status. This transposes the lifecycle counts into one row per status, so it carries no rates or latency.
-      required:
-      - status
-      - count
-      properties:
-        status:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The lifecycle status this row counts. These are successive lifecycle stages. The `accepted` status was admitted for sending, `sent` was handed to the carrier, and `delivered` was confirmed by the carrier. The `undelivered`, `failed`, and `expired` statuses are failure outcomes. The `rejected` status was refused before a send attempt. Counted outcomes are a subset of the full message status vocabulary. The pre-send `scheduled`, cancellation `canceled`, and inbound-only `received` statuses are not send outcomes, so they never appear here.
-
-            '
-          enum:
-          - accepted
-          - sent
-          - delivered
-          - undelivered
-          - failed
-          - rejected
-          - expired
-          example: delivered
-        count:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages that reached this lifecycle status in the period, attributed to the message's send time rather than the event's own.
-          example: 14720
-    SMSStatsSummaryPeriod:
-      type: object
-      additionalProperties: false
-      description: 'The window the server actually computed against. The summary serves two window grains: calendar days (bounds are YYYY-MM-DD) and hours (bounds are RFC 3339 instants on the hour). The grain of `from` and `to` mirrors the grain of the request''s bounds.
+      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
 
         '
       required:
       - from
       - to
+      - grain
       properties:
         from:
           type: string
           minLength: 1
           pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: Inclusive start of the window, as a calendar day (`YYYY-MM-DD`) or an RFC 3339 hour boundary.
+          description: Inclusive start of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant rounded to the hour on the hour grain.
           example: '2026-05-01'
         to:
           type: string
           minLength: 1
           pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: Inclusive end of the window, as a calendar day (`YYYY-MM-DD`) or an RFC 3339 hour boundary.
-          example: '2026-05-25'
+          description: Inclusive end of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant rounded to the hour on the hour grain.
+          example: '2026-05-31'
+        grain:
+          $ref: '#/components/schemas/StatsGrain'
+          readOnly: true
         data_as_of:
           type:
           - string
@@ -1535,6 +1468,172 @@ components:
 
             '
           example: '2026-05-25T14:03:10Z'
+    SMSStatsByStatusResponse:
+      type: object
+      additionalProperties: false
+      description: Lifecycle-status breakdown for the requested period, ordered by message count descending. Statuses with no activity are omitted.
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Status breakdown rows, one per lifecycle status with activity, ordered by count descending. Empty when no messages had activity in the period.
+          items:
+            $ref: '#/components/schemas/SMSStatusStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Number of distinct lifecycle statuses with activity in the period (at most seven). Equal to the number of rows returned, since this breakdown is never capped.
+          example: 5
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    StatsComparePeriod:
+      type: string
+      description: 'Set to `previous_period` to also return the same figures for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
+
+        '
+      enum:
+      - previous_period
+    SMSStatsByTagResponse:
+      type: object
+      additionalProperties: false
+      description: Per-tag breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Tag breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no tagged messages were sent in the period.
+          items:
+            $ref: '#/components/schemas/SMSTagStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct tags with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 18
+    SMSStatsSummary:
+      type: object
+      additionalProperties: false
+      description: 'Single-row aggregate across the full requested period, covering SMS lifecycle counts plus the derived delivery and failure rates, and latency percentiles. Use this endpoint for KPI tiles and reporting; the daily and hourly endpoints carry the same counts per bucket.
+
+
+        Every count is a sum of per-bucket counts across the window. Latency percentiles are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.
+
+        '
+      required:
+      - period
+      - delivery
+      - latency
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSLatencyStats'
+        comparison:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSStatsComparison'
     SMSInboundNumberStatsPoint:
       type: object
       additionalProperties: false
@@ -1586,6 +1685,115 @@ components:
           description: Per-bucket lifecycle counts for this error code, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
           items:
             $ref: '#/components/schemas/SMSStatsPoint'
+    SMSStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The same statistics for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - delivery
+      - latency
+      - delta
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: Equal-length window ending immediately before the requested start.
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSLatencyStats'
+        delta:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSStatsComparisonDelta'
+    SMSDeliveryStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'SMS lifecycle counts and rates for a whole period or breakdown. Counts use the message send time, so a later delivery stays attributed to the bucket in which the message was sent. Rates are null when their denominator is zero.
+
+        '
+      required:
+      - accepted
+      - sent
+      - delivered
+      - undelivered
+      - failed
+      - rejected
+      - expired
+      - delivery_rate
+      - failure_rate
+      properties:
+        accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages accepted for sending after admission checks. This is the denominator for `delivery_rate` and `failure_rate`.
+          example: 14820
+        sent:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages handed off to the carrier for delivery.
+          example: 14810
+        delivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages the carrier confirmed as delivered to the handset.
+          example: 14720
+        undelivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages the carrier reported as not delivered.
+          example: 60
+        failed:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages that failed during sending.
+          example: 25
+        rejected:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages rejected before any send attempt, for example by sending policy or a message-generation failure.
+          example: 10
+        expired:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages that could not be delivered within their validity window and expired.
+          example: 5
+        delivery_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of accepted messages that were delivered, computed as `delivered / accepted`. Null when no messages were accepted in scope.
+
+            '
+          example: 0.9932
+        failure_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Share of accepted messages that ultimately failed, computed as `(undelivered + failed + expired) / accepted`. Null when no messages were accepted in scope.
+
+            '
+          example: 0.0061
     SMSDeliveryCounts:
       type: object
       additionalProperties: false
@@ -1644,102 +1852,10 @@ components:
           readOnly: true
           description: Distinct messages that could not be delivered within their validity window and expired.
           example: 5
-    SMSInboundStatsComparisonDelta:
+    SMSStatsByCategoryResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'The change from the preceding period to the requested one. The `received_pct_change` field is a signed relative change, computed as `(current - previous) / previous`. A value of `0.5` means 50% higher, and `-0.2` means 20% lower. The field is null when the previous period received none.
-
-        '
-      required:
-      - received_pct_change
-      properties:
-        received_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in received messages versus the previous period, as a signed fraction. Null when the previous period received none.
-          example: 0.058
-    SMSInboundStatsByOperatorResponse:
-      type: object
-      additionalProperties: false
-      description: 'Received-message volume broken down by operator, ranked by volume.
-
-        '
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: 'One row per operator with activity in the period, most messages first, capped at the requested `limit`. An operator with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
-
-            '
-          items:
-            $ref: '#/components/schemas/SMSInboundOperatorStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total number of distinct sending operators with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-          example: 38
-    SMSInboundStatsSummaryResponse:
-      type: object
-      additionalProperties: false
-      description: 'Total received messages over the requested period.
-
-        '
-      required:
-      - period
-      - received
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages received in the period, counted by the time the carrier received them.
-          example: 4210
-        comparison:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSInboundStatsComparison'
-    SMSLatencyStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Latency percentiles in milliseconds for the requested scope:
-
-
-        - `processing`: From acceptance to carrier handoff.
-
-        - `delivery`: From carrier handoff to delivery confirmation.
-
-        - `total`: From acceptance to delivery confirmation.
-
-
-        Each family is omitted when no qualifying event contributes a measurement.
-
-        Individual percentiles can also be null.
-
-        '
-      properties:
-        processing:
-          $ref: '#/components/schemas/SMSLatencyQuantiles'
-        delivery:
-          $ref: '#/components/schemas/SMSLatencyQuantiles'
-        total:
-          $ref: '#/components/schemas/SMSLatencyQuantiles'
-    SMSStatsByCarrierResponse:
-      type: object
-      additionalProperties: false
-      description: Per-carrier breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
+      description: Per-category breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
       required:
       - period
       - data
@@ -1751,53 +1867,68 @@ components:
         data:
           type: array
           readOnly: true
-          description: Carrier breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no messages were sent in the period.
+          description: Category breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no messages were sent in the period.
           items:
-            $ref: '#/components/schemas/SMSCarrierStatsPoint'
+            $ref: '#/components/schemas/SMSCategoryStatsPoint'
         total:
           type: integer
           minimum: 0
           readOnly: true
-          description: 'Total number of distinct carriers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+          description: 'Total number of distinct categories with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
 
             '
-          example: 24
-    StatsComparePeriod:
-      type: string
-      description: 'Set to `previous_period` to also return the same figures for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
-
-        '
-      enum:
-      - previous_period
-    SMSCategoryStatsPoint:
+          example: 8
+    SMSStatsByErrorCodeResponse:
       type: object
       additionalProperties: false
-      description: Aggregate delivery and latency stats for a single message category over the requested period.
+      description: Per-error-code breakdown for the requested period, ranked by the `sort` metric (default `failed`) descending and capped at the requested `limit` (default 50, max 200).
       required:
-      - category
-      - delivery
-      - latency
+      - period
+      - data
+      - total
       properties:
-        category:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The category this row aggregates, as set at send time. `transactional` is one-to-one messaging triggered by a user action; `marketing` is bulk sending. New categories may be added over time.
-          example: transactional
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSLatencyStats'
-        trend:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
           type: array
           readOnly: true
-          description: Per-bucket lifecycle counts for this category, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
+          description: Error-code breakdown rows, ranked by the `sort` metric (default `failed`) descending. Empty when no delivery failures occurred in the period.
           items:
-            $ref: '#/components/schemas/SMSStatsPoint'
+            $ref: '#/components/schemas/SMSErrorCodeStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct error codes with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 17
+    SMSInboundStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The received-message count for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - received
+      - delta
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: Equal-length window ending immediately before the requested start.
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in the preceding period.
+          example: 3980
+        delta:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSInboundStatsComparisonDelta'
     SMSLatencyQuantiles:
       type: object
       additionalProperties: false
@@ -1834,294 +1965,6 @@ components:
           readOnly: true
           description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
           example: 4920
-    SMSStatsByTagResponse:
-      type: object
-      additionalProperties: false
-      description: Per-tag breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Tag breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no tagged messages were sent in the period.
-          items:
-            $ref: '#/components/schemas/SMSTagStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct tags with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 18
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    SMSStatsComparison:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'The same statistics for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
-
-        '
-      required:
-      - period
-      - delivery
-      - latency
-      - delta
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: Equal-length window ending immediately before the requested start.
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSLatencyStats'
-        delta:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSStatsComparisonDelta'
-    SMSInboundStatsByNumberResponse:
-      type: object
-      additionalProperties: false
-      description: 'Received-message volume broken down by number, ranked by volume.
-
-        '
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: 'One row per number with activity in the period, most messages first, capped at the requested `limit`. A number with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
-
-            '
-          items:
-            $ref: '#/components/schemas/SMSInboundNumberStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total number of distinct numbers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-          example: 6
-    SMSStatsByStatusResponse:
-      type: object
-      additionalProperties: false
-      description: Lifecycle-status breakdown for the requested period, ordered by message count descending. Statuses with no activity are omitted.
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Status breakdown rows, one per lifecycle status with activity, ordered by count descending. Empty when no messages had activity in the period.
-          items:
-            $ref: '#/components/schemas/SMSStatusStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Number of distinct lifecycle statuses with activity in the period (at most seven). Equal to the number of rows returned, since this breakdown is never capped.
-          example: 5
-    SMSTagStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery and latency stats for a single tag (`name:value`) over the requested period.
-      required:
-      - tag
-      - delivery
-      - latency
-      properties:
-        tag:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The tag this row aggregates, in `name:value` form. Each distinct name-and-value pair is its own row, and a message carrying several tags is counted once under each of them, so rows do not sum to the period total.
-
-            '
-          example: campaign:summer_sale
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: 'Per-bucket lifecycle-count series for this tag over the window, bucketed by `trend_grain`. Sparse, so only buckets with activity are present rather than zero-filled, unlike the daily and hourly series. Present only when `include_trend=true`.
-
-            '
-          items:
-            $ref: '#/components/schemas/SMSStatsPoint'
-    SMSInboundOperatorStatsPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Received-message volume for one mobile operator.
-
-        '
-      required:
-      - mcc_mnc
-      - received
-      properties:
-        mcc_mnc:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: Mobile country code and mobile network code of the network the sending subscriber is on. The breakdown keys on this rather than on an operator name because the carrier reports a name only where a surcharge applies, which would leave most of the world in one unnamed bucket.
-          example: '311480'
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages received from senders on this operator during the period.
-          example: 640
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    SMSCountryStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery and latency stats for a single destination country over the requested period.
-      required:
-      - country
-      - delivery
-      - latency
-      properties:
-        country:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The destination country this row aggregates, as an ISO 3166-1 alpha-2 code.
-          example: US
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket lifecycle counts for this country, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/SMSStatsPoint'
-    SMSStatsSummary:
-      type: object
-      additionalProperties: false
-      description: 'Single-row aggregate across the full requested period, covering SMS lifecycle counts plus the derived delivery and failure rates, and latency percentiles. Use this endpoint for KPI tiles and reporting; the daily and hourly endpoints carry the same counts per bucket.
-
-
-        Every count is a sum of per-bucket counts across the window. Latency percentiles are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.
-
-        '
-      required:
-      - period
-      - delivery
-      - latency
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSLatencyStats'
-        comparison:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSStatsComparison'
-    SMSStatsPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'SMS lifecycle counts for one time bucket (a calendar day or hour), bucketed by send time. Every count in a bucket describes the messages accepted in it, regardless of when their later events arrived. Per-bucket values include counts only. The summary and breakdown endpoints report rates and latency as whole-window aggregates.
-
-        '
-      required:
-      - bucket
-      - delivery
-      properties:
-        bucket:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the period's grain.
-          example: '2026-05-25'
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryCounts'
     SMSStatsComparisonDelta:
       type: object
       additionalProperties: false
@@ -2207,160 +2050,23 @@ components:
 
             '
           example: -0.0008
-    SMSStatsByCategoryResponse:
+    SMSTagStatsPoint:
       type: object
       additionalProperties: false
-      description: Per-category breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
+      description: Aggregate delivery and latency stats for a single tag (`name:value`) over the requested period.
       required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Category breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no messages were sent in the period.
-          items:
-            $ref: '#/components/schemas/SMSCategoryStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct categories with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 8
-    StatsTrendGrain:
-      type: string
-      enum:
-      - daily
-      - hourly
-      default: daily
-      description: Bucket grain for a stats trend series.
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
-    SMSStatsByErrorCodeResponse:
-      type: object
-      additionalProperties: false
-      description: Per-error-code breakdown for the requested period, ranked by the `sort` metric (default `failed`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Error-code breakdown rows, ranked by the `sort` metric (default `failed`) descending. Empty when no delivery failures occurred in the period.
-          items:
-            $ref: '#/components/schemas/SMSErrorCodeStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct error codes with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 17
-    SMSOriginatorStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery and latency stats for a single originator (the sender address messages were sent from) over the requested period.
-      required:
-      - originator
+      - tag
       - delivery
       - latency
       properties:
-        originator:
+        tag:
           type: string
           minLength: 1
           readOnly: true
-          description: Sender address this row aggregates, either an alphanumeric sender ID or a phone number. Matches the message `from` value.
-          example: BirdSMS
+          description: 'The tag this row aggregates, in `name:value` form. Each distinct name-and-value pair is its own row, and a message carrying several tags is counted once under each of them, so rows do not sum to the period total.
+
+            '
+          example: campaign:summer_sale
         delivery:
           readOnly: true
           allOf:
@@ -2372,290 +2078,11 @@ components:
         trend:
           type: array
           readOnly: true
-          description: Per-bucket lifecycle counts for this originator, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
+          description: 'Per-bucket lifecycle-count series for this tag over the window, bucketed by `trend_grain`. Sparse, so only buckets with activity are present rather than zero-filled, unlike the daily and hourly series. Present only when `include_trend=true`.
+
+            '
           items:
             $ref: '#/components/schemas/SMSStatsPoint'
-    SMSDeliveryStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'SMS lifecycle counts and rates for a whole period or breakdown. Counts use the message send time, so a later delivery stays attributed to the bucket in which the message was sent. Rates are null when their denominator is zero.
-
-        '
-      required:
-      - accepted
-      - sent
-      - delivered
-      - undelivered
-      - failed
-      - rejected
-      - expired
-      - delivery_rate
-      - failure_rate
-      properties:
-        accepted:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages accepted for sending after admission checks. This is the denominator for `delivery_rate` and `failure_rate`.
-          example: 14820
-        sent:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages handed off to the carrier for delivery.
-          example: 14810
-        delivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages the carrier confirmed as delivered to the handset.
-          example: 14720
-        undelivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages the carrier reported as not delivered.
-          example: 60
-        failed:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages that failed during sending.
-          example: 25
-        rejected:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages rejected before any send attempt, for example by sending policy or a message-generation failure.
-          example: 10
-        expired:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages that could not be delivered within their validity window and expired.
-          example: 5
-        delivery_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Share of accepted messages that were delivered, computed as `delivered / accepted`. Null when no messages were accepted in scope.
-
-            '
-          example: 0.9932
-        failure_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'Share of accepted messages that ultimately failed, computed as `(undelivered + failed + expired) / accepted`. Null when no messages were accepted in scope.
-
-            '
-          example: 0.0061
-    SMSInboundStatsByCountryResponse:
-      type: object
-      additionalProperties: false
-      description: 'Received-message volume broken down by country, ranked by volume.
-
-        '
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: 'One row per country with activity in the period, most messages first, capped at the requested `limit`. A country with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
-
-            '
-          items:
-            $ref: '#/components/schemas/SMSInboundCountryStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total number of distinct countries the messages arrived in with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-          example: 12
-    SMSStatsSeriesPeriod:
-      type: object
-      additionalProperties: false
-      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
-
-        '
-      required:
-      - from
-      - to
-      - grain
-      properties:
-        from:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive start of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant rounded to the hour on the hour grain.
-          example: '2026-05-01'
-        to:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive end of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant rounded to the hour on the hour grain.
-          example: '2026-05-31'
-        grain:
-          $ref: '#/components/schemas/StatsGrain'
-          readOnly: true
-        data_as_of:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'Latest time reflected in the statistics. More recent events might not be included yet. Null when the freshness boundary is unavailable.
-
-            '
-          example: '2026-05-25T14:03:10Z'
-    SMSCarrierStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery and latency stats for a single delivery carrier over the requested period.
-      required:
-      - carrier
-      - delivery
-      - latency
-      properties:
-        carrier:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The delivery carrier this row aggregates, as resolved for the destination handset.
-          example: Verizon
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSDeliveryStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket lifecycle counts for this carrier, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/SMSStatsPoint'
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    SMSInboundStatsPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: One time bucket of received-message counts, attributed by arrival time.
-      required:
-      - bucket
-      - received
-      properties:
-        bucket:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Start of the bucket this row covers, as a calendar day (YYYY-MM-DD) for the daily series or an hour boundary (RFC 3339) for the hourly one.
-          example: '2026-05-01'
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages received in this bucket, counted by the time the carrier received them.
-          example: 128
-    SMSStatsByCountryResponse:
-      type: object
-      additionalProperties: false
-      description: Per-country breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Country breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no messages were sent in the period.
-          items:
-            $ref: '#/components/schemas/SMSCountryStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct destination countries with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 42
-    SMSStatsLifecycleSortMetric:
-      type: string
-      default: failed
-      description: 'Metric to rank breakdown rows by, applied descending. Shared by the breakdowns whose rows carry lifecycle counts only, with no derived rates to sort on.
-
-        '
-      enum:
-      - accepted
-      - sent
-      - delivered
-      - undelivered
-      - failed
-      - rejected
-      - expired
-    StatsGrain:
-      type: string
-      minLength: 1
-      enum:
-      - day
-      - hour
-      readOnly: true
-      description: The bucket grain of the series, either `day` or `hour`.
-      example: day
-    SMSInboundStatsResponse:
-      type: object
-      additionalProperties: false
-      description: 'Received-message time series. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
-
-        '
-      required:
-      - period
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSeriesPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: One row per bucket (day or hour, per the grain) in the period, in chronological order. Buckets with no activity are included with a count of zero, so the series charts continuously without client-side gap handling.
-          items:
-            $ref: '#/components/schemas/SMSInboundStatsPoint'
     SMSStatsByOriginatorResponse:
       type: object
       additionalProperties: false
@@ -2682,47 +2109,116 @@ components:
 
             '
           example: 42
-    SMSStatsSortMetric:
-      type: string
-      default: accepted
-      description: 'Metric to rank breakdown rows by, applied descending. Shared by the volume breakdowns whose rows carry the full delivery and latency block (originators, countries, categories, carriers). Any lifecycle count or derived rate may be used; rows whose rate is undefined (zero denominator) sort last.
-
-        '
-      enum:
-      - accepted
-      - sent
-      - delivered
-      - undelivered
-      - failed
-      - rejected
-      - expired
-      - delivery_rate
-      - failure_rate
-    SMSInboundStatsComparison:
+    SMSInboundCountryStatsPoint:
       type: object
       additionalProperties: false
       readOnly: true
-      description: 'The received-message count for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+      description: 'Received-message volume for one country.
 
         '
       required:
-      - period
+      - country
       - received
-      - delta
       properties:
-        period:
-          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
-          description: Equal-length window ending immediately before the requested start.
+        country:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The country of the Bird number the messages arrived on, as an ISO 3166-1 alpha-2 code. This identifies where the message was received. It does not identify the sender's country.
+          example: US
         received:
           type: integer
           minimum: 0
           readOnly: true
-          description: Distinct messages received in the preceding period.
-          example: 3980
-        delta:
+          description: Distinct messages received on numbers in this country during the period.
+          example: 1840
+    SMSInboundStatsByOperatorResponse:
+      type: object
+      additionalProperties: false
+      description: 'Received-message volume broken down by operator, ranked by volume.
+
+        '
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+        data:
+          type: array
           readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/SMSInboundStatsComparisonDelta'
+          description: 'One row per operator with activity in the period, most messages first, capped at the requested `limit`. An operator with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
+
+            '
+          items:
+            $ref: '#/components/schemas/SMSInboundOperatorStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total number of distinct sending operators with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+          example: 38
+    SMSStatsByCountryResponse:
+      type: object
+      additionalProperties: false
+      description: Per-country breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Country breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no messages were sent in the period.
+          items:
+            $ref: '#/components/schemas/SMSCountryStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct destination countries with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 42
+    SMSStatsSummaryPeriod:
+      type: object
+      additionalProperties: false
+      description: 'The window the server actually computed against. The summary serves two window grains: calendar days (bounds are YYYY-MM-DD) and hours (bounds are RFC 3339 instants on the hour). The grain of `from` and `to` mirrors the grain of the request''s bounds.
+
+        '
+      required:
+      - from
+      - to
+      properties:
+        from:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive start of the window, as a calendar day (`YYYY-MM-DD`) or an RFC 3339 hour boundary.
+          example: '2026-05-01'
+        to:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive end of the window, as a calendar day (`YYYY-MM-DD`) or an RFC 3339 hour boundary.
+          example: '2026-05-25'
+        data_as_of:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'Latest time reflected in the statistics. More recent events might not be included yet. Null when the freshness boundary is unavailable.
+
+            '
+          example: '2026-05-25T14:03:10Z'
     SMSErrorCode:
       type: string
       minLength: 1
@@ -2767,29 +2263,522 @@ components:
         This is an open enum. Accept unrecognized values.
 
         '
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+    SMSInboundStatsResponse:
+      type: object
+      additionalProperties: false
+      description: 'Received-message time series. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
+
+        '
+      required:
+      - period
+      - data
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSeriesPeriod'
+        data:
+          type: array
+          readOnly: true
+          description: One row per bucket (day or hour, per the grain) in the period, in chronological order. Buckets with no activity are included with a count of zero, so the series charts continuously without client-side gap handling.
+          items:
+            $ref: '#/components/schemas/SMSInboundStatsPoint'
+    SMSStatsLifecycleSortMetric:
+      type: string
+      default: failed
+      description: 'Metric to rank breakdown rows by, applied descending. Shared by the breakdowns whose rows carry lifecycle counts only, with no derived rates to sort on.
+
+        '
+      enum:
+      - accepted
+      - sent
+      - delivered
+      - undelivered
+      - failed
+      - rejected
+      - expired
+    SMSInboundStatsByCountryResponse:
+      type: object
+      additionalProperties: false
+      description: 'Received-message volume broken down by country, ranked by volume.
+
+        '
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+        data:
+          type: array
+          readOnly: true
+          description: 'One row per country with activity in the period, most messages first, capped at the requested `limit`. A country with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
+
+            '
+          items:
+            $ref: '#/components/schemas/SMSInboundCountryStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total number of distinct countries the messages arrived in with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+          example: 12
+    SMSInboundStatsByNumberResponse:
+      type: object
+      additionalProperties: false
+      description: 'Received-message volume broken down by number, ranked by volume.
+
+        '
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+        data:
+          type: array
+          readOnly: true
+          description: 'One row per number with activity in the period, most messages first, capped at the requested `limit`. A number with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
+
+            '
+          items:
+            $ref: '#/components/schemas/SMSInboundNumberStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total number of distinct numbers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+          example: 6
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    SMSLatencyStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Latency percentiles in milliseconds for the requested scope:
+
+
+        - `processing`: From acceptance to carrier handoff.
+
+        - `delivery`: From carrier handoff to delivery confirmation.
+
+        - `total`: From acceptance to delivery confirmation.
+
+
+        Each family is omitted when no qualifying event contributes a measurement.
+
+        Individual percentiles can also be null.
+
+        '
+      properties:
+        processing:
+          $ref: '#/components/schemas/SMSLatencyQuantiles'
+        delivery:
+          $ref: '#/components/schemas/SMSLatencyQuantiles'
+        total:
+          $ref: '#/components/schemas/SMSLatencyQuantiles'
+    StatsTrendGrain:
+      type: string
+      enum:
+      - daily
+      - hourly
+      default: daily
+      description: Bucket grain for a stats trend series.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    SMSStatsSortMetric:
+      type: string
+      default: accepted
+      description: 'Metric to rank breakdown rows by, applied descending. Shared by the volume breakdowns whose rows carry the full delivery and latency block (originators, countries, categories, carriers). Any lifecycle count or derived rate may be used; rows whose rate is undefined (zero denominator) sort last.
+
+        '
+      enum:
+      - accepted
+      - sent
+      - delivered
+      - undelivered
+      - failed
+      - rejected
+      - expired
+      - delivery_rate
+      - failure_rate
+    SMSCategoryStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery and latency stats for a single message category over the requested period.
+      required:
+      - category
+      - delivery
+      - latency
+      properties:
+        category:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The category this row aggregates, as set at send time. `transactional` is one-to-one messaging triggered by a user action; `marketing` is bulk sending. New categories may be added over time.
+          example: transactional
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket lifecycle counts for this category, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/SMSStatsPoint'
+    SMSStatusStatsPoint:
+      type: object
+      additionalProperties: false
+      description: The number of messages that ended the requested period in a single lifecycle status. This transposes the lifecycle counts into one row per status, so it carries no rates or latency.
+      required:
+      - status
+      - count
+      properties:
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The lifecycle status this row counts. These are successive lifecycle stages. The `accepted` status was admitted for sending, `sent` was handed to the carrier, and `delivered` was confirmed by the carrier. The `undelivered`, `failed`, and `expired` statuses are failure outcomes. The `rejected` status was refused before a send attempt. Counted outcomes are a subset of the full message status vocabulary. The pre-send `scheduled`, cancellation `canceled`, and inbound-only `received` statuses are not send outcomes, so they never appear here.
+
+            '
+          enum:
+          - accepted
+          - sent
+          - delivered
+          - undelivered
+          - failed
+          - rejected
+          - expired
+          example: delivered
+        count:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages that reached this lifecycle status in the period, attributed to the message's send time rather than the event's own.
+          example: 14720
+    SMSStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'SMS lifecycle counts for one time bucket (a calendar day or hour), bucketed by send time. Every count in a bucket describes the messages accepted in it, regardless of when their later events arrived. Per-bucket values include counts only. The summary and breakdown endpoints report rates and latency as whole-window aggregates.
+
+        '
+      required:
+      - bucket
+      - delivery
+      properties:
+        bucket:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the period's grain.
+          example: '2026-05-25'
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryCounts'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    SMSCountryStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery and latency stats for a single destination country over the requested period.
+      required:
+      - country
+      - delivery
+      - latency
+      properties:
+        country:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The destination country this row aggregates, as an ISO 3166-1 alpha-2 code.
+          example: US
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket lifecycle counts for this country, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/SMSStatsPoint'
+    SMSStatsResponse:
+      type: object
+      additionalProperties: false
+      description: 'Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
+
+        '
+      required:
+      - period
+      - data
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSeriesPeriod'
+        data:
+          type: array
+          readOnly: true
+          description: One row per day or hour in chronological order. Buckets with no activity contain zero counts.
+          items:
+            $ref: '#/components/schemas/SMSStatsPoint'
+    SMSInboundStatsSummaryResponse:
+      type: object
+      additionalProperties: false
+      description: 'Total received messages over the requested period.
+
+        '
+      required:
+      - period
+      - received
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in the period, counted by the time the carrier received them.
+          example: 4210
+        comparison:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSInboundStatsComparison'
+    SMSInboundStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: One time bucket of received-message counts, attributed by arrival time.
+      required:
+      - bucket
+      - received
+      properties:
+        bucket:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Start of the bucket this row covers, as a calendar day (YYYY-MM-DD) for the daily series or an hour boundary (RFC 3339) for the hourly one.
+          example: '2026-05-01'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in this bucket, counted by the time the carrier received them.
+          example: 128
+    SMSCarrierStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery and latency stats for a single delivery carrier over the requested period.
+      required:
+      - carrier
+      - delivery
+      - latency
+      properties:
+        carrier:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The delivery carrier this row aggregates, as resolved for the destination handset.
+          example: Verizon
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket lifecycle counts for this carrier, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/SMSStatsPoint'
+    SMSStatsByCarrierResponse:
+      type: object
+      additionalProperties: false
+      description: Per-carrier breakdown for the requested period, ranked by the `sort` metric (default `accepted`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/SMSStatsSummaryPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Carrier breakdown rows, ranked by the `sort` metric (default `accepted`) descending. Empty when no messages were sent in the period.
+          items:
+            $ref: '#/components/schemas/SMSCarrierStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct carriers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 24
+    SMSInboundOperatorStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Received-message volume for one mobile operator.
+
+        '
+      required:
+      - mcc_mnc
+      - received
+      properties:
+        mcc_mnc:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Mobile country code and mobile network code of the network the sending subscriber is on. The breakdown keys on this rather than on an operator name because the carrier reports a name only where a surcharge applies, which would leave most of the world in one unnamed bucket.
+          example: '311480'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received from senders on this operator during the period.
+          example: 640
+    SMSInboundStatsComparisonDelta:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The change from the preceding period to the requested one. The `received_pct_change` field is a signed relative change, computed as `(current - previous) / previous`. A value of `0.5` means 50% higher, and `-0.2` means 20% lower. The field is null when the previous period received none.
+
+        '
+      required:
+      - received_pct_change
+      properties:
+        received_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in received messages versus the previous period, as a signed fraction. Null when the previous period received none.
+          example: 0.058
+    StatsGrain:
+      type: string
+      minLength: 1
+      enum:
+      - day
+      - hour
+      readOnly: true
+      description: The bucket grain of the series, either `day` or `hour`.
+      example: day
+    SMSOriginatorStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery and latency stats for a single originator (the sender address messages were sent from) over the requested period.
+      required:
+      - originator
+      - delivery
+      - latency
+      properties:
+        originator:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Sender address this row aggregates, either an alphanumeric sender ID or a phone number. Matches the message `from` value.
+          example: BirdSMS
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSDeliveryStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/SMSLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket lifecycle counts for this originator, using `trend_grain`. Includes only buckets with activity. Present when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/SMSStatsPoint'
+  parameters:
+    StatsTimezone:
+      name: timezone
+      in: query
+      required: false
+      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
 
         '
       schema:
         type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
+        minLength: 1
+        example: Asia/Kathmandu
   responses:
     InternalError:
       description: Internal server error
@@ -2806,6 +2795,12 @@ components:
           $ref: '#/components/headers/RateLimit-Policy'
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -2829,36 +2824,41 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
     BadRequest:
       description: Bad request
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-  parameters:
-    StatsTimezone:
-      name: timezone
-      in: query
-      required: false
-      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
 
         '
       schema:
         type: string
-        minLength: 1
-        example: Asia/Kathmandu
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

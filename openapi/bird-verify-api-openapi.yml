@@ -115,6 +115,47 @@ components:
       schema:
         type: string
   schemas:
+    Verify:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the verification.
+        href:
+          type: string
+          format: uri
+          description: The URL of the verification resource.
+        recipient:
+          type: string
+          description: The phone number being verified.
+        reference:
+          type: string
+          description: The client reference.
+        status:
+          type: string
+          description: The status of the verification.
+          enum:
+          - sent
+          - expired
+          - failed
+          - verified
+          - deleted
+        messages:
+          type: object
+          description: Links to the associated message objects.
+          properties:
+            href:
+              type: string
+              format: uri
+              description: The URL of the associated messages.
+        createdDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the verification was created.
+        validUntilDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the verification token expires.
     VerifyCreate:
       type: object
       required:
@@ -167,47 +208,6 @@ components:
         language:
           type: string
           description: The language for text-to-speech delivery.
-    Verify:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the verification.
-        href:
-          type: string
-          format: uri
-          description: The URL of the verification resource.
-        recipient:
-          type: string
-          description: The phone number being verified.
-        reference:
-          type: string
-          description: The client reference.
-        status:
-          type: string
-          description: The status of the verification.
-          enum:
-          - sent
-          - expired
-          - failed
-          - verified
-          - deleted
-        messages:
-          type: object
-          description: Links to the associated message objects.
-          properties:
-            href:
-              type: string
-              format: uri
-              description: The URL of the associated messages.
-        createdDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the verification was created.
-        validUntilDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the verification token expires.
   securitySchemes:
     accessKey:
       type: apiKey

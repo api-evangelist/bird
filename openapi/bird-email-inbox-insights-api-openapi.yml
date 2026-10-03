@@ -1013,1208 +1013,6 @@ paths:
       - sdk
 components:
   schemas:
-    EmailInboxInsightsTrapType:
-      type: string
-      minLength: 1
-      description: 'What kind of spam trap was hit. `pristine` addresses were never used by a real person and never subscribed to anything, so a hit means the address was harvested or guessed rather than collected. `recycled` addresses belonged to a real person once and were retired, so hits point at stale list data. `typo` addresses catch misspellings of real domains, `parked` addresses sit on domains that are registered but not used for real mail, and `mixed` covers hits the trap network reports without a single kind. The trap network decides this set and can add to it, so treat an unrecognised value as a label to show rather than a case to exhaust. A hit whose kind is new is still a hit worth acting on.
-
-        '
-      x-extensible-enum:
-      - pristine
-      - recycled
-      - typo
-      - parked
-      - mixed
-      example: recycled
-    EmailInboxInsightsDomain:
-      type: object
-      additionalProperties: false
-      description: 'One of the workspace''s verified sending domains, and whether Inbox Insights is switched on for it.
-
-        '
-      required:
-      - domain
-      - monitored
-      properties:
-        domain:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The sending domain, lowercased, as it appears in your sending domains.
-          example: mail.acme.com
-        monitored:
-          type: boolean
-          readOnly: true
-          description: 'Whether Inbox Insights reports on this domain. Switching it off stops the reporting and keeps the measurement history, so switching it back on restores the full history rather than starting again.
-
-            '
-          example: true
-    EmailInboxInsightsPlacementSeriesPoint:
-      type: object
-      additionalProperties: false
-      description: One bucket of the placement series.
-      required:
-      - date
-      - mailbox_provider
-      - inbox_rate_percent
-      - spam_rate_percent
-      - inbox_raw_count
-      - spam_raw_count
-      properties:
-        date:
-          type: string
-          format: date
-          minLength: 1
-          readOnly: true
-          description: First UTC day of the bucket.
-          example: '2026-07-19'
-        mailbox_provider:
-          oneOf:
-          - $ref: '#/components/schemas/EmailInboxInsightsMailboxProvider'
-          - type: 'null'
-          readOnly: true
-          description: 'The provider this point describes, or null on the domain-wide line. Per-provider points appear only when the request named providers.
-
-            '
-          example: null
-        inbox_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Inbox share of the bucket's measured placements, as a percentage.
-          example: 90.6
-        spam_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Spam share of the bucket's measured placements, as a percentage.
-          example: 9.4
-        inbox_raw_count:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Measured placements observed in the inbox in this bucket.
-          example: 14201
-        spam_raw_count:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Measured placements observed in spam in this bucket.
-          example: 1473
-    EmailInboxInsightsDomains:
-      description: 'A page of sending domains this workspace can report on, and which of them Inbox Insights is switched on for.
-
-        '
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            readOnly: true
-            description: 'One entry per verified domain in this page, whether or not it is switched on. A domain that has not been verified does not appear, because verification is what proves the domain is yours to report on.
-
-              '
-            items:
-              $ref: '#/components/schemas/EmailInboxInsightsDomain'
-      - $ref: '#/components/schemas/_ListEnvelope'
-      unevaluatedProperties: false
-    EmailInboxInsightsComplaintSeries:
-      type: object
-      additionalProperties: false
-      description: 'The complaint-rate series, at the grain named in `window.group_by`. Index by date, never by position.
-
-        '
-      required:
-      - items
-      - status
-      properties:
-        items:
-          type: array
-          readOnly: true
-          description: One point per bucket.
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsComplaintSeriesPoint'
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    EmailInboxInsightsSpamTrapTypeCount:
-      type: object
-      additionalProperties: false
-      description: Trap hits of one kind.
-      required:
-      - type
-      - hits
-      properties:
-        type:
-          $ref: '#/components/schemas/EmailInboxInsightsTrapType'
-          readOnly: true
-        hits:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Hits of this kind over the period. A zero is a measured zero, not missing data: no pristine hits is a genuinely good result rather than an empty state.
-
-            '
-          example: 3
-    EmailInboxInsightsSpamTrapHits:
-      type: object
-      additionalProperties: false
-      description: 'The individual trap hits behind the totals. A sample rather than a guaranteed complete list, and its rows do not count hits: one row is one trap address, carrying a `hit_count` for how many times that address was reached. Neither the number of rows nor the sum of `hit_count` reconstructs `total`, because that field is absent wherever the trap network does not break the figure out. Read `truncated_types` for what the measurement capped rather than inferring completeness by comparing counts.
-
-        '
-      required:
-      - items
-      - truncated_types
-      - status
-      properties:
-        items:
-          type: array
-          readOnly: true
-          description: One entry per trap reached, newest first.
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsSpamTrapHit'
-        truncated_types:
-          type: array
-          readOnly: true
-          description: 'Trap kinds whose hits the measurement capped, so the rows shown for them are incomplete by design rather than by chance. Typo-trap hits, for instance, only ever cover the last seven days. An empty array means nothing was capped.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsTrapType'
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    EmailInboxInsightsWeighting:
-      type: object
-      additionalProperties: false
-      description: 'How the placement figures in this response were weighted, so a number is
-
-        self-describing wherever it is quoted or screenshotted.
-
-
-        Placement rates are a weighted average of per-provider rates against an
-
-        audience mix (the share of recipients expected at each mailbox provider)
-
-        rather than a share of delivered volume.
-
-        '
-      required:
-      - weight_set_id
-      - source
-      - basis
-      properties:
-        weight_set_id:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The measurement''s own identifier for the audience mix, carried through so a client can tell two weightings apart without comparing `basis` strings. No operation accepts it.
-
-            '
-          example: '12'
-        source:
-          oneOf:
-          - $ref: '#/components/schemas/EmailInboxInsightsWeightingSource'
-          - type: 'null'
-          readOnly: true
-          description: 'Which audience mix the weighting used. Null when the measurement weighted these figures by a method this API does not model: the enum is closed so that a client can branch on it exhaustively, which means an unfamiliar method has to answer "not one of these" rather than be passed through. `basis` usually still describes the method in words when that happens.
-
-            '
-        basis:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          readOnly: true
-          description: 'The weighting method behind the rates, as the measurement names it. A slug rather than a sentence, so render it as a label and do not expect it to read as English. Null when the measurement did not state one, which pairs with `source`: both describe the method, so neither can claim to know it when the measurement was silent.
-
-            '
-          example: weighted-mean-of-per-isp-rates
-    EmailInboxInsightsPlacementSummary:
-      type: object
-      additionalProperties: false
-      description: 'The domain-wide placement figures for the period.
-
-
-        These rates are weighted against the audience mix in `measurement.weighting`,
-
-        so they can legitimately differ from any single provider row, which has no
-
-        mix to weight. Rates are percentages of measured placements, never of
-
-        delivered volume.
-
-        '
-      required:
-      - inbox_rate_percent
-      - spam_rate_percent
-      - missing_rate_percent
-      - raw_counts
-      - read_rate_percent
-      - status
-      properties:
-        inbox_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Estimated share of measured placements that landed in the inbox, as a percentage.
-          example: 87.4
-        spam_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Estimated share of measured placements that landed in spam, as a percentage.
-          example: 12.6
-        missing_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Estimated share of measured sends that arrived in neither folder, as a percentage.
-          example: 0
-        raw_counts:
-          oneOf:
-          - $ref: '#/components/schemas/EmailInboxInsightsPlacementCounts'
-          - type: 'null'
-          readOnly: true
-          description: 'The measured placements the rates above were computed over, or null when the summary has none: a period with no measured mail reports null here rather than four zeros, because a zero count is a real measurement and would read as "we looked and found nothing" for a domain nothing looked at. Read `status` alongside it.
-
-            '
-        read_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: 'Estimated share of inbox-placed mail that was read, as a percentage, measured by the panel''s dwell time. This is not an open rate; the two count different things and are not interchangeable.
-
-            '
-          example: 21.4
-        delta_pts:
-          $ref: '#/components/schemas/EmailInboxInsightsPlacementDeltaPts'
-          readOnly: true
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    EmailInboxInsightsComplaintSeriesPoint:
-      type: object
-      additionalProperties: false
-      description: One bucket of the complaint-rate series.
-      required:
-      - date
-      - gmail_postmaster_spam_rate_percent
-      properties:
-        date:
-          type: string
-          format: date
-          minLength: 1
-          readOnly: true
-          description: First UTC day of the bucket.
-          example: '2026-07-19'
-        gmail_postmaster_spam_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: The bucket's Google Postmaster spam rate, as a percentage.
-          example: 0.08
-    EmailInboxInsightsAuthSources:
-      type: object
-      additionalProperties: false
-      description: 'Every system observed sending as this domain, with how each authenticates. This is the table that shows who else sends under the domain''s name.
-
-        '
-      required:
-      - items
-      - latest_data_date
-      - status
-      properties:
-        items:
-          type: array
-          readOnly: true
-          description: One row per observed sending source.
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsAuthSource'
-        latest_data_date:
-          type:
-          - string
-          - 'null'
-          format: date
-          readOnly: true
-          description: 'The most recent UTC day the source reporting includes. Aggregate DMARC reports arrive on reporters'' own schedules, routinely a day or more behind, so the newest days look sparse; label from this date rather than treating the dip as a regression.
-
-            '
-          example: '2026-08-15'
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    EmailInboxInsightsEnvelope:
-      type: object
-      description: 'The meta a windowed Inbox Insights resource carries: the common fields plus the period the figures cover and how they were measured.
-
-        '
-      allOf:
-      - $ref: '#/components/schemas/EmailInboxInsightsEnvelopeBase'
-      - type: object
-        required:
-        - window
-        properties:
-          window:
-            $ref: '#/components/schemas/EmailInboxInsightsWindow'
-          compared_to:
-            $ref: '#/components/schemas/EmailInboxInsightsComparedTo'
-    EmailInboxInsightsBlocklistListing:
-      type: object
-      additionalProperties: false
-      description: One listing of a target on one blocklist.
-      required:
-      - provider
-      - is_active
-      - reason_code
-      - reason
-      - first_detected
-      - last_detected
-      properties:
-        is_active:
-          type: boolean
-          readOnly: true
-          description: 'Whether this listing is in force now. A false entry is history: it shows the target was listed and has since cleared, which is why the target''s `is_listed` can be false while listings are present.
-
-            '
-          example: false
-        reason_code:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'The provider''s own short code for the listing reason, or null when it gives none. Stable where the prose in `reason` is not, so branch on this and display that.
-
-            '
-          example: CSS
-        provider:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The blocklist that carries the listing. Providers publishing several lists are reported per list rather than under one combined name, because what a listing means and how it is cleared differ per list.
-
-            '
-          example: Spamhaus CSS
-        reason:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: The reason the provider gives for the listing, or null when it publishes none.
-          example: Automated listing of a suspected snowshoe range
-        first_detected:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When this listing was first observed.
-          example: '2026-07-31T00:00:00Z'
-        last_detected:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'When this listing was most recently observed, or null while the listing is still in force. A provider records a last sighting only once one exists, so a null here reads as "still listed" rather than "never seen".
-
-            '
-          example: '2026-08-04T00:00:00Z'
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    EmailInboxInsightsGmailTabs:
-      type: object
-      additionalProperties: false
-      description: 'Where the domain''s Gmail-placed mail landed across Gmail''s tabs. The status is `not_applicable` when the domain had no Gmail placement in the period; hide the section rather than showing an empty split.
-
-        '
-      required:
-      - categories
-      - status
-      properties:
-        categories:
-          type: array
-          readOnly: true
-          description: One entry per Gmail tab that received mail.
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsGmailTabCategory'
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    EmailInboxInsightsGmailTabCategory:
-      type: object
-      additionalProperties: false
-      description: How the domain's Gmail-placed mail split across one Gmail tab.
-      required:
-      - category
-      - overall_percent
-      - inbox_percent
-      - spam_percent
-      properties:
-        category:
-          $ref: '#/components/schemas/EmailInboxInsightsGmailTab'
-          readOnly: true
-          description: The tab this row describes.
-        overall_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of the domain's Gmail-placed mail that landed under this tab, as a percentage.
-          example: 34
-        inbox_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this tab's mail that placed in the inbox, as a percentage.
-          example: 94
-        spam_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this tab's mail that placed in spam, as a percentage.
-          example: 6
-    EmailInboxInsightsMeasurement:
-      type: object
-      additionalProperties: false
-      description: 'How the figures in this response were measured, so a number is self-describing in a screenshot or a bug report.
-
-        '
-      required:
-      - sources
-      properties:
-        sources:
-          type: array
-          readOnly: true
-          description: 'Identifiers of the measurement systems that contributed to these figures. The set grows as measurement coverage does, so treat the values as labels rather than a closed list.
-
-            '
-          items:
-            type: string
-            minLength: 1
-            x-extensible-enum:
-            - panel
-            - intelliseed_public
-            - intelliseed_private
-            - eds
-          example:
-          - panel
-          - intelliseed_public
-        weighting:
-          $ref: '#/components/schemas/EmailInboxInsightsWeighting'
-          readOnly: true
-          description: 'How the figures were weighted. Present on figures weighted against an audience mix, which is placement''s method; measurements that weight nothing carry no weighting block.
-
-            '
-    EmailInboxInsightsComplaints:
-      description: 'How often the domain''s mail is reported as spam, as Google Postmaster
-
-        measures it. This is Google''s number for Gmail-received mail only; the
-
-        feedback-loop complaint rate for all providers is a Bird-measured figure
-
-        served by the email statistics endpoints, and the two are different
-
-        measurements of different mail.
-
-
-        For a domain without a completed Google Postmaster connection every section
-
-        reports `not_configured`: an invitation to finish setup rather than a fault.
-
-        '
-      unevaluatedProperties: false
-      allOf:
-      - $ref: '#/components/schemas/EmailInboxInsightsEnvelope'
-      - type: object
-        required:
-        - rate
-        - series
-        properties:
-          rate:
-            $ref: '#/components/schemas/EmailInboxInsightsComplaintRate'
-          series:
-            $ref: '#/components/schemas/EmailInboxInsightsComplaintSeries'
-    EmailInboxInsightsGroupBy:
-      type: string
-      minLength: 1
-      description: 'The bucket size a series is grouped by. Day suits the product''s charts; wider grains suit long ranges.
-
-        '
-      enum:
-      - day
-      - week
-      - month
-      example: day
-    EmailInboxInsightsGmailTab:
-      type: string
-      minLength: 1
-      readOnly: true
-      description: 'A Gmail tab, as the measurement identifies it. A lowercase identifier rather than a
-
-        display name, so pick your own label for it, and treat the set as open: these are
-
-        Gmail''s own tabs, and the measurement reports whichever one it saw.
-
-
-        `none` is a value rather than an absence: Gmail delivered the mail under no tab at all,
-
-        which is an ordinary outcome and not a gap in the measurement.
-
-        '
-      x-extensible-enum:
-      - primary
-      - promotions
-      - updates
-      - forums
-      - social
-      - none
-      example: promotions
-    EmailInboxInsightsPlacementProvider:
-      type: object
-      additionalProperties: false
-      description: 'One mailbox provider''s placement for the period. Unlike the domain-wide summary, a single provider''s rates are unweighted: there is no audience mix to weight within one provider.
-
-        '
-      required:
-      - mailbox_provider
-      - inbox_rate_percent
-      - spam_rate_percent
-      - raw_counts
-      - read_rate_percent
-      properties:
-        mailbox_provider:
-          $ref: '#/components/schemas/EmailInboxInsightsMailboxProvider'
-          readOnly: true
-          description: The provider whose placement this row describes.
-        inbox_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this provider's measured placements that landed in the inbox, as a percentage.
-          example: 89.2
-        spam_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this provider's measured placements that landed in spam, as a percentage.
-          example: 10.8
-        raw_counts:
-          $ref: '#/components/schemas/EmailInboxInsightsPlacementCounts'
-          readOnly: true
-        delta_pts:
-          type: number
-          readOnly: true
-          description: 'Inbox-rate movement against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data for this provider; absence is not zero change.
-
-            '
-          example: 0.4
-        read_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this provider's inbox-placed mail that was read, as a percentage.
-          example: 24.3
-    EmailInboxInsightsTrapSource:
-      type: string
-      minLength: 1
-      description: 'The trap network that observed a hit. The set grows as coverage does, so treat the values as labels rather than a closed list.
-
-        '
-      x-extensible-enum:
-      - cloudmark
-      - abusix
-      example: cloudmark
-    EmailInboxInsightsDomainSort:
-      type: string
-      minLength: 1
-      description: Field used to sort owned domains.
-      enum:
-      - domain
-      default: domain
-      example: domain
-    EmailInboxInsightsPlacementDeltaPts:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'How the domain-wide rates moved against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data; absence means no comparable prior data, never zero change.
-
-        '
-      required:
-      - inbox
-      - spam
-      properties:
-        inbox:
-          type: number
-          readOnly: true
-          description: Inbox-rate movement in percentage points; negative means it fell.
-          example: -3.1
-        spam:
-          type: number
-          readOnly: true
-          description: Spam-rate movement in percentage points.
-          example: 3.1
-    EmailInboxInsightsComplaintPeak:
-      type: object
-      additionalProperties: false
-      description: The worst day for complaints in the period.
-      required:
-      - date
-      - value_percent
-      properties:
-        date:
-          type: string
-          format: date
-          minLength: 1
-          readOnly: true
-          description: The UTC day the highest rate fell on.
-          example: '2026-08-02'
-        value_percent:
-          type: number
-          readOnly: true
-          description: The rate on that day, as a percentage.
-          example: 0.34
-    EmailInboxInsightsAuthSource:
-      type: object
-      additionalProperties: false
-      description: One system observed sending as this domain, with how its mail authenticates.
-      required:
-      - name
-      - category
-      - volume
-      - spf_aligned_rate_percent
-      - dkim_aligned_rate_percent
-      - dmarc_pass_rate_percent
-      - verdict
-      - qualifies_for_readiness
-      properties:
-        name:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The sending source as the reporting identifies it. Not a fixed list: unidentified senders, mostly forwarders, appear as a real category.
-
-            '
-          example: Bird (mail.acme.com)
-        category:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          readOnly: true
-          description: 'A coarse classification of the source. The set can grow; treat values as labels. Null when the measurement did not classify this sender.
-
-            '
-          x-extensible-enum:
-          - esp
-          - unknown
-          example: esp
-        volume:
-          type: integer
-          format: int64
-          minimum: 0
-          readOnly: true
-          description: Messages the reporting attributes to this source over the period.
-          example: 4820000
-        spf_aligned_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this source's mail that passed SPF with alignment, as a percentage.
-          example: 99.8
-        dkim_aligned_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this source's mail that passed DKIM with alignment, as a percentage.
-          example: 99.9
-        dmarc_pass_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this source's mail that passed DMARC, as a percentage.
-          example: 99.9
-        verdict:
-          $ref: '#/components/schemas/EmailInboxInsightsDmarcVerdict'
-          readOnly: true
-        qualifies_for_readiness:
-          type: boolean
-          readOnly: true
-          description: 'Whether this source counts toward the reject recommendation. A source that does not is excluded from that judgement, which is what lets this table explain a conservative recommendation instead of contradicting it.
-
-            '
-          example: true
-    EmailInboxInsightsSpamTrapHit:
-      type: object
-      additionalProperties: false
-      description: 'One trap address this domain''s mail reached, with enough detail to trace where the address came from. A row can represent several hits on the same trap, so read `hit_count` rather than counting rows.
-
-        '
-      required:
-      - first_seen
-      - last_seen
-      - ip_address
-      - source
-      - type
-      - trap_age_days
-      properties:
-        first_seen:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the trap network first observed mail from this domain at this trap.
-          example: '2026-08-14T06:21:00Z'
-        last_seen:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'The most recent sighting, or null when the trap was seen only once. On a row with several hits this is the far end of the period they span.
-
-            '
-          example: '2026-08-16T11:04:00Z'
-        ip_address:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The sending IP the message came from.
-          example: 147.253.40.16
-        source:
-          $ref: '#/components/schemas/EmailInboxInsightsTrapSource'
-          readOnly: true
-        type:
-          $ref: '#/components/schemas/EmailInboxInsightsTrapType'
-          readOnly: true
-        hit_count:
-          type: integer
-          minimum: 1
-          readOnly: true
-          description: 'How many times this trap was hit over the period, so rows do not sum to `total` on their own: one repeatedly hit trap is one row. Absent when the trap network does not break the count out, which is not the same as one hit. A row exists because the trap was reached at least once either way.
-
-            '
-          example: 2
-        trap_age_days:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'How long the trap address has been a trap, in days, or null when the network does not say. A high age on a recycled trap suggests the address has been dead in the list for a long time.
-
-            '
-          example: 430
-    EmailInboxInsightsComparedTo:
-      type: object
-      additionalProperties: false
-      description: 'The prior equal-length period the delta figures compare against. Present only when the request asked for a comparison.
-
-        '
-      required:
-      - start
-      - end
-      properties:
-        start:
-          type: string
-          format: date
-          minLength: 1
-          readOnly: true
-          description: First UTC day of the prior period, inclusive.
-          example: '2026-06-19'
-        end:
-          type: string
-          format: date
-          minLength: 1
-          readOnly: true
-          description: Last UTC day of the prior period, inclusive.
-          example: '2026-07-18'
-    EmailInboxInsightsPlacementIpDetail:
-      type: object
-      additionalProperties: false
-      description: One sending IP's placement and authentication pass rates for the period.
-      required:
-      - ip
-      - inbox_rate_percent
-      - raw_counts
-      - spf_pass_rate_percent
-      - dkim_pass_rate_percent
-      properties:
-        ip:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The sending IP address.
-          example: 147.253.40.16
-        inbox_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this IP's measured placements that landed in the inbox, as a percentage.
-          example: 89.9
-        raw_counts:
-          $ref: '#/components/schemas/EmailInboxInsightsPlacementCounts'
-          readOnly: true
-        spf_pass_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this IP's measured mail that passed SPF, as a percentage.
-          example: 99.8
-        dkim_pass_rate_percent:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Share of this IP's measured mail that passed DKIM, as a percentage.
-          example: 99.9
-    EmailInboxInsightsBlocklistTarget:
-      type: object
-      additionalProperties: false
-      description: 'One target lookup result, its current status, and the listings seen against it.
-
-
-        Read `status` before `is_listed`. Each target is looked up independently and
-
-        any one of them can fail while the rest succeed, so a target whose status is
-
-        not `ok` was not checked and `is_listed: false` on it means nothing. Rendering
-
-        that as "clear" is the one outcome this resource must never produce.
-
-        '
-      required:
-      - target
-      - target_type
-      - is_listed
-      - status
-      - checked_at
-      - listings
-      properties:
-        target:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The sending IP or domain selected for lookup.
-          example: 147.253.40.18
-        target_type:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          readOnly: true
-          description: 'Whether this target is an IP address or a hostname. Null when the measurement did not report a kind for it, which is possible on a target whose check did not complete.
-
-            '
-          x-extensible-enum:
-          - ip
-          - domain
-          example: ip
-        is_listed:
-          type: boolean
-          readOnly: true
-          description: 'Whether the target is on at least one blocklist right now. Meaningful only when `status` is `ok`: on any other status this target was not checked, so the value carries no finding either way.
-
-            '
-          example: false
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-          description: 'Whether this target was actually checked. `unavailable` means the lookup failed or timed out for this target while others may have succeeded, so the honest rendering is "could not check" rather than a result.
-
-            '
-        checked_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'When this target was looked up, or null when it was not. Per target rather than per response, because each is a separate live lookup.
-
-            '
-          example: '2026-08-20T09:12:04Z'
-        listings:
-          type: array
-          readOnly: true
-          description: 'Listings seen against this target, including ones that have since cleared, so a recent history is visible even when nothing is active. Read each listing''s `is_active` rather than assuming every entry is current.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsBlocklistListing'
-    EmailInboxInsightsSectionStatus:
-      type: string
-      minLength: 1
-      description: 'Whether a section of the response carries figures, and when it does not, why.
-
-
-        `ok` means the section is populated. `no_data` means the measurement ran and
-
-        observed nothing to report for this domain in the period. `not_configured`
-
-        means the section needs a setup step that has not been completed yet, such as
-
-        connecting Google Postmaster Tools; treat it as an invitation to finish
-
-        setup rather than a fault. `unavailable` means the figures could not be retrieved this time and
-
-        the same request may well succeed on a retry; the rest of the response is
-
-        unaffected. `not_applicable` means the section is meaningless for this domain
-
-        in this period, so there is nothing to show or fix.
-
-
-        A successful response never implies every section is populated; read each
-
-        section''s status rather than assuming figures are present.
-
-        '
-      enum:
-      - ok
-      - no_data
-      - not_configured
-      - unavailable
-      - not_applicable
-      example: ok
-    EmailInboxInsightsBlocklists:
-      description: 'Whether the domain''s sending infrastructure is on any blocklist, checked
-
-        when the request is made.
-
-
-        This is a live lookup rather than a measurement over a period, so it carries
-
-        no window: `freshness.as_of` is null and only the lag hint applies.
-
-
-        Inspect each returned target''s `status` before `is_listed`. A target whose
-
-        lookup did not complete can report `is_listed: false`; that value carries no
-
-        finding. Partial failures are represented by the individual target statuses.
-
-
-        `active_count` is null when the lookup service supplies no count. Zero reports
-
-        no active target listings, but does not establish coverage: the response can
-
-        contain an empty `targets` array. Use the returned targets and their statuses
-
-        to determine which addresses were checked. A failed request provides no
-
-        lookup result.
-
-        '
-      unevaluatedProperties: false
-      allOf:
-      - $ref: '#/components/schemas/EmailInboxInsightsEnvelopeBase'
-      - type: object
-        required:
-        - active_count
-        - targets
-        properties:
-          active_count:
-            type:
-            - integer
-            - 'null'
-            minimum: 0
-            readOnly: true
-            description: 'Number of successfully checked targets reported with an active listing. A target on three blocklists counts once. Null when the lookup service supplies no count; do not treat null as zero. Zero does not establish that the domain or its IPs were checked. Inspect `targets` and each target''s `status` for lookup coverage, including partial failures.
-
-              '
-            example: 0
-          targets:
-            type: array
-            readOnly: true
-            description: Returned sending IP or domain lookup results, including failed lookups. An empty array does not establish that the domain or its IPs are clear.
-            items:
-              $ref: '#/components/schemas/EmailInboxInsightsBlocklistTarget'
-    EmailInboxInsightsWeightingSource:
-      type: string
-      minLength: 1
-      description: 'Where the audience mix behind the placement weighting came from: `account` when it was configured for this account, `global` when a general default was used instead.
-
-        '
-      enum:
-      - account
-      - global
-      example: account
-    EmailInboxInsightsDomainMonitoringResult:
-      type: object
-      additionalProperties: false
-      description: 'What switching on the workspace''s main sending domain did. There are four outcomes, because each one leaves the customer somewhere different: one domain is now reporting, one already was, we could not tell which domain is the main one, or there is no verified domain to report on at all.
-
-        '
-      required:
-      - outcome
-      - domain
-      properties:
-        outcome:
-          readOnly: true
-          $ref: '#/components/schemas/EmailInboxInsightsDomainMonitoringOutcome'
-        domain:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          readOnly: true
-          description: 'The sending domain this call switched on, lowercased. The server sends a domain with the `enabled` outcome and null with the other three, `already_on` included: that outcome says only that the workspace had already made its choice, not which domain it chose. Read the domain list for that. Check `outcome` first rather than treating a domain as present.
-
-            '
-          example: mail.acme.com
-    EmailInboxInsightsFreshness:
-      type: object
-      additionalProperties: false
-      description: 'How current the figures are. Freshness differs per resource (authentication data can lag a day or more while blocklist lookups are near real time), so any "as of" label binds from this field, never from a fixed string.
-
-        '
-      required:
-      - as_of
-      - lag_hint
-      properties:
-        as_of:
-          type:
-          - string
-          - 'null'
-          format: date
-          readOnly: true
-          description: 'The most recent UTC day the figures include, or null for a live lookup that has no measurement window.
-
-            '
-          example: '2026-08-17'
-        lag_hint:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'How far behind real time this resource usually runs. A lowercase
-
-            identifier rather than a display label, so pick your own wording for it,
-
-            and treat the set as open: the measurement names a hint per resource and
-
-            can add one without notice.
-
-
-            Null when the measurement reports no hint, which several resources do:
-
-            show the figures without an age rather than inventing one.
-
-            '
-          x-extensible-enum:
-          - daily
-          - nightly
-          - near_real_time
-          example: daily
-    EmailInboxInsightsDmarcVerdict:
-      type: string
-      minLength: 1
-      description: 'How a sending source''s mail authenticates against the domain''s DMARC policy. `aligned` passes with both SPF and DKIM aligned; `dkim_only` and `spf_only` pass on one mechanism; `fails_policy` passes neither. The reporting decides this set and can add to it, so treat an unrecognised value as a label to show rather than a case to exhaust. A source whose verdict is new still belongs in the table.
-
-        '
-      x-extensible-enum:
-      - aligned
-      - dkim_only
-      - spf_only
-      - fails_policy
-      example: aligned
-    EmailInboxInsightsPlacementIpDetails:
-      type: object
-      additionalProperties: false
-      description: 'Per-IP placement detail for the domain''s sending infrastructure. Returned only when the request asked for IP detail.
-
-        '
-      required:
-      - items
-      - status
-      properties:
-        items:
-          type: array
-          readOnly: true
-          description: One row per sending IP the measurement observed for this domain in the period.
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsPlacementIpDetail'
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    EmailInboxInsightsCompare:
-      type: string
-      minLength: 1
-      description: 'Set to `previous_period` to include the immediately preceding window of equal length in the same response, so deltas need no second request.
-
-        '
-      enum:
-      - previous_period
-      example: previous_period
-    EmailInboxInsightsPlacementSeries:
-      type: object
-      additionalProperties: false
-      description: 'The placement time series, at the grain named in `window.group_by`.
-
-
-        The series is sparse: buckets with no measured placement are omitted rather
-
-        than returned as zeros, because an invented zero would be indistinguishable
-
-        from a measured one. Index by date, never by position.
-
-        '
-      required:
-      - items
-      - status
-      properties:
-        items:
-          type: array
-          readOnly: true
-          description: 'One point per bucket with measured placements. With providers named in the request, one point per bucket per provider.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailInboxInsightsPlacementSeriesPoint'
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
     EmailInboxInsightsPlacementProviders:
       type: object
       additionalProperties: false
@@ -2232,171 +1030,6 @@ components:
         status:
           $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
           readOnly: true
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
-    EmailInboxInsightsDomainUpdate:
-      type: object
-      additionalProperties: false
-      description: The Inbox Insights setting to change for a sending domain.
-      required:
-      - monitored
-      properties:
-        monitored:
-          type: boolean
-          description: 'Whether the workspace wants this domain monitored. Enabling enrolls it with eDataSource; disabling removes only the workspace preference and preserves vendor enrollment and measurement history. Verified ownership governs report access.
-
-            '
-          example: true
-    EmailInboxInsightsIndustryBenchmark:
-      description: 'How senders in a domain''s industry place, as a median across the industry''s
-
-        measured senders.
-
-
-        The benchmark describes the industry, not the domain, so it carries no
-
-        comparison of its own: compute that against the domain''s own placement rate.
-
-        Its weighting is a general default rather than any one account''s audience
-
-        mix, which is a deliberate asymmetry with the placement figure it is
-
-        compared against.
-
-
-        The status is `no_data` when too few measured senders share the industry for
-
-        a median to be meaningful, when the domain''s industry is not classified, or
-
-        before the industry figures have been computed. Handle that state from the
-
-        start: it is the normal state for a young industry cohort rather than an
-
-        edge case.
-
-        '
-      unevaluatedProperties: false
-      allOf:
-      - $ref: '#/components/schemas/EmailInboxInsightsEnvelopeBase'
-      - type: object
-        required:
-        - industry
-        - median_inbox_rate_percent
-        - cohort_size
-        - status
-        properties:
-          industry:
-            oneOf:
-            - $ref: '#/components/schemas/EmailInboxInsightsIndustry'
-            - type: 'null'
-            readOnly: true
-            description: 'The cohort the median describes, or null when the domain is not classified into an industry. This description already names that as a `no_data` cause and a normal state for a young cohort, so it needs a representation: without one the only way to report an unclassified domain is a cohort with a blank name.
-
-              '
-          median_inbox_rate_percent:
-            type:
-            - number
-            - 'null'
-            readOnly: true
-            description: The industry's median inbox rate, as a percentage.
-            example: 92.1
-          window_days:
-            type: integer
-            minimum: 1
-            readOnly: true
-            description: 'How many days the cohort figure covers. Reported rather than assumed because the period is the one the nightly computation produced, not one the caller chose, so a label built from a requested window would be wrong. Absent when the computation does not report it, in which case a label must not name a period at all.
-
-              '
-            example: 30
-          cohort_size:
-            type:
-            - integer
-            - 'null'
-            minimum: 0
-            readOnly: true
-            description: How many measured senders the median was computed across.
-            example: 214
-          status:
-            $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-            readOnly: true
     EmailInboxInsightsSpamTraps:
       description: 'Whether the domain''s mail is reaching spam traps: addresses that exist only
 
@@ -2488,286 +1121,179 @@ components:
           $ref: '#/components/schemas/EmailInboxInsightsGroupBy'
           readOnly: true
           description: The bucket size any series in this response is grouped by. Absent on resources with no series.
-    EmailInboxInsightsEnvelopeBase:
-      type: object
-      description: 'The meta every Inbox Insights resource carries, whatever it measures, so one client adapter serves them all.
-
-        '
-      required:
-      - resource
-      - domain
-      - generated_at
-      - freshness
-      properties:
-        resource:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: Which resource this response is, echoed for self-description.
-          example: placement
-        domain:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The sending domain the figures describe.
-          example: mail.acme.com
-        measurement:
-          $ref: '#/components/schemas/EmailInboxInsightsMeasurement'
-          readOnly: true
-          description: 'How the figures were measured. Present only where a figure was weighted or drawn from a named set of sources, which today means placement and the industry benchmark. Absent on the reputation resources and on a live lookup, neither of which weights anything.
-
-            '
-        generated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the measurement service computed these figures.
-          example: '2026-08-18T09:34:00Z'
-        freshness:
-          $ref: '#/components/schemas/EmailInboxInsightsFreshness'
-          readOnly: true
-        cached_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: 'Present when the response was served from a short-lived copy rather than fetched for this request: when that copy was fetched.
-
-            '
-          example: '2026-08-18T09:40:02Z'
-    EmailInboxInsightsMailboxProvider:
-      type: string
-      minLength: 1
-      readOnly: true
-      description: 'A mailbox provider, as the measurement identifies it. A lowercase identifier rather than
-
-        a display name, so pick your own label for it, and treat the set as open: this is a long
-
-        tail rather than a handful of household names, and some entries are domains
-
-        (`fastmail.com`, `seznam.cz`) rather than brands.
-
-
-        The measurement places mail into its own seed lists, so its buckets are not the ones the
-
-        [mailbox-provider stats breakdown](/docs/api/reference/get-email-stats-by-mailbox-provider)
-
-        reports: Microsoft''s properties appear here as `hotmail` rather than `microsoft`, and
-
-        `apple` appears here where the Competitive Insights panel has no measurement for it at
-
-        all. None of the three is a joinable dimension against the others.
-
-        '
-      example: gmail
-    EmailInboxInsightsAuthPassRate:
+    EmailInboxInsightsAuthSource:
       type: object
       additionalProperties: false
-      description: One authentication check's pass rate over the period.
+      description: One system observed sending as this domain, with how its mail authenticates.
       required:
-      - pass_rate_percent
-      - source
-      - status
+      - name
+      - category
+      - volume
+      - spf_aligned_rate_percent
+      - dkim_aligned_rate_percent
+      - dmarc_pass_rate_percent
+      - verdict
+      - qualifies_for_readiness
       properties:
-        pass_rate_percent:
-          type:
-          - number
-          - 'null'
+        name:
+          type: string
+          minLength: 1
           readOnly: true
-          description: Share of the domain's measured mail that passed this check, as a percentage.
-          example: 99.8
-        delta_pts:
-          type: number
-          readOnly: true
-          description: 'How the pass rate moved against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data; absence is not zero change.
+          description: 'The sending source as the reporting identifies it. Not a fixed list: unidentified senders, mostly forwarders, appear as a real category.
 
             '
-          example: 0.1
-        source:
+          example: Bird (mail.acme.com)
+        category:
           type:
           - string
           - 'null'
           minLength: 1
           readOnly: true
-          description: 'Where this figure comes from. `dmarc_rua` is authoritative aggregate
-
-            reporting and covers every sender of the domain, forwarders included;
-
-            `google_postmaster` is a fallback covering only mail Google received. It
-
-            can differ from the source of the DMARC figures, so surface it per check
-
-            rather than once per response.
-
-
-            Null on a check that reports no figure at all, which is what a
-
-            `not_configured` status means: there is no measurement, so there is no
-
-            source to name.
+          description: 'A coarse classification of the source. The set can grow; treat values as labels. Null when the measurement did not classify this sender.
 
             '
           x-extensible-enum:
-          - dmarc_rua
-          - google_postmaster
-          example: dmarc_rua
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    SortOrder:
-      type: string
-      enum:
-      - asc
-      - desc
-      description: Sort direction, ascending or descending.
-    EmailInboxInsightsIndustry:
-      type: object
-      additionalProperties: false
-      description: The industry a sending domain was classified into.
-      required:
-      - id
-      - name
-      properties:
-        id:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The measurement''s own identifier for this industry, carried through so a client can tell two cohorts apart without comparing labels. No operation accepts it.
-
-            '
-          example: '44'
-        name:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'Display name of the industry. The classification is broad, so bind this label rather than assuming a finer category exists.
-
-            '
-          example: Apparel
-    EmailInboxInsightsPlacementCounts:
-      type: object
-      additionalProperties: false
-      description: 'Raw measured placements behind a set of rates, before any weighting. A measured placement is one message whose mailbox destination the measurement observed.
-
-        '
-      required:
-      - inbox
-      - spam
-      - missing
-      - measured
-      properties:
-        inbox:
+          - esp
+          - unknown
+          example: esp
+        volume:
           type: integer
+          format: int64
           minimum: 0
           readOnly: true
-          description: Measured placements observed in the inbox.
-          example: 418211
-        spam:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Measured placements observed in spam.
-          example: 60233
-        missing:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Measured sends that arrived in neither folder.
-          example: 0
-        measured:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total measured placements the rates were computed over.
-          example: 478444
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    EmailInboxInsightsComplaintRate:
-      type: object
-      additionalProperties: false
-      description: The rate at which the domain's mail is reported as spam, as Google Postmaster measures it.
-      required:
-      - gmail_postmaster_spam_rate_percent
-      - status
-      properties:
-        gmail_postmaster_spam_rate_percent:
+          description: Messages the reporting attributes to this source over the period.
+          example: 4820000
+        spf_aligned_rate_percent:
           type:
           - number
           - 'null'
           readOnly: true
-          description: 'Share of the domain''s Gmail-received mail that recipients reported as spam, as a percentage, from Google Postmaster.
+          description: Share of this source's mail that passed SPF with alignment, as a percentage.
+          example: 99.8
+        dkim_aligned_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this source's mail that passed DKIM with alignment, as a percentage.
+          example: 99.9
+        dmarc_pass_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this source's mail that passed DMARC, as a percentage.
+          example: 99.9
+        verdict:
+          $ref: '#/components/schemas/EmailInboxInsightsDmarcVerdict'
+          readOnly: true
+        qualifies_for_readiness:
+          type: boolean
+          readOnly: true
+          description: 'Whether this source counts toward the reject recommendation. A source that does not is excluded from that judgement, which is what lets this table explain a conservative recommendation instead of contradicting it.
 
             '
-          example: 0.11
-        delta_pts:
-          type: number
-          readOnly: true
-          description: 'How the rate moved against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data; absence is not zero change.
+          example: true
+    EmailInboxInsightsTrapType:
+      type: string
+      minLength: 1
+      description: 'What kind of spam trap was hit. `pristine` addresses were never used by a real person and never subscribed to anything, so a hit means the address was harvested or guessed rather than collected. `recycled` addresses belonged to a real person once and were retired, so hits point at stale list data. `typo` addresses catch misspellings of real domains, `parked` addresses sit on domains that are registered but not used for real mail, and `mixed` covers hits the trap network reports without a single kind. The trap network decides this set and can add to it, so treat an unrecognised value as a label to show rather than a case to exhaust. A hit whose kind is new is still a hit worth acting on.
 
-            '
-          example: 0.03
-        peak:
-          $ref: '#/components/schemas/EmailInboxInsightsComplaintPeak'
-          readOnly: true
-          description: 'The worst day in the period, so a spike can be named without scanning the series. Absent when there is no rate to peak.
+        '
+      x-extensible-enum:
+      - pristine
+      - recycled
+      - typo
+      - parked
+      - mixed
+      example: recycled
+    EmailInboxInsightsIndustryBenchmark:
+      description: 'How senders in a domain''s industry place, as a median across the industry''s
 
-            '
-        status:
-          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
-          readOnly: true
-    EmailInboxInsightsPlacement:
-      description: 'Where a sending domain''s measured mail landed over the period: the
-
-        domain-wide summary, the per-provider table, the time series, the Gmail tab
-
-        split, and optionally per-IP detail.
+        measured senders.
 
 
-        Placement figures are estimates from a measurement panel of real mailboxes,
+        The benchmark describes the industry, not the domain, so it carries no
 
-        and every rate is a percentage of measured placements, never of delivered
+        comparison of its own: compute that against the domain''s own placement rate.
 
-        volume. Each section carries its own status; a successful response never
+        Its weighting is a general default rather than any one account''s audience
 
-        implies every section is populated.
+        mix, which is a deliberate asymmetry with the placement figure it is
+
+        compared against.
+
+
+        The status is `no_data` when too few measured senders share the industry for
+
+        a median to be meaningful, when the domain''s industry is not classified, or
+
+        before the industry figures have been computed. Handle that state from the
+
+        start: it is the normal state for a young industry cohort rather than an
+
+        edge case.
+
+        '
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/EmailInboxInsightsEnvelopeBase'
+      - type: object
+        required:
+        - industry
+        - median_inbox_rate_percent
+        - cohort_size
+        - status
+        properties:
+          industry:
+            oneOf:
+            - $ref: '#/components/schemas/EmailInboxInsightsIndustry'
+            - type: 'null'
+            readOnly: true
+            description: 'The cohort the median describes, or null when the domain is not classified into an industry. This description already names that as a `no_data` cause and a normal state for a young cohort, so it needs a representation: without one the only way to report an unclassified domain is a cohort with a blank name.
+
+              '
+          median_inbox_rate_percent:
+            type:
+            - number
+            - 'null'
+            readOnly: true
+            description: The industry's median inbox rate, as a percentage.
+            example: 92.1
+          window_days:
+            type: integer
+            minimum: 1
+            readOnly: true
+            description: 'How many days the cohort figure covers. Reported rather than assumed because the period is the one the nightly computation produced, not one the caller chose, so a label built from a requested window would be wrong. Absent when the computation does not report it, in which case a label must not name a period at all.
+
+              '
+            example: 30
+          cohort_size:
+            type:
+            - integer
+            - 'null'
+            minimum: 0
+            readOnly: true
+            description: How many measured senders the median was computed across.
+            example: 214
+          status:
+            $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+            readOnly: true
+    EmailInboxInsightsAuthentication:
+      description: 'Whether the domain''s mail authenticates, and who sends as the domain: SPF
+
+        and DKIM pass rates, the DMARC standing with its published policy, and the
+
+        per-source table that shows every system observed sending under the
+
+        domain''s name.
+
+
+        Without a completed Google Postmaster connection and without aggregate
+
+        DMARC reporting, sections report `not_configured`: an invitation to finish
+
+        setup rather than a fault. Each section carries its own status.
 
         '
       unevaluatedProperties: false
@@ -2775,70 +1301,223 @@ components:
       - $ref: '#/components/schemas/EmailInboxInsightsEnvelope'
       - type: object
         required:
-        - summary
-        - providers
-        - series
-        - gmail_tabs
-        - measurement
+        - spf
+        - dkim
+        - dmarc
+        - sources
         properties:
-          summary:
-            $ref: '#/components/schemas/EmailInboxInsightsPlacementSummary'
-          providers:
-            $ref: '#/components/schemas/EmailInboxInsightsPlacementProviders'
-          series:
-            $ref: '#/components/schemas/EmailInboxInsightsPlacementSeries'
-          gmail_tabs:
-            $ref: '#/components/schemas/EmailInboxInsightsGmailTabs'
-          ip_details:
-            $ref: '#/components/schemas/EmailInboxInsightsPlacementIpDetails'
-    EmailInboxInsightsDmarcPolicy:
-      type: string
-      minLength: 1
-      description: 'The DMARC policy published in the domain''s DNS record: what receivers are asked to do with mail that fails DMARC.
-
-        '
-      enum:
-      - none
-      - quarantine
-      - reject
-      example: quarantine
-    EmailInboxInsightsDmarcReadinessReason:
-      type: string
-      minLength: 1
-      description: 'Why the domain is not yet ready to move its DMARC policy to `reject`. `source_below_threshold` means at least one legitimate sender is not authenticating well enough yet; `data_too_stale` means the reporting is too old to judge; `no_rua_data` means no aggregate reports have arrived at all; `no_policy` means the domain publishes no DMARC record to tighten. The reporting decides this set and can add to it, so show an unrecognised value rather than treating it as no reason at all.
-
-        '
-      x-extensible-enum:
-      - source_below_threshold
-      - data_too_stale
-      - no_rua_data
-      - no_policy
-      example: source_below_threshold
-    _ListEnvelope:
+          spf:
+            $ref: '#/components/schemas/EmailInboxInsightsAuthPassRate'
+            description: The domain's SPF pass rate.
+          dkim:
+            $ref: '#/components/schemas/EmailInboxInsightsAuthPassRate'
+            description: The domain's DKIM pass rate.
+          dmarc:
+            $ref: '#/components/schemas/EmailInboxInsightsDmarc'
+          sources:
+            $ref: '#/components/schemas/EmailInboxInsightsAuthSources'
+    EmailInboxInsightsComparedTo:
       type: object
+      additionalProperties: false
+      description: 'The prior equal-length period the delta figures compare against. Present only when the request asked for a comparison.
+
+        '
       required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
+      - start
+      - end
       properties:
-        next_cursor:
+        start:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: First UTC day of the prior period, inclusive.
+          example: '2026-06-19'
+        end:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: Last UTC day of the prior period, inclusive.
+          example: '2026-07-18'
+    EmailInboxInsightsBlocklistTarget:
+      type: object
+      additionalProperties: false
+      description: 'One target lookup result, its current status, and the listings seen against it.
+
+
+        Read `status` before `is_listed`. Each target is looked up independently and
+
+        any one of them can fail while the rest succeed, so a target whose status is
+
+        not `ok` was not checked and `is_listed: false` on it means nothing. Rendering
+
+        that as "clear" is the one outcome this resource must never produce.
+
+        '
+      required:
+      - target
+      - target_type
+      - is_listed
+      - status
+      - checked_at
+      - listings
+      properties:
+        target:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The sending IP or domain selected for lookup.
+          example: 147.253.40.18
+        target_type:
           type:
           - string
           - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
+          minLength: 1
+          readOnly: true
+          description: 'Whether this target is an IP address or a hostname. Null when the measurement did not report a kind for it, which is possible on a target whose check did not complete.
+
+            '
+          x-extensible-enum:
+          - ip
+          - domain
+          example: ip
+        is_listed:
+          type: boolean
+          readOnly: true
+          description: 'Whether the target is on at least one blocklist right now. Meaningful only when `status` is `ok`: on any other status this target was not checked, so the value carries no finding either way.
+
+            '
+          example: false
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+          description: 'Whether this target was actually checked. `unavailable` means the lookup failed or timed out for this target while others may have succeeded, so the honest rendering is "could not check" rather than a result.
+
+            '
+        checked_at:
           type:
           - string
           - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
+          format: date-time
+          readOnly: true
+          description: 'When this target was looked up, or null when it was not. Per target rather than per response, because each is a separate live lookup.
+
+            '
+          example: '2026-08-20T09:12:04Z'
+        listings:
+          type: array
+          readOnly: true
+          description: 'Listings seen against this target, including ones that have since cleared, so a recent history is visible even when nothing is active. Read each listing''s `is_active` rather than assuming every entry is current.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsBlocklistListing'
+    EmailInboxInsightsPlacementProvider:
+      type: object
+      additionalProperties: false
+      description: 'One mailbox provider''s placement for the period. Unlike the domain-wide summary, a single provider''s rates are unweighted: there is no audience mix to weight within one provider.
+
+        '
+      required:
+      - mailbox_provider
+      - inbox_rate_percent
+      - spam_rate_percent
+      - raw_counts
+      - read_rate_percent
+      properties:
+        mailbox_provider:
+          $ref: '#/components/schemas/EmailInboxInsightsMailboxProvider'
+          readOnly: true
+          description: The provider whose placement this row describes.
+        inbox_rate_percent:
           type:
-          - string
+          - number
           - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+          readOnly: true
+          description: Share of this provider's measured placements that landed in the inbox, as a percentage.
+          example: 89.2
+        spam_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this provider's measured placements that landed in spam, as a percentage.
+          example: 10.8
+        raw_counts:
+          $ref: '#/components/schemas/EmailInboxInsightsPlacementCounts'
+          readOnly: true
+        delta_pts:
+          type: number
+          readOnly: true
+          description: 'Inbox-rate movement against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data for this provider; absence is not zero change.
+
+            '
+          example: 0.4
+        read_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this provider's inbox-placed mail that was read, as a percentage.
+          example: 24.3
+    EmailInboxInsightsComplaints:
+      description: 'How often the domain''s mail is reported as spam, as Google Postmaster
+
+        measures it. This is Google''s number for Gmail-received mail only; the
+
+        feedback-loop complaint rate for all providers is a Bird-measured figure
+
+        served by the email statistics endpoints, and the two are different
+
+        measurements of different mail.
+
+
+        For a domain without a completed Google Postmaster connection every section
+
+        reports `not_configured`: an invitation to finish setup rather than a fault.
+
+        '
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/EmailInboxInsightsEnvelope'
+      - type: object
+        required:
+        - rate
+        - series
+        properties:
+          rate:
+            $ref: '#/components/schemas/EmailInboxInsightsComplaintRate'
+          series:
+            $ref: '#/components/schemas/EmailInboxInsightsComplaintSeries'
+    EmailInboxInsightsPlacementSeries:
+      type: object
+      additionalProperties: false
+      description: 'The placement time series, at the grain named in `window.group_by`.
+
+
+        The series is sparse: buckets with no measured placement are omitted rather
+
+        than returned as zeros, because an invented zero would be indistinguishable
+
+        from a measured one. Index by date, never by position.
+
+        '
+      required:
+      - items
+      - status
+      properties:
+        items:
+          type: array
+          readOnly: true
+          description: 'One point per bucket with measured placements. With providers named in the request, one point per bucket per provider.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsPlacementSeriesPoint'
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
     EmailInboxInsightsDmarc:
       type: object
       additionalProperties: false
@@ -2921,6 +1600,177 @@ components:
         status:
           $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
           readOnly: true
+    EmailInboxInsightsDmarcReadinessReason:
+      type: string
+      minLength: 1
+      description: 'Why the domain is not yet ready to move its DMARC policy to `reject`. `source_below_threshold` means at least one legitimate sender is not authenticating well enough yet; `data_too_stale` means the reporting is too old to judge; `no_rua_data` means no aggregate reports have arrived at all; `no_policy` means the domain publishes no DMARC record to tighten. The reporting decides this set and can add to it, so show an unrecognised value rather than treating it as no reason at all.
+
+        '
+      x-extensible-enum:
+      - source_below_threshold
+      - data_too_stale
+      - no_rua_data
+      - no_policy
+      example: source_below_threshold
+    EmailInboxInsightsIndustry:
+      type: object
+      additionalProperties: false
+      description: The industry a sending domain was classified into.
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The measurement''s own identifier for this industry, carried through so a client can tell two cohorts apart without comparing labels. No operation accepts it.
+
+            '
+          example: '44'
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Display name of the industry. The classification is broad, so bind this label rather than assuming a finer category exists.
+
+            '
+          example: Apparel
+    EmailInboxInsightsDmarcVerdict:
+      type: string
+      minLength: 1
+      description: 'How a sending source''s mail authenticates against the domain''s DMARC policy. `aligned` passes with both SPF and DKIM aligned; `dkim_only` and `spf_only` pass on one mechanism; `fails_policy` passes neither. The reporting decides this set and can add to it, so treat an unrecognised value as a label to show rather than a case to exhaust. A source whose verdict is new still belongs in the table.
+
+        '
+      x-extensible-enum:
+      - aligned
+      - dkim_only
+      - spf_only
+      - fails_policy
+      example: aligned
+    EmailInboxInsightsAuthPassRate:
+      type: object
+      additionalProperties: false
+      description: One authentication check's pass rate over the period.
+      required:
+      - pass_rate_percent
+      - source
+      - status
+      properties:
+        pass_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of the domain's measured mail that passed this check, as a percentage.
+          example: 99.8
+        delta_pts:
+          type: number
+          readOnly: true
+          description: 'How the pass rate moved against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data; absence is not zero change.
+
+            '
+          example: 0.1
+        source:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          readOnly: true
+          description: 'Where this figure comes from. `dmarc_rua` is authoritative aggregate
+
+            reporting and covers every sender of the domain, forwarders included;
+
+            `google_postmaster` is a fallback covering only mail Google received. It
+
+            can differ from the source of the DMARC figures, so surface it per check
+
+            rather than once per response.
+
+
+            Null on a check that reports no figure at all, which is what a
+
+            `not_configured` status means: there is no measurement, so there is no
+
+            source to name.
+
+            '
+          x-extensible-enum:
+          - dmarc_rua
+          - google_postmaster
+          example: dmarc_rua
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsGroupBy:
+      type: string
+      minLength: 1
+      description: 'The bucket size a series is grouped by. Day suits the product''s charts; wider grains suit long ranges.
+
+        '
+      enum:
+      - day
+      - week
+      - month
+      example: day
+    EmailInboxInsightsDomainUpdate:
+      type: object
+      additionalProperties: false
+      description: The Inbox Insights setting to change for a sending domain.
+      required:
+      - monitored
+      properties:
+        monitored:
+          type: boolean
+          description: 'Whether the workspace wants this domain monitored. Enabling enrolls it with eDataSource; disabling removes only the workspace preference and preserves vendor enrollment and measurement history. Verified ownership governs report access.
+
+            '
+          example: true
+    EmailInboxInsightsCompare:
+      type: string
+      minLength: 1
+      description: 'Set to `previous_period` to include the immediately preceding window of equal length in the same response, so deltas need no second request.
+
+        '
+      enum:
+      - previous_period
+      example: previous_period
+    EmailInboxInsightsPlacementCounts:
+      type: object
+      additionalProperties: false
+      description: 'Raw measured placements behind a set of rates, before any weighting. A measured placement is one message whose mailbox destination the measurement observed.
+
+        '
+      required:
+      - inbox
+      - spam
+      - missing
+      - measured
+      properties:
+        inbox:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Measured placements observed in the inbox.
+          example: 418211
+        spam:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Measured placements observed in spam.
+          example: 60233
+        missing:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Measured sends that arrived in neither folder.
+          example: 0
+        measured:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total measured placements the rates were computed over.
+          example: 478444
     EmailInboxInsightsDomainMonitoringOutcome:
       type: string
       minLength: 1
@@ -2931,21 +1781,780 @@ components:
       - choice_required
       - no_verified_domains
       example: enabled
-    EmailInboxInsightsAuthentication:
-      description: 'Whether the domain''s mail authenticates, and who sends as the domain: SPF
+    EmailInboxInsightsComplaintPeak:
+      type: object
+      additionalProperties: false
+      description: The worst day for complaints in the period.
+      required:
+      - date
+      - value_percent
+      properties:
+        date:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: The UTC day the highest rate fell on.
+          example: '2026-08-02'
+        value_percent:
+          type: number
+          readOnly: true
+          description: The rate on that day, as a percentage.
+          example: 0.34
+    EmailInboxInsightsGmailTabs:
+      type: object
+      additionalProperties: false
+      description: 'Where the domain''s Gmail-placed mail landed across Gmail''s tabs. The status is `not_applicable` when the domain had no Gmail placement in the period; hide the section rather than showing an empty split.
 
-        and DKIM pass rates, the DMARC standing with its published policy, and the
+        '
+      required:
+      - categories
+      - status
+      properties:
+        categories:
+          type: array
+          readOnly: true
+          description: One entry per Gmail tab that received mail.
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsGmailTabCategory'
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    EmailInboxInsightsWeighting:
+      type: object
+      additionalProperties: false
+      description: 'How the placement figures in this response were weighted, so a number is
 
-        per-source table that shows every system observed sending under the
-
-        domain''s name.
+        self-describing wherever it is quoted or screenshotted.
 
 
-        Without a completed Google Postmaster connection and without aggregate
+        Placement rates are a weighted average of per-provider rates against an
 
-        DMARC reporting, sections report `not_configured`: an invitation to finish
+        audience mix (the share of recipients expected at each mailbox provider)
 
-        setup rather than a fault. Each section carries its own status.
+        rather than a share of delivered volume.
+
+        '
+      required:
+      - weight_set_id
+      - source
+      - basis
+      properties:
+        weight_set_id:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The measurement''s own identifier for the audience mix, carried through so a client can tell two weightings apart without comparing `basis` strings. No operation accepts it.
+
+            '
+          example: '12'
+        source:
+          oneOf:
+          - $ref: '#/components/schemas/EmailInboxInsightsWeightingSource'
+          - type: 'null'
+          readOnly: true
+          description: 'Which audience mix the weighting used. Null when the measurement weighted these figures by a method this API does not model: the enum is closed so that a client can branch on it exhaustively, which means an unfamiliar method has to answer "not one of these" rather than be passed through. `basis` usually still describes the method in words when that happens.
+
+            '
+        basis:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          readOnly: true
+          description: 'The weighting method behind the rates, as the measurement names it. A slug rather than a sentence, so render it as a label and do not expect it to read as English. Null when the measurement did not state one, which pairs with `source`: both describe the method, so neither can claim to know it when the measurement was silent.
+
+            '
+          example: weighted-mean-of-per-isp-rates
+    EmailInboxInsightsDmarcPolicy:
+      type: string
+      minLength: 1
+      description: 'The DMARC policy published in the domain''s DNS record: what receivers are asked to do with mail that fails DMARC.
+
+        '
+      enum:
+      - none
+      - quarantine
+      - reject
+      example: quarantine
+    EmailInboxInsightsDomain:
+      type: object
+      additionalProperties: false
+      description: 'One of the workspace''s verified sending domains, and whether Inbox Insights is switched on for it.
+
+        '
+      required:
+      - domain
+      - monitored
+      properties:
+        domain:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The sending domain, lowercased, as it appears in your sending domains.
+          example: mail.acme.com
+        monitored:
+          type: boolean
+          readOnly: true
+          description: 'Whether Inbox Insights reports on this domain. Switching it off stops the reporting and keeps the measurement history, so switching it back on restores the full history rather than starting again.
+
+            '
+          example: true
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+    EmailInboxInsightsSectionStatus:
+      type: string
+      minLength: 1
+      description: 'Whether a section of the response carries figures, and when it does not, why.
+
+
+        `ok` means the section is populated. `no_data` means the measurement ran and
+
+        observed nothing to report for this domain in the period. `not_configured`
+
+        means the section needs a setup step that has not been completed yet, such as
+
+        connecting Google Postmaster Tools; treat it as an invitation to finish
+
+        setup rather than a fault. `unavailable` means the figures could not be retrieved this time and
+
+        the same request may well succeed on a retry; the rest of the response is
+
+        unaffected. `not_applicable` means the section is meaningless for this domain
+
+        in this period, so there is nothing to show or fix.
+
+
+        A successful response never implies every section is populated; read each
+
+        section''s status rather than assuming figures are present.
+
+        '
+      enum:
+      - ok
+      - no_data
+      - not_configured
+      - unavailable
+      - not_applicable
+      example: ok
+    EmailInboxInsightsPlacementDeltaPts:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'How the domain-wide rates moved against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data; absence means no comparable prior data, never zero change.
+
+        '
+      required:
+      - inbox
+      - spam
+      properties:
+        inbox:
+          type: number
+          readOnly: true
+          description: Inbox-rate movement in percentage points; negative means it fell.
+          example: -3.1
+        spam:
+          type: number
+          readOnly: true
+          description: Spam-rate movement in percentage points.
+          example: 3.1
+    EmailInboxInsightsPlacementIpDetail:
+      type: object
+      additionalProperties: false
+      description: One sending IP's placement and authentication pass rates for the period.
+      required:
+      - ip
+      - inbox_rate_percent
+      - raw_counts
+      - spf_pass_rate_percent
+      - dkim_pass_rate_percent
+      properties:
+        ip:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The sending IP address.
+          example: 147.253.40.16
+        inbox_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this IP's measured placements that landed in the inbox, as a percentage.
+          example: 89.9
+        raw_counts:
+          $ref: '#/components/schemas/EmailInboxInsightsPlacementCounts'
+          readOnly: true
+        spf_pass_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this IP's measured mail that passed SPF, as a percentage.
+          example: 99.8
+        dkim_pass_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this IP's measured mail that passed DKIM, as a percentage.
+          example: 99.9
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    EmailInboxInsightsSpamTrapHit:
+      type: object
+      additionalProperties: false
+      description: 'One trap address this domain''s mail reached, with enough detail to trace where the address came from. A row can represent several hits on the same trap, so read `hit_count` rather than counting rows.
+
+        '
+      required:
+      - first_seen
+      - last_seen
+      - ip_address
+      - source
+      - type
+      - trap_age_days
+      properties:
+        first_seen:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the trap network first observed mail from this domain at this trap.
+          example: '2026-08-14T06:21:00Z'
+        last_seen:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'The most recent sighting, or null when the trap was seen only once. On a row with several hits this is the far end of the period they span.
+
+            '
+          example: '2026-08-16T11:04:00Z'
+        ip_address:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The sending IP the message came from.
+          example: 147.253.40.16
+        source:
+          $ref: '#/components/schemas/EmailInboxInsightsTrapSource'
+          readOnly: true
+        type:
+          $ref: '#/components/schemas/EmailInboxInsightsTrapType'
+          readOnly: true
+        hit_count:
+          type: integer
+          minimum: 1
+          readOnly: true
+          description: 'How many times this trap was hit over the period, so rows do not sum to `total` on their own: one repeatedly hit trap is one row. Absent when the trap network does not break the count out, which is not the same as one hit. A row exists because the trap was reached at least once either way.
+
+            '
+          example: 2
+        trap_age_days:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'How long the trap address has been a trap, in days, or null when the network does not say. A high age on a recycled trap suggests the address has been dead in the list for a long time.
+
+            '
+          example: 430
+    EmailInboxInsightsEnvelopeBase:
+      type: object
+      description: 'The meta every Inbox Insights resource carries, whatever it measures, so one client adapter serves them all.
+
+        '
+      required:
+      - resource
+      - domain
+      - generated_at
+      - freshness
+      properties:
+        resource:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Which resource this response is, echoed for self-description.
+          example: placement
+        domain:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The sending domain the figures describe.
+          example: mail.acme.com
+        measurement:
+          $ref: '#/components/schemas/EmailInboxInsightsMeasurement'
+          readOnly: true
+          description: 'How the figures were measured. Present only where a figure was weighted or drawn from a named set of sources, which today means placement and the industry benchmark. Absent on the reputation resources and on a live lookup, neither of which weights anything.
+
+            '
+        generated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the measurement service computed these figures.
+          example: '2026-08-18T09:34:00Z'
+        freshness:
+          $ref: '#/components/schemas/EmailInboxInsightsFreshness'
+          readOnly: true
+        cached_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: 'Present when the response was served from a short-lived copy rather than fetched for this request: when that copy was fetched.
+
+            '
+          example: '2026-08-18T09:40:02Z'
+    EmailInboxInsightsComplaintSeries:
+      type: object
+      additionalProperties: false
+      description: 'The complaint-rate series, at the grain named in `window.group_by`. Index by date, never by position.
+
+        '
+      required:
+      - items
+      - status
+      properties:
+        items:
+          type: array
+          readOnly: true
+          description: One point per bucket.
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsComplaintSeriesPoint'
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsMeasurement:
+      type: object
+      additionalProperties: false
+      description: 'How the figures in this response were measured, so a number is self-describing in a screenshot or a bug report.
+
+        '
+      required:
+      - sources
+      properties:
+        sources:
+          type: array
+          readOnly: true
+          description: 'Identifiers of the measurement systems that contributed to these figures. The set grows as measurement coverage does, so treat the values as labels rather than a closed list.
+
+            '
+          items:
+            type: string
+            minLength: 1
+            x-extensible-enum:
+            - panel
+            - intelliseed_public
+            - intelliseed_private
+            - eds
+          example:
+          - panel
+          - intelliseed_public
+        weighting:
+          $ref: '#/components/schemas/EmailInboxInsightsWeighting'
+          readOnly: true
+          description: 'How the figures were weighted. Present on figures weighted against an audience mix, which is placement''s method; measurements that weight nothing carry no weighting block.
+
+            '
+    EmailInboxInsightsEnvelope:
+      type: object
+      description: 'The meta a windowed Inbox Insights resource carries: the common fields plus the period the figures cover and how they were measured.
+
+        '
+      allOf:
+      - $ref: '#/components/schemas/EmailInboxInsightsEnvelopeBase'
+      - type: object
+        required:
+        - window
+        properties:
+          window:
+            $ref: '#/components/schemas/EmailInboxInsightsWindow'
+          compared_to:
+            $ref: '#/components/schemas/EmailInboxInsightsComparedTo'
+    EmailInboxInsightsSpamTrapTypeCount:
+      type: object
+      additionalProperties: false
+      description: Trap hits of one kind.
+      required:
+      - type
+      - hits
+      properties:
+        type:
+          $ref: '#/components/schemas/EmailInboxInsightsTrapType'
+          readOnly: true
+        hits:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Hits of this kind over the period. A zero is a measured zero, not missing data: no pristine hits is a genuinely good result rather than an empty state.
+
+            '
+          example: 3
+    EmailInboxInsightsDomainSort:
+      type: string
+      minLength: 1
+      description: Field used to sort owned domains.
+      enum:
+      - domain
+      default: domain
+      example: domain
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EmailInboxInsightsGmailTab:
+      type: string
+      minLength: 1
+      readOnly: true
+      description: 'A Gmail tab, as the measurement identifies it. A lowercase identifier rather than a
+
+        display name, so pick your own label for it, and treat the set as open: these are
+
+        Gmail''s own tabs, and the measurement reports whichever one it saw.
+
+
+        `none` is a value rather than an absence: Gmail delivered the mail under no tab at all,
+
+        which is an ordinary outcome and not a gap in the measurement.
+
+        '
+      x-extensible-enum:
+      - primary
+      - promotions
+      - updates
+      - forums
+      - social
+      - none
+      example: promotions
+    EmailInboxInsightsSpamTrapHits:
+      type: object
+      additionalProperties: false
+      description: 'The individual trap hits behind the totals. A sample rather than a guaranteed complete list, and its rows do not count hits: one row is one trap address, carrying a `hit_count` for how many times that address was reached. Neither the number of rows nor the sum of `hit_count` reconstructs `total`, because that field is absent wherever the trap network does not break the figure out. Read `truncated_types` for what the measurement capped rather than inferring completeness by comparing counts.
+
+        '
+      required:
+      - items
+      - truncated_types
+      - status
+      properties:
+        items:
+          type: array
+          readOnly: true
+          description: One entry per trap reached, newest first.
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsSpamTrapHit'
+        truncated_types:
+          type: array
+          readOnly: true
+          description: 'Trap kinds whose hits the measurement capped, so the rows shown for them are incomplete by design rather than by chance. Typo-trap hits, for instance, only ever cover the last seven days. An empty array means nothing was capped.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsTrapType'
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsFreshness:
+      type: object
+      additionalProperties: false
+      description: 'How current the figures are. Freshness differs per resource (authentication data can lag a day or more while blocklist lookups are near real time), so any "as of" label binds from this field, never from a fixed string.
+
+        '
+      required:
+      - as_of
+      - lag_hint
+      properties:
+        as_of:
+          type:
+          - string
+          - 'null'
+          format: date
+          readOnly: true
+          description: 'The most recent UTC day the figures include, or null for a live lookup that has no measurement window.
+
+            '
+          example: '2026-08-17'
+        lag_hint:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'How far behind real time this resource usually runs. A lowercase
+
+            identifier rather than a display label, so pick your own wording for it,
+
+            and treat the set as open: the measurement names a hint per resource and
+
+            can add one without notice.
+
+
+            Null when the measurement reports no hint, which several resources do:
+
+            show the figures without an age rather than inventing one.
+
+            '
+          x-extensible-enum:
+          - daily
+          - nightly
+          - near_real_time
+          example: daily
+    EmailInboxInsightsPlacementIpDetails:
+      type: object
+      additionalProperties: false
+      description: 'Per-IP placement detail for the domain''s sending infrastructure. Returned only when the request asked for IP detail.
+
+        '
+      required:
+      - items
+      - status
+      properties:
+        items:
+          type: array
+          readOnly: true
+          description: One row per sending IP the measurement observed for this domain in the period.
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsPlacementIpDetail'
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsDomainMonitoringResult:
+      type: object
+      additionalProperties: false
+      description: 'What switching on the workspace''s main sending domain did. There are four outcomes, because each one leaves the customer somewhere different: one domain is now reporting, one already was, we could not tell which domain is the main one, or there is no verified domain to report on at all.
+
+        '
+      required:
+      - outcome
+      - domain
+      properties:
+        outcome:
+          readOnly: true
+          $ref: '#/components/schemas/EmailInboxInsightsDomainMonitoringOutcome'
+        domain:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          readOnly: true
+          description: 'The sending domain this call switched on, lowercased. The server sends a domain with the `enabled` outcome and null with the other three, `already_on` included: that outcome says only that the workspace had already made its choice, not which domain it chose. Read the domain list for that. Check `outcome` first rather than treating a domain as present.
+
+            '
+          example: mail.acme.com
+    EmailInboxInsightsBlocklists:
+      description: 'Whether the domain''s sending infrastructure is on any blocklist, checked
+
+        when the request is made.
+
+
+        This is a live lookup rather than a measurement over a period, so it carries
+
+        no window: `freshness.as_of` is null and only the lag hint applies.
+
+
+        Inspect each returned target''s `status` before `is_listed`. A target whose
+
+        lookup did not complete can report `is_listed: false`; that value carries no
+
+        finding. Partial failures are represented by the individual target statuses.
+
+
+        `active_count` is null when the lookup service supplies no count. Zero reports
+
+        no active target listings, but does not establish coverage: the response can
+
+        contain an empty `targets` array. Use the returned targets and their statuses
+
+        to determine which addresses were checked. A failed request provides no
+
+        lookup result.
+
+        '
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/EmailInboxInsightsEnvelopeBase'
+      - type: object
+        required:
+        - active_count
+        - targets
+        properties:
+          active_count:
+            type:
+            - integer
+            - 'null'
+            minimum: 0
+            readOnly: true
+            description: 'Number of successfully checked targets reported with an active listing. A target on three blocklists counts once. Null when the lookup service supplies no count; do not treat null as zero. Zero does not establish that the domain or its IPs were checked. Inspect `targets` and each target''s `status` for lookup coverage, including partial failures.
+
+              '
+            example: 0
+          targets:
+            type: array
+            readOnly: true
+            description: Returned sending IP or domain lookup results, including failed lookups. An empty array does not establish that the domain or its IPs are clear.
+            items:
+              $ref: '#/components/schemas/EmailInboxInsightsBlocklistTarget'
+    EmailInboxInsightsPlacement:
+      description: 'Where a sending domain''s measured mail landed over the period: the
+
+        domain-wide summary, the per-provider table, the time series, the Gmail tab
+
+        split, and optionally per-IP detail.
+
+
+        Placement figures are estimates from a measurement panel of real mailboxes,
+
+        and every rate is a percentage of measured placements, never of delivered
+
+        volume. Each section carries its own status; a successful response never
+
+        implies every section is populated.
 
         '
       unevaluatedProperties: false
@@ -2953,21 +2562,22 @@ components:
       - $ref: '#/components/schemas/EmailInboxInsightsEnvelope'
       - type: object
         required:
-        - spf
-        - dkim
-        - dmarc
-        - sources
+        - summary
+        - providers
+        - series
+        - gmail_tabs
+        - measurement
         properties:
-          spf:
-            $ref: '#/components/schemas/EmailInboxInsightsAuthPassRate'
-            description: The domain's SPF pass rate.
-          dkim:
-            $ref: '#/components/schemas/EmailInboxInsightsAuthPassRate'
-            description: The domain's DKIM pass rate.
-          dmarc:
-            $ref: '#/components/schemas/EmailInboxInsightsDmarc'
-          sources:
-            $ref: '#/components/schemas/EmailInboxInsightsAuthSources'
+          summary:
+            $ref: '#/components/schemas/EmailInboxInsightsPlacementSummary'
+          providers:
+            $ref: '#/components/schemas/EmailInboxInsightsPlacementProviders'
+          series:
+            $ref: '#/components/schemas/EmailInboxInsightsPlacementSeries'
+          gmail_tabs:
+            $ref: '#/components/schemas/EmailInboxInsightsGmailTabs'
+          ip_details:
+            $ref: '#/components/schemas/EmailInboxInsightsPlacementIpDetails'
     EmailInboxInsightsSpamTrapSourceCount:
       type: object
       additionalProperties: false
@@ -2985,14 +2595,472 @@ components:
           readOnly: true
           description: Hits this network observed over the period.
           example: 2
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+    EmailInboxInsightsWeightingSource:
+      type: string
+      minLength: 1
+      description: 'Where the audience mix behind the placement weighting came from: `account` when it was configured for this account, `global` when a general default was used instead.
 
         '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
+      enum:
+      - account
+      - global
+      example: account
+    EmailInboxInsightsComplaintSeriesPoint:
+      type: object
+      additionalProperties: false
+      description: One bucket of the complaint-rate series.
+      required:
+      - date
+      - gmail_postmaster_spam_rate_percent
+      properties:
+        date:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: First UTC day of the bucket.
+          example: '2026-07-19'
+        gmail_postmaster_spam_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: The bucket's Google Postmaster spam rate, as a percentage.
+          example: 0.08
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    EmailInboxInsightsTrapSource:
+      type: string
+      minLength: 1
+      description: 'The trap network that observed a hit. The set grows as coverage does, so treat the values as labels rather than a closed list.
+
+        '
+      x-extensible-enum:
+      - cloudmark
+      - abusix
+      example: cloudmark
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EmailInboxInsightsDomains:
+      description: 'A page of sending domains this workspace can report on, and which of them Inbox Insights is switched on for.
+
+        '
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            readOnly: true
+            description: 'One entry per verified domain in this page, whether or not it is switched on. A domain that has not been verified does not appear, because verification is what proves the domain is yours to report on.
+
+              '
+            items:
+              $ref: '#/components/schemas/EmailInboxInsightsDomain'
+      - $ref: '#/components/schemas/_ListEnvelope'
+      unevaluatedProperties: false
+    EmailInboxInsightsAuthSources:
+      type: object
+      additionalProperties: false
+      description: 'Every system observed sending as this domain, with how each authenticates. This is the table that shows who else sends under the domain''s name.
+
+        '
+      required:
+      - items
+      - latest_data_date
+      - status
+      properties:
+        items:
+          type: array
+          readOnly: true
+          description: One row per observed sending source.
+          items:
+            $ref: '#/components/schemas/EmailInboxInsightsAuthSource'
+        latest_data_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          readOnly: true
+          description: 'The most recent UTC day the source reporting includes. Aggregate DMARC reports arrive on reporters'' own schedules, routinely a day or more behind, so the newest days look sparse; label from this date rather than treating the dip as a regression.
+
+            '
+          example: '2026-08-15'
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsPlacementSummary:
+      type: object
+      additionalProperties: false
+      description: 'The domain-wide placement figures for the period.
+
+
+        These rates are weighted against the audience mix in `measurement.weighting`,
+
+        so they can legitimately differ from any single provider row, which has no
+
+        mix to weight. Rates are percentages of measured placements, never of
+
+        delivered volume.
+
+        '
+      required:
+      - inbox_rate_percent
+      - spam_rate_percent
+      - missing_rate_percent
+      - raw_counts
+      - read_rate_percent
+      - status
+      properties:
+        inbox_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Estimated share of measured placements that landed in the inbox, as a percentage.
+          example: 87.4
+        spam_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Estimated share of measured placements that landed in spam, as a percentage.
+          example: 12.6
+        missing_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Estimated share of measured sends that arrived in neither folder, as a percentage.
+          example: 0
+        raw_counts:
+          oneOf:
+          - $ref: '#/components/schemas/EmailInboxInsightsPlacementCounts'
+          - type: 'null'
+          readOnly: true
+          description: 'The measured placements the rates above were computed over, or null when the summary has none: a period with no measured mail reports null here rather than four zeros, because a zero count is a real measurement and would read as "we looked and found nothing" for a domain nothing looked at. Read `status` alongside it.
+
+            '
+        read_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'Estimated share of inbox-placed mail that was read, as a percentage, measured by the panel''s dwell time. This is not an open rate; the two count different things and are not interchangeable.
+
+            '
+          example: 21.4
+        delta_pts:
+          $ref: '#/components/schemas/EmailInboxInsightsPlacementDeltaPts'
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsComplaintRate:
+      type: object
+      additionalProperties: false
+      description: The rate at which the domain's mail is reported as spam, as Google Postmaster measures it.
+      required:
+      - gmail_postmaster_spam_rate_percent
+      - status
+      properties:
+        gmail_postmaster_spam_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'Share of the domain''s Gmail-received mail that recipients reported as spam, as a percentage, from Google Postmaster.
+
+            '
+          example: 0.11
+        delta_pts:
+          type: number
+          readOnly: true
+          description: 'How the rate moved against the prior period, in percentage points. Present only when the request asked for a comparison and the prior period had data; absence is not zero change.
+
+            '
+          example: 0.03
+        peak:
+          $ref: '#/components/schemas/EmailInboxInsightsComplaintPeak'
+          readOnly: true
+          description: 'The worst day in the period, so a spike can be named without scanning the series. Absent when there is no rate to peak.
+
+            '
+        status:
+          $ref: '#/components/schemas/EmailInboxInsightsSectionStatus'
+          readOnly: true
+    EmailInboxInsightsGmailTabCategory:
+      type: object
+      additionalProperties: false
+      description: How the domain's Gmail-placed mail split across one Gmail tab.
+      required:
+      - category
+      - overall_percent
+      - inbox_percent
+      - spam_percent
+      properties:
+        category:
+          $ref: '#/components/schemas/EmailInboxInsightsGmailTab'
+          readOnly: true
+          description: The tab this row describes.
+        overall_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of the domain's Gmail-placed mail that landed under this tab, as a percentage.
+          example: 34
+        inbox_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this tab's mail that placed in the inbox, as a percentage.
+          example: 94
+        spam_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Share of this tab's mail that placed in spam, as a percentage.
+          example: 6
+    EmailInboxInsightsMailboxProvider:
+      type: string
+      minLength: 1
+      readOnly: true
+      description: 'A mailbox provider, as the measurement identifies it. A lowercase identifier rather than
+
+        a display name, so pick your own label for it, and treat the set as open: this is a long
+
+        tail rather than a handful of household names, and some entries are domains
+
+        (`fastmail.com`, `seznam.cz`) rather than brands.
+
+
+        The measurement places mail into its own seed lists, so its buckets are not the ones the
+
+        [mailbox-provider stats breakdown](/docs/api/reference/get-email-stats-by-mailbox-provider)
+
+        reports: Microsoft''s properties appear here as `hotmail` rather than `microsoft`, and
+
+        `apple` appears here where the Competitive Insights panel has no measurement for it at
+
+        all. None of the three is a joinable dimension against the others.
+
+        '
+      example: gmail
+    EmailInboxInsightsBlocklistListing:
+      type: object
+      additionalProperties: false
+      description: One listing of a target on one blocklist.
+      required:
+      - provider
+      - is_active
+      - reason_code
+      - reason
+      - first_detected
+      - last_detected
+      properties:
+        is_active:
+          type: boolean
+          readOnly: true
+          description: 'Whether this listing is in force now. A false entry is history: it shows the target was listed and has since cleared, which is why the target''s `is_listed` can be false while listings are present.
+
+            '
+          example: false
+        reason_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'The provider''s own short code for the listing reason, or null when it gives none. Stable where the prose in `reason` is not, so branch on this and display that.
+
+            '
+          example: CSS
+        provider:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The blocklist that carries the listing. Providers publishing several lists are reported per list rather than under one combined name, because what a listing means and how it is cleared differ per list.
+
+            '
+          example: Spamhaus CSS
+        reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The reason the provider gives for the listing, or null when it publishes none.
+          example: Automated listing of a suspected snowshoe range
+        first_detected:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When this listing was first observed.
+          example: '2026-07-31T00:00:00Z'
+        last_detected:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When this listing was most recently observed, or null while the listing is still in force. A provider records a last sighting only once one exists, so a null here reads as "still listed" rather than "never seen".
+
+            '
+          example: '2026-08-04T00:00:00Z'
+    EmailInboxInsightsPlacementSeriesPoint:
+      type: object
+      additionalProperties: false
+      description: One bucket of the placement series.
+      required:
+      - date
+      - mailbox_provider
+      - inbox_rate_percent
+      - spam_rate_percent
+      - inbox_raw_count
+      - spam_raw_count
+      properties:
+        date:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: First UTC day of the bucket.
+          example: '2026-07-19'
+        mailbox_provider:
+          oneOf:
+          - $ref: '#/components/schemas/EmailInboxInsightsMailboxProvider'
+          - type: 'null'
+          readOnly: true
+          description: 'The provider this point describes, or null on the domain-wide line. Per-provider points appear only when the request named providers.
+
+            '
+          example: null
+        inbox_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Inbox share of the bucket's measured placements, as a percentage.
+          example: 90.6
+        spam_rate_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Spam share of the bucket's measured placements, as a percentage.
+          example: 9.4
+        inbox_raw_count:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Measured placements observed in the inbox in this bucket.
+          example: 14201
+        spam_raw_count:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Measured placements observed in spam in this bucket.
+          example: 1473
+  responses:
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PreconditionFailed:
+      description: Precondition failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
     RateLimit:
       description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
 
@@ -3008,6 +3076,13 @@ components:
         type: integer
         minimum: 0
       example: 35
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
     IdempotencyReplay:
       description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
       schema:
@@ -3015,6 +3090,23 @@ components:
         enum:
         - 'true'
   parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -3040,98 +3132,6 @@ components:
       description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
       schema:
         type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
-  responses:
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    PreconditionFailed:
-      description: Precondition failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

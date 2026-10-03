@@ -805,6 +805,376 @@ paths:
       - sdk
 components:
   schemas:
+    EmailCompetitivePeriod:
+      type: object
+      additionalProperties: false
+      description: 'The period every figure in the response covers, echoed back from the request.
+
+
+        Figures are fetched when the request is made, so they are current as of `to`.
+
+        The period always ends at the moment of the request rather than at a cached
+
+        boundary, which is why two requests a minute apart can differ slightly.
+
+        '
+      required:
+      - days
+      - from
+      - to
+      properties:
+        days:
+          type: integer
+          readOnly: true
+          description: Length of the period in days.
+          example: 30
+        from:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: Start of the period, inclusive.
+          example: '2026-07-13T09:00:00Z'
+        to:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: 'End of the period, exclusive. Daily figures therefore run through the previous whole UTC day and never include the one in progress.
+
+            '
+          example: '2026-08-12T09:00:00Z'
+    EmailCompetitiveWatchlistRowProvenance:
+      type: object
+      additionalProperties: false
+      description: 'Where each figure on the row came from, so a comparison can be labelled
+
+        honestly. Every field on a competitor''s row is a panel estimate. On your own
+
+        row the source varies by field: what is counted directly is reported as measured,
+
+        falls back to the panel for what is not, and reports `none` for a field this row
+
+        never carries at all.
+
+
+        Read rate is a panel estimate even on your own row. Comparing a measured rate
+
+        against a panel estimate of the same rate is not a like for like
+
+        comparison, because the two count an open differently, so both sides of the
+
+        comparison come from the panel.
+
+        '
+      required:
+      - sends
+      - cadence_per_week
+      - inbox_placement_rate
+      - read_rate
+      - audience_overlap_rate
+      - last_campaign
+      properties:
+        sends:
+          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
+          description: Source of `sends` and of `sends_change_percent`, which is derived from it.
+        cadence_per_week:
+          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
+          description: Source of `cadence_per_week`.
+        inbox_placement_rate:
+          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
+          description: Source of `inbox_placement_rate`.
+        read_rate:
+          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
+          description: Source of `read_rate`.
+        audience_overlap_rate:
+          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
+          description: Source of `audience_overlap_rate`.
+        last_campaign:
+          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
+          description: Source of `last_campaign`.
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    EmailCompetitiveSendTimeCell:
+      type: object
+      additionalProperties: false
+      description: One weekday and hour of a brand's sending week.
+      required:
+      - weekday
+      - hour
+      - share_percent
+      - intensity
+      - sample_days
+      properties:
+        weekday:
+          $ref: '#/components/schemas/EmailCompetitiveWeekday'
+          readOnly: true
+          description: The day of the week this hour falls on.
+        hour:
+          type: integer
+          readOnly: true
+          minimum: 0
+          maximum: 23
+          description: 'The hour this cell covers, in the timezone the response reports. `13` covers 13:00 to 14:00.
+
+            '
+          example: 13
+        share_percent:
+          type: number
+          readOnly: true
+          description: 'Share of everything the brand sent over the period that fell in this hour. It is `0` for an hour the brand demonstrably did not send in, which on a disciplined sender is the most useful thing this grid says.
+
+            '
+          example: 3.4
+        intensity:
+          type: number
+          readOnly: true
+          minimum: 0
+          maximum: 1
+          description: 'How strongly the brand sends in this hour, against its own busiest hour at `1`.
+
+            It is this cell''s sending per `sample_days` divided by the busiest cell''s, so it
+
+            is derivable from the two numbers beside it and reconciles with them rather than
+
+            competing: it is published because that correction is easy to get wrong, not
+
+            because it knows anything they do not.
+
+
+            Shade a cell by this rather than by `share_percent`: the period holds one more
+
+            of some weekdays than others, so a share compares an hour that came round
+
+            thirteen times against one that came round twelve.
+
+            '
+          example: 0.55
+        sample_days:
+          type: integer
+          readOnly: true
+          description: 'How many days of the period fell on this weekday, whether or not the brand sent on them. It is what separates an hour the brand is quiet in from one there was little chance to observe.
+
+            '
+          example: 13
+    EmailCompetitiveNotableCampaign:
+      type: object
+      additionalProperties: false
+      description: A campaign the panel surfaced, and the reason it did.
+      required:
+      - watchlist_brand_id
+      - brand_name
+      - signal
+      - claim
+      - evidence
+      - mailbox_provider
+      - campaign
+      properties:
+        watchlist_brand_id:
+          $ref: '#/components/schemas/CompetitiveWatchlistBrandID'
+          readOnly: true
+          description: The watchlist entry that sent it.
+        brand_name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The brand's name.
+          example: Allbirds
+        signal:
+          $ref: '#/components/schemas/EmailCompetitiveCampaignSignal'
+          readOnly: true
+        claim:
+          oneOf:
+          - $ref: '#/components/schemas/EmailCompetitiveNotableClaim'
+          - type: 'null'
+          readOnly: true
+          description: 'The panel''s own headline for this campaign, or null where it surfaced the campaign without making one. Null is the common case and is not a fault.
+
+            '
+        evidence:
+          $ref: '#/components/schemas/EmailCompetitiveNotableEvidence'
+          readOnly: true
+          description: The figures behind the signal, for ordering or filtering the list.
+        mailbox_provider:
+          oneOf:
+          - $ref: '#/components/schemas/EmailCompetitivePanelMailboxProvider'
+          - type: 'null'
+          readOnly: true
+          description: 'The provider a `landing_in_spam` campaign was heavily filed as spam at: spam placement is measured per provider, and this campaign''s problem is at one of them. Null on every other signal.
+
+            '
+        campaign:
+          $ref: '#/components/schemas/EmailCompetitiveCampaign'
+          description: 'The campaign itself. Two of its fields behave differently here than on the brand''s
+
+            campaign feed, because the panel sends less about a campaign it surfaced this way.
+
+
+            `has_creative` reports whether a capture came back with this entry rather than whether
+
+            the panel ever captured the email, and captures are frequently absent here by design, so
+
+            expect `false` on campaigns the panel did image. `reach` is null on every entry, because
+
+            the panel does not estimate an audience for the campaigns it surfaces.
+
+            '
+    EmailCompetitiveCampaign:
+      description: One campaign an email panel observed a brand sending.
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/EmailCompetitiveCampaignSummary'
+      - type: object
+        required:
+        - reach
+        - read_rate
+        - has_creative
+        - discount_percent
+        - inbox_rate
+        - spam_rate
+        properties:
+          reach:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            readOnly: true
+            description: 'Estimated recipients this campaign reached, null when the panel observed the campaign but published no estimate for it.
+
+              '
+            example: 410000
+          read_rate:
+            type:
+            - number
+            - 'null'
+            readOnly: true
+            description: 'Estimated share of recipients who read this campaign, null when the panel published no rate for it. Panel read rates count dwell time, so they do not move with the automatic opens that inflate a sender''s own open rate.
+
+              '
+            example: 0.228
+          has_creative:
+            type: boolean
+            readOnly: true
+            description: Whether the panel captured the rendered email for this campaign.
+            example: true
+          discount_percent:
+            type:
+            - number
+            - 'null'
+            readOnly: true
+            description: 'The discount the subject line leads with, null when it names none. Read from the subject text, so it finds a stated offer and not one revealed inside the email.
+
+              '
+            example: 40
+          inbox_rate:
+            type:
+            - number
+            - 'null'
+            readOnly: true
+            description: 'Share of this campaign that reached an inbox, null when the panel observed it without recording where it landed. It describes this send rather than the brand''s domain, so a single bad campaign is visible against a brand whose overall placement still looks healthy.
+
+              '
+            example: 0.879
+          spam_rate:
+            type:
+            - number
+            - 'null'
+            readOnly: true
+            description: Share of this campaign that was filed as spam, null on the same terms.
+            example: 0.121
+    EmailCompetitiveWeekday:
+      type: string
+      minLength: 1
+      description: 'A day of the week. Named rather than numbered because the two common numberings disagree about which day the week starts on.
+
+        '
+      enum:
+      - monday
+      - tuesday
+      - wednesday
+      - thursday
+      - friday
+      - saturday
+      - sunday
+      example: tuesday
     EmailCompetitiveNotableFeed:
       type: object
       additionalProperties: false
@@ -869,6 +1239,154 @@ components:
 
             '
           example: false
+    EmailCompetitiveCampaignSignal:
+      type: string
+      minLength: 1
+      description: 'Why this campaign was surfaced. The set is open and grows as new signals are added.
+
+
+        Every signal describes the campaign against its own brand''s history, never against the
+
+        other brands you watch, so several brands can carry the same signal in one period and
+
+        none of them is the top of anything.
+
+
+        `biggest_send` is a send far above that brand''s own median: unusual for the brand, not
+
+        merely large. `read_rate_standout` is a campaign read unusually well for its brand.
+
+        `landing_in_spam` is one heavily filed as spam at a single mailbox provider, named in
+
+        `mailbox_provider`, which is worth seeing even when the brand''s overall placement looks healthy.
+
+        '
+      x-extensible-enum:
+      - biggest_send
+      - read_rate_standout
+      - landing_in_spam
+      example: read_rate_standout
+    CompetitiveWatchlistBrandID:
+      type: string
+      minLength: 1
+      pattern: ^cwb_[0-9a-hjkmnp-tv-z]{26}$
+      example: cwb_01krdgeqcxet5s7t44vh8rt9mg
+    EmailCompetitiveFieldSource:
+      type: string
+      minLength: 1
+      description: 'Where a figure came from. `measured` means it is counted from your own
+
+        sending. `panel` means it is an estimate from an email panel, which observes a
+
+        sample of real inboxes and scales what it sees up to a whole audience. `none`
+
+        means there is no figure for this field on this row, so there is nothing to
+
+        attribute a source to.
+
+
+        Only your own row carries `measured` figures, and only where the metric is counted
+
+        rather than estimated. Everything about a competitor is a panel estimate.
+
+        '
+      enum:
+      - measured
+      - panel
+      - none
+      example: panel
+    EmailCompetitiveWatchlistBrand:
+      description: 'A brand on the workspace''s watchlist. This is the watchlist entry itself, with no figures on it; read the watchlist to get those.
+
+        '
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Timestamps'
+      - type: object
+        required:
+        - id
+        - brand_id
+        - name
+        - industry
+        - sending_domains
+        properties:
+          id:
+            $ref: '#/components/schemas/CompetitiveWatchlistBrandID'
+            readOnly: true
+            description: The watchlist entry.
+          brand_id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EmailCompetitiveBrandID'
+          name:
+            type: string
+            minLength: 1
+            readOnly: true
+            description: 'The brand''s name when it was added. It is kept as it was so the row still reads correctly if the brand is later renamed or stops being tracked.
+
+              '
+            example: Everlane
+          industry:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            description: The brand's industry when it was added, or null when the brand is not classified.
+            example: DTC Apparel
+          sending_domains:
+            type: array
+            minItems: 1
+            readOnly: true
+            description: 'The domains this brand''s figures describe. Always one domain today, chosen as the one the panel sees the most of its mail from.
+
+              '
+            items:
+              type: string
+              minLength: 1
+            example:
+            - everlane.com
+    EmailCompetitiveBrandSearchResults:
+      type: object
+      additionalProperties: false
+      description: 'Brands matching the search. Ranked by how well they match, best first, and capped at 8 results because this backs a type-ahead. The panel''s own answer is often shorter than the cap, in which case the cap was never the reason the list is short.
+
+        '
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          readOnly: true
+          description: 'Matching brands. Empty when nothing matched, which for an unusual brand name means the panel does not track it rather than that the search failed.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailCompetitiveBrandMatch'
+    EmailCompetitivePanelMailboxProvider:
+      type: string
+      minLength: 1
+      readOnly: true
+      description: 'A mailbox provider, as the email panel identifies it. A lowercase identifier rather than a
+
+        display name, so pick your own label for it, and treat the set as open: the panel reports
+
+        whichever providers it observed, and `gmail`, `hotmail`, `yahoo`, `aol` and `comcast` are the
+
+        ones it returns most. Apple never appears, because the panel does not measure it, so a surface
+
+        offering an Apple row has no measurement behind it.
+
+
+        The panel''s buckets are not the same as the ones the [mailbox-provider stats
+
+        breakdown](/docs/api/reference/get-email-stats-by-mailbox-provider) reports: Microsoft''s
+
+        properties appear here as `hotmail` rather than `microsoft`, and Apple is absent, so the two
+
+        are not a joinable dimension.
+
+        '
+      example: gmail
     EmailCompetitiveBrandSeries:
       type: object
       additionalProperties: false
@@ -926,61 +1444,374 @@ components:
             '
           items:
             $ref: '#/components/schemas/EmailCompetitiveVolumePoint'
-    EmailCompetitiveCampaignSort:
-      type: string
-      minLength: 1
-      description: Field used to sort campaigns.
-      enum:
-      - sent_at
-      default: sent_at
-      example: sent_at
-    EmailCompetitiveBrandSearchResults:
+    EmailCompetitiveBrandProfile:
       type: object
       additionalProperties: false
-      description: 'Brands matching the search. Ranked by how well they match, best first, and capped at 8 results because this backs a type-ahead. The panel''s own answer is often shorter than the cap, in which case the cap was never the reason the list is short.
-
-        '
+      description: One watched brand's figures for the period, with its placement broken out by mailbox provider.
       required:
-      - data
+      - period
+      - brand
+      - providers
       properties:
-        data:
+        period:
+          $ref: '#/components/schemas/EmailCompetitivePeriod'
+          description: The period every figure covers.
+        brand:
+          $ref: '#/components/schemas/EmailCompetitiveWatchlistRow'
+          description: 'The figures the watchlist reports for this brand, derived the same way. Estimated
+
+            volume can differ very slightly between the two views, because each request asks the
+
+            panel about a different set of domains and the panel scales its estimate per request.
+
+
+            `esp` and `list_size` are populated here; the watchlist reports both as null.
+
+            '
+        providers:
           type: array
           readOnly: true
-          description: 'Matching brands. Empty when nothing matched, which for an unusual brand name means the panel does not track it rather than that the search failed.
+          description: 'Placement per mailbox provider, in the order the panel returned them. Empty when the panel published no breakdown for the brand''s domains.
 
             '
           items:
-            $ref: '#/components/schemas/EmailCompetitiveBrandMatch'
-    CompetitiveWatchlistBrandID:
-      type: string
-      minLength: 1
-      pattern: ^cwb_[0-9a-hjkmnp-tv-z]{26}$
-      example: cwb_01krdgeqcxet5s7t44vh8rt9mg
-    EmailCompetitivePanelMailboxProvider:
-      type: string
-      minLength: 1
-      readOnly: true
-      description: 'A mailbox provider, as the email panel identifies it. A lowercase identifier rather than a
+            $ref: '#/components/schemas/EmailCompetitiveProviderPlacement'
+    EmailCompetitiveProviderPlacement:
+      type: object
+      additionalProperties: false
+      description: How one mailbox provider treated a brand's mail, beside your own.
+      required:
+      - mailbox_provider
+      - inbox_rate
+      - spam_rate
+      - workspace_inbox_rate
+      properties:
+        mailbox_provider:
+          $ref: '#/components/schemas/EmailCompetitivePanelMailboxProvider'
+          readOnly: true
+          description: The provider whose treatment of the brand's mail this row describes.
+        inbox_rate:
+          type: number
+          readOnly: true
+          description: 'Share of the brand''s mail this provider put in the inbox. Recomputed from what the panel observed across every domain the brand sends from, so a small subdomain cannot move it as much as the brand''s main one.
 
-        display name, so pick your own label for it, and treat the set as open: the panel reports
+            '
+          example: 0.862
+        spam_rate:
+          type: number
+          readOnly: true
+          description: Share of the brand's mail this provider put in spam.
+          example: 0.091
+        workspace_inbox_rate:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'Your own inbox rate at this provider, null when you have not sent or the panel has no breakdown for your sending domain. It is the panel''s view of your sending rather than from our own measurement of it, because a measured rate and a rate the panel estimated are not comparable, and this figure exists to be compared with the brand''s.
 
-        whichever providers it observed, and `gmail`, `hotmail`, `yahoo`, `aol` and `comcast` are the
-
-        ones it returns most. Apple never appears, because the panel does not measure it, so a surface
-
-        offering an Apple row has no measurement behind it.
-
-
-        The panel''s buckets are not the same as the ones the [mailbox-provider stats
-
-        breakdown](/docs/api/reference/get-email-stats-by-mailbox-provider) reports: Microsoft''s
-
-        properties appear here as `hotmail` rather than `microsoft`, and Apple is absent, so the two
-
-        are not a joinable dimension.
+            '
+          example: 0.921
+    EmailCompetitiveVolumeSeries:
+      type: object
+      additionalProperties: false
+      description: 'Volume over time for the requested watched brands, plus your own sending, on one shared daily axis.
 
         '
-      example: gmail
+      required:
+      - period
+      - data
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailCompetitivePeriod'
+          description: The period every line covers.
+        data:
+          type: array
+          readOnly: true
+          description: 'Your own line first, then the requested brands in the order they were asked for. Your line is present once your workspace has sent email. Every line carries the same days in the same order, so they can be plotted against one axis without aligning them first.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailCompetitiveBrandSeries'
+    EmailCompetitiveVolumePoint:
+      type: object
+      additionalProperties: false
+      description: One day of one line on the volume chart.
+      required:
+      - date
+      - sends
+      properties:
+        date:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: The UTC day this point covers.
+          example: '2026-08-09'
+        sends:
+          type: integer
+          format: int64
+          readOnly: true
+          description: 'Volume for the day. An estimate for a competitor and an exact count for your own line; `source` on the series records which. A day nothing was observed is `0` rather than a missing point, so every line shares one axis.
+
+            '
+          example: 41800
+    EmailCompetitiveBrandID:
+      type: string
+      minLength: 1
+      maxLength: 19
+      pattern: ^[0-9]+$
+      description: 'Identifier of the brand in the panel''s catalog, used to add it to the watchlist. It is a string for the same reason a campaign id is: the values are wide enough that a client storing every number as a floating point value would round them, and a rounded identifier matches no brand at all.
+
+        '
+      example: '81531'
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    Timezone:
+      type: string
+      minLength: 1
+      description: IANA timezone identifier, such as `America/New_York`, `Europe/Amsterdam`, or `UTC`.
+      example: America/New_York
+    EmailCompetitiveWatchlistSummary:
+      type: object
+      additionalProperties: false
+      description: 'Where your sending sits against the brands you watch, over the same period as the
+
+        rows.
+
+
+        Every figure here is derived from those rows rather than measured separately, so
+
+        the two always agree. As on a row, each is present and `null` when the rows cannot
+
+        support it: the peer medians need at least one watched brand the panel reported
+
+        on, and the share figures need sending of your own to compare.
+
+        '
+      required:
+      - share_of_volume_percent
+      - share_of_volume_change_points
+      - competitor_sends
+      - competitor_sends_change_percent
+      - peer_cadence_median_per_week
+      - peer_inbox_placement_median_rate
+      properties:
+        share_of_volume_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'Your share of everything the watched set sent over the period, your own sending included in the total. Your half of the ratio is an exact count of your own sending while the rest is the panel''s estimate, so the two sides are measured differently.
+
+            '
+          example: 10.5
+        share_of_volume_change_points:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'How that share moved against the period immediately before, in percentage points. A share that went from 11.7 to 10.5 reports -1.2.
+
+            '
+          example: -1.2
+        competitor_sends:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          readOnly: true
+          description: 'Estimated volume the watched brands sent between them, excluding your own sending. A panel estimate, so read it as an order of magnitude rather than a count.
+
+            '
+          example: 4240000
+        competitor_sends_change_percent:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Change in that volume against the period immediately before.
+          example: 12
+        peer_cadence_median_per_week:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'Median campaigns per week across the brands you watch, per sending domain. Your own row is excluded, since it is the figure being held against this one.
+
+            '
+          example: 4.4
+        peer_inbox_placement_median_rate:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: 'Median inbox placement across the brands you watch. Your own row is excluded, as with the cadence median.
+
+            '
+          example: 0.892
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    EmailCompetitiveWatchlistBrandCreate:
+      type: object
+      additionalProperties: false
+      description: 'The brand to add to the watchlist. Obtained from a brand search, which only returns brands that can be watched.
+
+        '
+      required:
+      - brand_id
+      properties:
+        brand_id:
+          $ref: '#/components/schemas/EmailCompetitiveBrandID'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EmailCompetitiveSendTimePeak:
+      type: object
+      additionalProperties: false
+      description: The hour of the day a brand sends most of its mail in.
+      required:
+      - start_hour
+      - end_hour
+      - share_percent
+      properties:
+        start_hour:
+          type: integer
+          readOnly: true
+          minimum: 0
+          maximum: 23
+          description: The first hour of the window, in the timezone the response reports.
+          example: 13
+        end_hour:
+          type: integer
+          readOnly: true
+          minimum: 0
+          maximum: 23
+          description: 'The hour the window ends at, exclusive: a window of `13` to `14` covers 13:00 to
+
+            14:00. The window is always one hour wide on this endpoint, so this is always the
+
+            hour after `start_hour`. The pair is kept rather than collapsed because the panel
+
+            computes the window at whatever width it was asked for, and only this endpoint
+
+            pins that to an hour.
+
+
+            It can therefore be lower than `start_hour` in exactly one case: a peak at 23:00,
+
+            whose window runs past midnight and ends at `0`.
+
+            '
+          example: 14
+        share_percent:
+          type: number
+          readOnly: true
+          description: 'Share of everything the brand sent over the period that fell in this window.
+
+
+            This is the panel''s own figure, while a cell''s `share_percent` is recomputed from
+
+            the cells in the response. Adding up this hour''s seven cells should therefore land
+
+            on this number but is not guaranteed to; where they disagree, this one is the
+
+            panel''s answer about its own peak and the cells are the arithmetic behind the grid.
+
+            '
+          example: 13.1
     EmailCompetitiveSendTimeGrid:
       type: object
       additionalProperties: false
@@ -1039,379 +1870,6 @@ components:
           description: 'The hour of the day the brand sends most of its mail in, totalled across the whole week, or null when nothing was observed. It carries no weekday: for most brands the hour of the day is where the pattern is and the day of the week barely moves, so naming a busiest weekday would give a figure more meaning than it has. It is also not always the darkest cell, on the same reasoning: one busy Wednesday can outweigh the hour the brand mails in every single day.
 
             '
-    EmailCompetitiveVolumePoint:
-      type: object
-      additionalProperties: false
-      description: One day of one line on the volume chart.
-      required:
-      - date
-      - sends
-      properties:
-        date:
-          type: string
-          format: date
-          minLength: 1
-          readOnly: true
-          description: The UTC day this point covers.
-          example: '2026-08-09'
-        sends:
-          type: integer
-          format: int64
-          readOnly: true
-          description: 'Volume for the day. An estimate for a competitor and an exact count for your own line; `source` on the series records which. A day nothing was observed is `0` rather than a missing point, so every line shares one axis.
-
-            '
-          example: 41800
-    EmailCompetitiveBrandProfile:
-      type: object
-      additionalProperties: false
-      description: One watched brand's figures for the period, with its placement broken out by mailbox provider.
-      required:
-      - period
-      - brand
-      - providers
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailCompetitivePeriod'
-          description: The period every figure covers.
-        brand:
-          $ref: '#/components/schemas/EmailCompetitiveWatchlistRow'
-          description: 'The figures the watchlist reports for this brand, derived the same way. Estimated
-
-            volume can differ very slightly between the two views, because each request asks the
-
-            panel about a different set of domains and the panel scales its estimate per request.
-
-
-            `esp` and `list_size` are populated here; the watchlist reports both as null.
-
-            '
-        providers:
-          type: array
-          readOnly: true
-          description: 'Placement per mailbox provider, in the order the panel returned them. Empty when the panel published no breakdown for the brand''s domains.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailCompetitiveProviderPlacement'
-    Timezone:
-      type: string
-      minLength: 1
-      description: IANA timezone identifier, such as `America/New_York`, `Europe/Amsterdam`, or `UTC`.
-      example: America/New_York
-    EmailCompetitiveVolumeSeries:
-      type: object
-      additionalProperties: false
-      description: 'Volume over time for the requested watched brands, plus your own sending, on one shared daily axis.
-
-        '
-      required:
-      - period
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailCompetitivePeriod'
-          description: The period every line covers.
-        data:
-          type: array
-          readOnly: true
-          description: 'Your own line first, then the requested brands in the order they were asked for. Your line is present once your workspace has sent email. Every line carries the same days in the same order, so they can be plotted against one axis without aligning them first.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailCompetitiveBrandSeries'
-    EmailCompetitiveNotableEvidence:
-      type: object
-      additionalProperties: false
-      description: 'The figures behind a campaign''s signal, for ordering or filtering the list yourself. Which field carries a value depends on the signal, and each is null both on the signals it does not describe and on a campaign of its own signal the panel published no figure for.
-
-        '
-      required:
-      - ratio_to_median
-      - read_rate_observations
-      - mailbox_provider_spam_rate
-      - mailbox_provider_observations
-      properties:
-        ratio_to_median:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: 'How many times the brand''s own median volume this send was. A value of 29 means the send was twenty-nine times the brand''s typical volume for the period. Null on every signal other than `biggest_send`, and on a `biggest_send` campaign the panel published no ratio for.
-
-            '
-          example: 29.61
-        read_rate_observations:
-          type:
-          - integer
-          - 'null'
-          format: int64
-          readOnly: true
-          description: 'How many panel observations `campaign.read_rate` was measured over. A rate over thirty observations and one over a hundred and forty are not equally worth showing, and this is what separates them. Null on every signal other than `read_rate_standout`, and on a `read_rate_standout` campaign the panel published no denominator for.
-
-            '
-          example: 66
-        mailbox_provider_spam_rate:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: 'Share of this campaign filed as spam at the one provider named in `mailbox_provider`, as a value between 0 and 1. A different measurement from the campaign''s overall `spam_rate`, and the one this signal is about. Null on every signal other than `landing_in_spam`, and on a `landing_in_spam` campaign whose provider counts the panel did not publish, so a spam entry can arrive without the rate behind it.
-
-            '
-          example: 0.79
-        mailbox_provider_observations:
-          type:
-          - integer
-          - 'null'
-          format: int64
-          readOnly: true
-          description: 'How many observations at that provider `mailbox_provider_spam_rate` was measured over. Null on the same terms.
-
-            '
-          example: 199
-    EmailCompetitiveCampaign:
-      description: One campaign an email panel observed a brand sending.
-      unevaluatedProperties: false
-      allOf:
-      - $ref: '#/components/schemas/EmailCompetitiveCampaignSummary'
-      - type: object
-        required:
-        - reach
-        - read_rate
-        - has_creative
-        - discount_percent
-        - inbox_rate
-        - spam_rate
-        properties:
-          reach:
-            type:
-            - integer
-            - 'null'
-            format: int64
-            readOnly: true
-            description: 'Estimated recipients this campaign reached, null when the panel observed the campaign but published no estimate for it.
-
-              '
-            example: 410000
-          read_rate:
-            type:
-            - number
-            - 'null'
-            readOnly: true
-            description: 'Estimated share of recipients who read this campaign, null when the panel published no rate for it. Panel read rates count dwell time, so they do not move with the automatic opens that inflate a sender''s own open rate.
-
-              '
-            example: 0.228
-          has_creative:
-            type: boolean
-            readOnly: true
-            description: Whether the panel captured the rendered email for this campaign.
-            example: true
-          discount_percent:
-            type:
-            - number
-            - 'null'
-            readOnly: true
-            description: 'The discount the subject line leads with, null when it names none. Read from the subject text, so it finds a stated offer and not one revealed inside the email.
-
-              '
-            example: 40
-          inbox_rate:
-            type:
-            - number
-            - 'null'
-            readOnly: true
-            description: 'Share of this campaign that reached an inbox, null when the panel observed it without recording where it landed. It describes this send rather than the brand''s domain, so a single bad campaign is visible against a brand whose overall placement still looks healthy.
-
-              '
-            example: 0.879
-          spam_rate:
-            type:
-            - number
-            - 'null'
-            readOnly: true
-            description: Share of this campaign that was filed as spam, null on the same terms.
-            example: 0.121
-    EmailCompetitiveCampaignFeed:
-      description: A page of campaigns returned for a watched brand over the period.
-      allOf:
-      - type: object
-        required:
-        - period
-        - panel_status
-        - captured
-        - promo_rate
-        - truncated
-        - data
-        properties:
-          period:
-            $ref: '#/components/schemas/EmailCompetitivePeriod'
-            description: The rolling period used for this request.
-          panel_status:
-            $ref: '#/components/schemas/EmailCompetitivePanelStatus'
-            description: For this campaign feed, no_data means the requested page is empty; it does not mean the whole period has no campaigns.
-          captured:
-            type: integer
-            readOnly: true
-            description: 'Number of eligible campaigns in the first 300 newest panel rows for each tracked domain. This sampled value is independent of the returned page.
-
-              '
-            example: 38
-          promo_rate:
-            type:
-            - number
-            - 'null'
-            readOnly: true
-            description: 'Fraction of captured campaigns whose subject leads with a discount. Null when captured is zero. This sampled value is independent of the returned page.
-
-              '
-            example: 0.64
-          truncated:
-            type: boolean
-            readOnly: true
-            description: 'Whether the sampled statistics or returned page omit part of the requested collection. Use next_cursor to determine whether another page is available.
-
-              '
-            example: false
-          data:
-            type: array
-            readOnly: true
-            description: Campaigns in this page, in the requested order.
-            items:
-              $ref: '#/components/schemas/EmailCompetitiveCampaign'
-      - $ref: '#/components/schemas/_ListEnvelope'
-      unevaluatedProperties: false
-    EmailCompetitiveProviderPlacement:
-      type: object
-      additionalProperties: false
-      description: How one mailbox provider treated a brand's mail, beside your own.
-      required:
-      - mailbox_provider
-      - inbox_rate
-      - spam_rate
-      - workspace_inbox_rate
-      properties:
-        mailbox_provider:
-          $ref: '#/components/schemas/EmailCompetitivePanelMailboxProvider'
-          readOnly: true
-          description: The provider whose treatment of the brand's mail this row describes.
-        inbox_rate:
-          type: number
-          readOnly: true
-          description: 'Share of the brand''s mail this provider put in the inbox. Recomputed from what the panel observed across every domain the brand sends from, so a small subdomain cannot move it as much as the brand''s main one.
-
-            '
-          example: 0.862
-        spam_rate:
-          type: number
-          readOnly: true
-          description: Share of the brand's mail this provider put in spam.
-          example: 0.091
-        workspace_inbox_rate:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: 'Your own inbox rate at this provider, null when you have not sent or the panel has no breakdown for your sending domain. It is the panel''s view of your sending rather than from our own measurement of it, because a measured rate and a rate the panel estimated are not comparable, and this figure exists to be compared with the brand''s.
-
-            '
-          example: 0.921
-    SortOrder:
-      type: string
-      enum:
-      - asc
-      - desc
-      description: Sort direction, ascending or descending.
-    EmailCompetitiveSendTimeCell:
-      type: object
-      additionalProperties: false
-      description: One weekday and hour of a brand's sending week.
-      required:
-      - weekday
-      - hour
-      - share_percent
-      - intensity
-      - sample_days
-      properties:
-        weekday:
-          $ref: '#/components/schemas/EmailCompetitiveWeekday'
-          readOnly: true
-          description: The day of the week this hour falls on.
-        hour:
-          type: integer
-          readOnly: true
-          minimum: 0
-          maximum: 23
-          description: 'The hour this cell covers, in the timezone the response reports. `13` covers 13:00 to 14:00.
-
-            '
-          example: 13
-        share_percent:
-          type: number
-          readOnly: true
-          description: 'Share of everything the brand sent over the period that fell in this hour. It is `0` for an hour the brand demonstrably did not send in, which on a disciplined sender is the most useful thing this grid says.
-
-            '
-          example: 3.4
-        intensity:
-          type: number
-          readOnly: true
-          minimum: 0
-          maximum: 1
-          description: 'How strongly the brand sends in this hour, against its own busiest hour at `1`.
-
-            It is this cell''s sending per `sample_days` divided by the busiest cell''s, so it
-
-            is derivable from the two numbers beside it and reconciles with them rather than
-
-            competing: it is published because that correction is easy to get wrong, not
-
-            because it knows anything they do not.
-
-
-            Shade a cell by this rather than by `share_percent`: the period holds one more
-
-            of some weekdays than others, so a share compares an hour that came round
-
-            thirteen times against one that came round twelve.
-
-            '
-          example: 0.55
-        sample_days:
-          type: integer
-          readOnly: true
-          description: 'How many days of the period fell on this weekday, whether or not the brand sent on them. It is what separates an hour the brand is quiet in from one there was little chance to observe.
-
-            '
-          example: 13
-    EmailCompetitiveCampaignSignal:
-      type: string
-      minLength: 1
-      description: 'Why this campaign was surfaced. The set is open and grows as new signals are added.
-
-
-        Every signal describes the campaign against its own brand''s history, never against the
-
-        other brands you watch, so several brands can carry the same signal in one period and
-
-        none of them is the top of anything.
-
-
-        `biggest_send` is a send far above that brand''s own median: unusual for the brand, not
-
-        merely large. `read_rate_standout` is a campaign read unusually well for its brand.
-
-        `landing_in_spam` is one heavily filed as spam at a single mailbox provider, named in
-
-        `mailbox_provider`, which is worth seeing even when the brand''s overall placement looks healthy.
-
-        '
-      x-extensible-enum:
-      - biggest_send
-      - read_rate_standout
-      - landing_in_spam
-      example: read_rate_standout
     Error:
       type: object
       additionalProperties: false
@@ -1420,6 +1878,73 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ErrorBody'
+    EmailCompetitiveBrandMatch:
+      type: object
+      additionalProperties: false
+      description: A brand matching a search, ready to be added to the watchlist.
+      required:
+      - brand_id
+      - name
+      - sending_domains
+      properties:
+        brand_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailCompetitiveBrandID'
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The brand's name.
+          example: Everlane
+        sending_domains:
+          type: array
+          minItems: 1
+          readOnly: true
+          description: 'The domains this brand''s figures would describe. Always one domain today, chosen as the one the panel sees the most of its mail from.
+
+            '
+          items:
+            type: string
+            minLength: 1
+          example:
+          - everlane.com
+    EmailCompetitiveWatchlist:
+      type: object
+      additionalProperties: false
+      description: 'The workspace''s competitor watchlist with its figures for the requested period.
+
+
+        The list is capped by the organization''s competitor limit and is returned whole,
+
+        so it is not paginated. Your own row is included and is always first.
+
+        '
+      required:
+      - period
+      - summary
+      - data
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailCompetitivePeriod'
+          description: The period every figure covers.
+        summary:
+          $ref: '#/components/schemas/EmailCompetitiveWatchlistSummary'
+          description: Where your sending sits against the brands you watch.
+        data:
+          type: array
+          readOnly: true
+          description: 'Your own row first, then each watched brand in the order it was added. Your row is present once your workspace has sent email, since before that there is no sending of yours to compare against. Empty for a workspace that has neither sent nor added a brand.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailCompetitiveWatchlistRow'
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
     EmailCompetitiveWatchlistRow:
       type: object
       additionalProperties: false
@@ -1627,471 +2152,64 @@ components:
 
             '
           example: https://images.example.com/creatives/c154c8c4-6356-40e6-92d2-7c6727ec36ca.jpg
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    EmailCompetitivePeriod:
-      type: object
-      additionalProperties: false
-      description: 'The period every figure in the response covers, echoed back from the request.
-
-
-        Figures are fetched when the request is made, so they are current as of `to`.
-
-        The period always ends at the moment of the request rather than at a cached
-
-        boundary, which is why two requests a minute apart can differ slightly.
-
-        '
-      required:
-      - days
-      - from
-      - to
-      properties:
-        days:
-          type: integer
-          readOnly: true
-          description: Length of the period in days.
-          example: 30
-        from:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: Start of the period, inclusive.
-          example: '2026-07-13T09:00:00Z'
-        to:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: 'End of the period, exclusive. Daily figures therefore run through the previous whole UTC day and never include the one in progress.
-
-            '
-          example: '2026-08-12T09:00:00Z'
-    EmailCompetitiveNotableClaim:
-      type: object
-      additionalProperties: false
-      description: 'What the panel itself asserts about a campaign, in its own words. Present only on the campaigns the panel chose to make a claim about, which is a minority of them: a campaign can be surfaced as notable without the panel putting a headline on it, and that is an ordinary outcome rather than missing data.
-
-        '
-      required:
-      - text
-      properties:
-        text:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The panel''s own phrasing, which may name the window the claim was measured over ("Biggest send in 7 days") or not ("Best-read campaign"). Show it as written rather than rebuilding it from the signal, and do not parse a window out of it.
-
-            '
-          example: Biggest send in 7 days
-    EmailCompetitiveWatchlist:
-      type: object
-      additionalProperties: false
-      description: 'The workspace''s competitor watchlist with its figures for the requested period.
-
-
-        The list is capped by the organization''s competitor limit and is returned whole,
-
-        so it is not paginated. Your own row is included and is always first.
-
-        '
-      required:
-      - period
-      - summary
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailCompetitivePeriod'
-          description: The period every figure covers.
-        summary:
-          $ref: '#/components/schemas/EmailCompetitiveWatchlistSummary'
-          description: Where your sending sits against the brands you watch.
-        data:
-          type: array
-          readOnly: true
-          description: 'Your own row first, then each watched brand in the order it was added. Your row is present once your workspace has sent email, since before that there is no sending of yours to compare against. Empty for a workspace that has neither sent nor added a brand.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailCompetitiveWatchlistRow'
-    EmailCompetitiveBrandMatch:
-      type: object
-      additionalProperties: false
-      description: A brand matching a search, ready to be added to the watchlist.
-      required:
-      - brand_id
-      - name
-      - sending_domains
-      properties:
-        brand_id:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailCompetitiveBrandID'
-        name:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The brand's name.
-          example: Everlane
-        sending_domains:
-          type: array
-          minItems: 1
-          readOnly: true
-          description: 'The domains this brand''s figures would describe. Always one domain today, chosen as the one the panel sees the most of its mail from.
-
-            '
-          items:
-            type: string
-            minLength: 1
-          example:
-          - everlane.com
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
-    EmailCompetitiveWatchlistBrandCreate:
-      type: object
-      additionalProperties: false
-      description: 'The brand to add to the watchlist. Obtained from a brand search, which only returns brands that can be watched.
-
-        '
-      required:
-      - brand_id
-      properties:
-        brand_id:
-          $ref: '#/components/schemas/EmailCompetitiveBrandID'
-    EmailCompetitiveWeekday:
+    EmailCompetitiveCampaignSort:
       type: string
       minLength: 1
-      description: 'A day of the week. Named rather than numbered because the two common numberings disagree about which day the week starts on.
-
-        '
+      description: Field used to sort campaigns.
       enum:
-      - monday
-      - tuesday
-      - wednesday
-      - thursday
-      - friday
-      - saturday
-      - sunday
-      example: tuesday
-    EmailCompetitiveFieldSource:
-      type: string
-      minLength: 1
-      description: 'Where a figure came from. `measured` means it is counted from your own
-
-        sending. `panel` means it is an estimate from an email panel, which observes a
-
-        sample of real inboxes and scales what it sees up to a whole audience. `none`
-
-        means there is no figure for this field on this row, so there is nothing to
-
-        attribute a source to.
-
-
-        Only your own row carries `measured` figures, and only where the metric is counted
-
-        rather than estimated. Everything about a competitor is a panel estimate.
-
-        '
-      enum:
-      - measured
-      - panel
-      - none
-      example: panel
-    EmailCompetitiveWatchlistRowProvenance:
+      - sent_at
+      default: sent_at
+      example: sent_at
+    EmailCompetitiveNotableEvidence:
       type: object
       additionalProperties: false
-      description: 'Where each figure on the row came from, so a comparison can be labelled
-
-        honestly. Every field on a competitor''s row is a panel estimate. On your own
-
-        row the source varies by field: what is counted directly is reported as measured,
-
-        falls back to the panel for what is not, and reports `none` for a field this row
-
-        never carries at all.
-
-
-        Read rate is a panel estimate even on your own row. Comparing a measured rate
-
-        against a panel estimate of the same rate is not a like for like
-
-        comparison, because the two count an open differently, so both sides of the
-
-        comparison come from the panel.
+      description: 'The figures behind a campaign''s signal, for ordering or filtering the list yourself. Which field carries a value depends on the signal, and each is null both on the signals it does not describe and on a campaign of its own signal the panel published no figure for.
 
         '
       required:
-      - sends
-      - cadence_per_week
-      - inbox_placement_rate
-      - read_rate
-      - audience_overlap_rate
-      - last_campaign
+      - ratio_to_median
+      - read_rate_observations
+      - mailbox_provider_spam_rate
+      - mailbox_provider_observations
       properties:
-        sends:
-          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
-          description: Source of `sends` and of `sends_change_percent`, which is derived from it.
-        cadence_per_week:
-          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
-          description: Source of `cadence_per_week`.
-        inbox_placement_rate:
-          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
-          description: Source of `inbox_placement_rate`.
-        read_rate:
-          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
-          description: Source of `read_rate`.
-        audience_overlap_rate:
-          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
-          description: Source of `audience_overlap_rate`.
-        last_campaign:
-          $ref: '#/components/schemas/EmailCompetitiveFieldSource'
-          description: Source of `last_campaign`.
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    EmailCompetitiveBrandID:
-      type: string
-      minLength: 1
-      maxLength: 19
-      pattern: ^[0-9]+$
-      description: 'Identifier of the brand in the panel''s catalog, used to add it to the watchlist. It is a string for the same reason a campaign id is: the values are wide enough that a client storing every number as a floating point value would round them, and a rounded identifier matches no brand at all.
-
-        '
-      example: '81531'
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    EmailCompetitiveWatchlistSummary:
-      type: object
-      additionalProperties: false
-      description: 'Where your sending sits against the brands you watch, over the same period as the
-
-        rows.
-
-
-        Every figure here is derived from those rows rather than measured separately, so
-
-        the two always agree. As on a row, each is present and `null` when the rows cannot
-
-        support it: the peer medians need at least one watched brand the panel reported
-
-        on, and the share figures need sending of your own to compare.
-
-        '
-      required:
-      - share_of_volume_percent
-      - share_of_volume_change_points
-      - competitor_sends
-      - competitor_sends_change_percent
-      - peer_cadence_median_per_week
-      - peer_inbox_placement_median_rate
-      properties:
-        share_of_volume_percent:
+        ratio_to_median:
           type:
           - number
           - 'null'
           readOnly: true
-          description: 'Your share of everything the watched set sent over the period, your own sending included in the total. Your half of the ratio is an exact count of your own sending while the rest is the panel''s estimate, so the two sides are measured differently.
+          description: 'How many times the brand''s own median volume this send was. A value of 29 means the send was twenty-nine times the brand''s typical volume for the period. Null on every signal other than `biggest_send`, and on a `biggest_send` campaign the panel published no ratio for.
 
             '
-          example: 10.5
-        share_of_volume_change_points:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: 'How that share moved against the period immediately before, in percentage points. A share that went from 11.7 to 10.5 reports -1.2.
-
-            '
-          example: -1.2
-        competitor_sends:
+          example: 29.61
+        read_rate_observations:
           type:
           - integer
           - 'null'
           format: int64
           readOnly: true
-          description: 'Estimated volume the watched brands sent between them, excluding your own sending. A panel estimate, so read it as an order of magnitude rather than a count.
+          description: 'How many panel observations `campaign.read_rate` was measured over. A rate over thirty observations and one over a hundred and forty are not equally worth showing, and this is what separates them. Null on every signal other than `read_rate_standout`, and on a `read_rate_standout` campaign the panel published no denominator for.
 
             '
-          example: 4240000
-        competitor_sends_change_percent:
+          example: 66
+        mailbox_provider_spam_rate:
           type:
           - number
           - 'null'
           readOnly: true
-          description: Change in that volume against the period immediately before.
-          example: 12
-        peer_cadence_median_per_week:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: 'Median campaigns per week across the brands you watch, per sending domain. Your own row is excluded, since it is the figure being held against this one.
+          description: 'Share of this campaign filed as spam at the one provider named in `mailbox_provider`, as a value between 0 and 1. A different measurement from the campaign''s overall `spam_rate`, and the one this signal is about. Null on every signal other than `landing_in_spam`, and on a `landing_in_spam` campaign whose provider counts the panel did not publish, so a spam entry can arrive without the rate behind it.
 
             '
-          example: 4.4
-        peer_inbox_placement_median_rate:
+          example: 0.79
+        mailbox_provider_observations:
           type:
-          - number
+          - integer
           - 'null'
+          format: int64
           readOnly: true
-          description: 'Median inbox placement across the brands you watch. Your own row is excluded, as with the cadence median.
+          description: 'How many observations at that provider `mailbox_provider_spam_rate` was measured over. Null on the same terms.
 
             '
-          example: 0.892
+          example: 199
     EmailCompetitivePanelStatus:
       type: string
       minLength: 1
@@ -2115,242 +2233,73 @@ components:
       - no_data
       - unavailable
       example: ok
-    EmailCompetitiveSendTimePeak:
-      type: object
-      additionalProperties: false
-      description: The hour of the day a brand sends most of its mail in.
-      required:
-      - start_hour
-      - end_hour
-      - share_percent
-      properties:
-        start_hour:
-          type: integer
-          readOnly: true
-          minimum: 0
-          maximum: 23
-          description: The first hour of the window, in the timezone the response reports.
-          example: 13
-        end_hour:
-          type: integer
-          readOnly: true
-          minimum: 0
-          maximum: 23
-          description: 'The hour the window ends at, exclusive: a window of `13` to `14` covers 13:00 to
-
-            14:00. The window is always one hour wide on this endpoint, so this is always the
-
-            hour after `start_hour`. The pair is kept rather than collapsed because the panel
-
-            computes the window at whatever width it was asked for, and only this endpoint
-
-            pins that to an hour.
-
-
-            It can therefore be lower than `start_hour` in exactly one case: a peak at 23:00,
-
-            whose window runs past midnight and ends at `0`.
-
-            '
-          example: 14
-        share_percent:
-          type: number
-          readOnly: true
-          description: 'Share of everything the brand sent over the period that fell in this window.
-
-
-            This is the panel''s own figure, while a cell''s `share_percent` is recomputed from
-
-            the cells in the response. Adding up this hour''s seven cells should therefore land
-
-            on this number but is not guaranteed to; where they disagree, this one is the
-
-            panel''s answer about its own peak and the cells are the arithmetic behind the grid.
-
-            '
-          example: 13.1
-    EmailCompetitiveWatchlistBrand:
-      description: 'A brand on the workspace''s watchlist. This is the watchlist entry itself, with no figures on it; read the watchlist to get those.
-
-        '
-      unevaluatedProperties: false
+    EmailCompetitiveCampaignFeed:
+      description: A page of campaigns returned for a watched brand over the period.
       allOf:
-      - $ref: '#/components/schemas/Timestamps'
       - type: object
         required:
-        - id
-        - brand_id
-        - name
-        - industry
-        - sending_domains
+        - period
+        - panel_status
+        - captured
+        - promo_rate
+        - truncated
+        - data
         properties:
-          id:
-            $ref: '#/components/schemas/CompetitiveWatchlistBrandID'
+          period:
+            $ref: '#/components/schemas/EmailCompetitivePeriod'
+            description: The rolling period used for this request.
+          panel_status:
+            $ref: '#/components/schemas/EmailCompetitivePanelStatus'
+            description: For this campaign feed, no_data means the requested page is empty; it does not mean the whole period has no campaigns.
+          captured:
+            type: integer
             readOnly: true
-            description: The watchlist entry.
-          brand_id:
-            readOnly: true
-            allOf:
-            - $ref: '#/components/schemas/EmailCompetitiveBrandID'
-          name:
-            type: string
-            minLength: 1
-            readOnly: true
-            description: 'The brand''s name when it was added. It is kept as it was so the row still reads correctly if the brand is later renamed or stops being tracked.
+            description: 'Number of eligible campaigns in the first 300 newest panel rows for each tracked domain. This sampled value is independent of the returned page.
 
               '
-            example: Everlane
-          industry:
+            example: 38
+          promo_rate:
             type:
-            - string
+            - number
             - 'null'
             readOnly: true
-            description: The brand's industry when it was added, or null when the brand is not classified.
-            example: DTC Apparel
-          sending_domains:
-            type: array
-            minItems: 1
-            readOnly: true
-            description: 'The domains this brand''s figures describe. Always one domain today, chosen as the one the panel sees the most of its mail from.
+            description: 'Fraction of captured campaigns whose subject leads with a discount. Null when captured is zero. This sampled value is independent of the returned page.
 
               '
+            example: 0.64
+          truncated:
+            type: boolean
+            readOnly: true
+            description: 'Whether the sampled statistics or returned page omit part of the requested collection. Use next_cursor to determine whether another page is available.
+
+              '
+            example: false
+          data:
+            type: array
+            readOnly: true
+            description: Campaigns in this page, in the requested order.
             items:
-              type: string
-              minLength: 1
-            example:
-            - everlane.com
-    Timestamps:
-      type: object
-      required:
-      - created_at
-      - updated_at
-      properties:
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-20T09:14:52Z'
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-25T16:42:01Z'
-    EmailCompetitiveNotableCampaign:
+              $ref: '#/components/schemas/EmailCompetitiveCampaign'
+      - $ref: '#/components/schemas/_ListEnvelope'
+      unevaluatedProperties: false
+    EmailCompetitiveNotableClaim:
       type: object
       additionalProperties: false
-      description: A campaign the panel surfaced, and the reason it did.
+      description: 'What the panel itself asserts about a campaign, in its own words. Present only on the campaigns the panel chose to make a claim about, which is a minority of them: a campaign can be surfaced as notable without the panel putting a headline on it, and that is an ordinary outcome rather than missing data.
+
+        '
       required:
-      - watchlist_brand_id
-      - brand_name
-      - signal
-      - claim
-      - evidence
-      - mailbox_provider
-      - campaign
+      - text
       properties:
-        watchlist_brand_id:
-          $ref: '#/components/schemas/CompetitiveWatchlistBrandID'
-          readOnly: true
-          description: The watchlist entry that sent it.
-        brand_name:
+        text:
           type: string
           minLength: 1
           readOnly: true
-          description: The brand's name.
-          example: Allbirds
-        signal:
-          $ref: '#/components/schemas/EmailCompetitiveCampaignSignal'
-          readOnly: true
-        claim:
-          oneOf:
-          - $ref: '#/components/schemas/EmailCompetitiveNotableClaim'
-          - type: 'null'
-          readOnly: true
-          description: 'The panel''s own headline for this campaign, or null where it surfaced the campaign without making one. Null is the common case and is not a fault.
+          description: 'The panel''s own phrasing, which may name the window the claim was measured over ("Biggest send in 7 days") or not ("Best-read campaign"). Show it as written rather than rebuilding it from the signal, and do not parse a window out of it.
 
             '
-        evidence:
-          $ref: '#/components/schemas/EmailCompetitiveNotableEvidence'
-          readOnly: true
-          description: The figures behind the signal, for ordering or filtering the list.
-        mailbox_provider:
-          oneOf:
-          - $ref: '#/components/schemas/EmailCompetitivePanelMailboxProvider'
-          - type: 'null'
-          readOnly: true
-          description: 'The provider a `landing_in_spam` campaign was heavily filed as spam at: spam placement is measured per provider, and this campaign''s problem is at one of them. Null on every other signal.
-
-            '
-        campaign:
-          $ref: '#/components/schemas/EmailCompetitiveCampaign'
-          description: 'The campaign itself. Two of its fields behave differently here than on the brand''s
-
-            campaign feed, because the panel sends less about a campaign it surfaced this way.
-
-
-            `has_creative` reports whether a capture came back with this entry rather than whether
-
-            the panel ever captured the email, and captures are frequently absent here by design, so
-
-            expect `false` on campaigns the panel did image. `reach` is null on every entry, because
-
-            the panel does not estimate an audience for the campaigns it surfaces.
-
-            '
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
+          example: Biggest send in 7 days
   parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
     PaginationLimit:
       name: limit
       in: query
@@ -2361,6 +2310,14 @@ components:
         minimum: 1
         maximum: 100
         default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
     EmailCompetitiveRange:
       name: range
       in: query
@@ -2376,6 +2333,29 @@ components:
         - 90
         default: 30
         example: 30
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EmailCompetitiveTimezone:
+      name: timezone
+      in: query
+      required: false
+      description: 'IANA timezone identifier to report send times in; defaults to UTC. The grid is folded into this zone before it is summed, so a send lands on the weekday and hour it happened at locally rather than the one it happened at in UTC. A zone this API does not know returns 422 rather than falling back to UTC, so an axis is never labelled with a zone the figures were not folded into.
+
+        '
+      schema:
+        $ref: '#/components/schemas/Timezone'
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
     OrderDesc:
       name: order
       in: query
@@ -2386,15 +2366,6 @@ components:
       schema:
         $ref: '#/components/schemas/SortOrder'
         default: desc
-    EmailCompetitiveTimezone:
-      name: timezone
-      in: query
-      required: false
-      description: 'IANA timezone identifier to report send times in; defaults to UTC. The grid is folded into this zone before it is summed, so a send lands on the weekday and hour it happened at locally rather than the one it happened at in UTC. A zone this API does not know returns 422 rather than falling back to UTC, so an axis is never labelled with a zone the figures were not folded into.
-
-        '
-      schema:
-        $ref: '#/components/schemas/Timezone'
   responses:
     InternalError:
       description: Internal server error
@@ -2411,6 +2382,12 @@ components:
           $ref: '#/components/headers/RateLimit-Policy'
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -2434,8 +2411,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
+    NotFound:
+      description: Resource not found
       content:
         application/json:
           schema:
@@ -2446,14 +2423,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
@@ -2464,6 +2435,35 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

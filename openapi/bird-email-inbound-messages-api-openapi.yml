@@ -372,131 +372,6 @@ paths:
       - mcp
 components:
   schemas:
-    InboundEmailMessageID:
-      type: string
-      minLength: 1
-      pattern: ^rem_[0-9a-hjkmnp-tv-z]{26}$
-      example: rem_01krdgeqcxet5s7t44vh8rt9mg
-    InboundAttachmentList:
-      type: object
-      additionalProperties: false
-      description: The attachments on a received email. The response returns every attachment without pagination.
-      required:
-      - data
-      properties:
-        data:
-          type: array
-          description: Metadata for every attachment on the message. Empty when the message had no attachments.
-          items:
-            $ref: '#/components/schemas/InboundAttachment'
-    EmailAddress:
-      type: object
-      additionalProperties: false
-      description: An email address with an optional display name.
-      required:
-      - email
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 5
-          description: Email address.
-          example: jane@acme.com
-        name:
-          type: string
-          minLength: 1
-          maxLength: 256
-          pattern: ^[^\r\n]+$
-          description: Display name shown alongside the address in mail clients.
-          example: Jane Doe
-    InboundEmailMessageList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of received emails, newest first.
-            items:
-              $ref: '#/components/schemas/InboundEmailMessage'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    InboundAttachmentID:
-      type: string
-      minLength: 1
-      pattern: ^rea_[0-9a-hjkmnp-tv-z]{26}$
-      example: rea_01krdgeqcxet5s7t44vh8rt9mg
-    InboundAddressID:
-      type: string
-      minLength: 1
-      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
-      example: ina_01krdgeqcxet5s7t44vh8rt9mg
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    InboundEmailMessageBody:
-      type: object
-      additionalProperties: false
-      description: The parsed body of a received email.
-      required:
-      - html
-      - text
-      properties:
-        html:
-          type:
-          - string
-          - 'null'
-          description: The HTML body of the message, or `null` when the message had no HTML part.
-        text:
-          type:
-          - string
-          - 'null'
-          description: The plain-text body of the message, or `null` when the message had no text part.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -577,6 +452,35 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
+    InboundAttachmentList:
+      type: object
+      additionalProperties: false
+      description: The attachments on a received email. The response returns every attachment without pagination.
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: Metadata for every attachment on the message. Empty when the message had no attachments.
+          items:
+            $ref: '#/components/schemas/InboundAttachment'
+    InboundAttachmentID:
+      type: string
+      minLength: 1
+      pattern: ^rea_[0-9a-hjkmnp-tv-z]{26}$
+      example: rea_01krdgeqcxet5s7t44vh8rt9mg
+    InboundEmailMessageList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of received emails, newest first.
+            items:
+              $ref: '#/components/schemas/InboundEmailMessage'
+      - $ref: '#/components/schemas/_ListEnvelope'
     InboundAttachment:
       type: object
       additionalProperties: false
@@ -610,6 +514,24 @@ components:
           minimum: 0
           description: Size of the attachment in bytes.
           example: 215432
+    InboundEmailMessageBody:
+      type: object
+      additionalProperties: false
+      description: The parsed body of a received email.
+      required:
+      - html
+      - text
+      properties:
+        html:
+          type:
+          - string
+          - 'null'
+          description: The HTML body of the message, or `null` when the message had no HTML part.
+        text:
+          type:
+          - string
+          - 'null'
+          description: The plain-text body of the message, or `null` when the message had no text part.
     _ListEnvelope:
       type: object
       required:
@@ -635,6 +557,11 @@ components:
           - 'null'
           description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
           example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    InboundEmailMessageID:
+      type: string
+      minLength: 1
+      pattern: ^rem_[0-9a-hjkmnp-tv-z]{26}$
+      example: rem_01krdgeqcxet5s7t44vh8rt9mg
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -773,6 +700,148 @@ components:
           format: date-time
           readOnly: true
           description: When the message was received.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    InboundAddressID:
+      type: string
+      minLength: 1
+      pattern: ^ina_[0-9a-hjkmnp-tv-z]{26}$
+      example: ina_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EmailAddress:
+      type: object
+      additionalProperties: false
+      description: An email address with an optional display name.
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          description: Email address.
+          example: jane@acme.com
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^[^\r\n]+$
+          description: Display name shown alongside the address in mail clients.
+          example: Jane Doe
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   parameters:
     StartingAfter:
       name: starting_after
@@ -798,75 +867,6 @@ components:
         minimum: 1
         maximum: 100
         default: 25
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

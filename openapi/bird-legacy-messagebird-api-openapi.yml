@@ -141,21 +141,6 @@ paths:
                 type: object
 components:
   schemas:
-    LegacyCreateMessage:
-      type: object
-      required:
-      - originator
-      - recipients
-      - body
-      properties:
-        originator:
-          type: string
-        recipients:
-          type: array
-          items:
-            type: string
-        body:
-          type: string
     LegacyMessage:
       type: object
       properties:
@@ -172,6 +157,21 @@ components:
         createdDatetime:
           type: string
           format: date-time
+    LegacyCreateMessage:
+      type: object
+      required:
+      - originator
+      - recipients
+      - body
+      properties:
+        originator:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        body:
+          type: string
   securitySchemes:
     AccessKey:
       type: apiKey

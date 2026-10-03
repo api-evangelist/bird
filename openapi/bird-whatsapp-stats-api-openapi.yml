@@ -1085,35 +1085,6 @@ paths:
       - sdk
 components:
   schemas:
-    WhatsAppStatsByCountryResponse:
-      type: object
-      additionalProperties: false
-      description: 'Per-country breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
-
-        '
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          readOnly: true
-          description: The window the response covers (echoed back), plus `data_as_of`.
-        data:
-          type: array
-          readOnly: true
-          description: 'Country rows ranked by accepted volume descending. Empty when no eligible activity occurred in the period; rows sum to the summary less group-send volume, and less any pre-cutover phone-addressed sends still inside the window.
-
-            '
-          items:
-            $ref: '#/components/schemas/WhatsAppCountryStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total distinct countries with activity in the period, regardless of `limit`.
-          example: 4
     WhatsAppInboundStatsPoint:
       type: object
       additionalProperties: false
@@ -1138,372 +1109,44 @@ components:
           readOnly: true
           description: Distinct messages received in this bucket.
           example: 182
-    WhatsAppInboundStatsComparisonDelta:
+    WhatsAppStatsSeriesPeriod:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'The change from the preceding period to the requested one. The `received_pct_change` field is a signed relative change, computed as `(current - previous) / previous`. A value of `0.5` means 50% higher, and `-0.2` means 20% lower. The field is null when the previous period received none.
+      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
 
         '
       required:
-      - received_pct_change
+      - from
+      - to
+      - grain
       properties:
-        received_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in received messages versus the previous period, as a signed fraction. Null when the previous period received none.
-          example: 0.058
-    WhatsAppEngagementCounts:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'WhatsApp engagement counts for a time bucket, attributed by send time. A message accepted on Monday and read on Tuesday counts in Monday''s bucket. Read rates are available only for the whole period. Very large counts are close estimates rather than exact tallies.
-
-        '
-      required:
-      - read
-      properties:
-        read:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages confirmed read by the recipient.
-          example: 3105
-    WhatsAppInboundPhoneNumberStatsPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: Received-message count for a single business phone number over the requested period.
-      required:
-      - phone_number
-      - received
-      properties:
-        phone_number:
+        from:
           type: string
           minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: The business phone number that received the messages, in E.164 form.
-          example: '+13124495569'
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages the number received in the period.
-          example: 182
-    WhatsAppTagStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Lifecycle counts, derived rates, and engagement for a single tag (name:value) over the requested period.
-      required:
-      - tag
-      - delivery
-      - engagement
-      - latency
-      properties:
-        tag:
+          description: Inclusive start of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant on the hour grain.
+          example: '2026-05-01'
+        to:
           type: string
           minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: The tag this row aggregates, in `name:value` form.
-          example: campaign:summer_sale
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-    WhatsAppStatsPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'WhatsApp lifecycle counts, engagement, and latency percentiles for one time bucket (a calendar day or hour), bucketed by send time. Every count in a bucket describes the messages accepted in it, regardless of when their later events arrived. Rates apply to the whole window rather than individual buckets.
-
-        '
-      required:
-      - bucket
-      - delivery
-      - engagement
-      - latency
-      properties:
-        bucket:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the period's grain.
+          description: Inclusive end of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant on the hour grain.
           example: '2026-05-25'
-        delivery:
+        grain:
+          $ref: '#/components/schemas/StatsGrain'
           readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryCounts'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementCounts'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-    WhatsAppTemplateStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Lifecycle counts, derived rates, engagement and latency for a single WhatsApp template over the requested period.
-      required:
-      - template_id
-      - delivery
-      - engagement
-      - latency
-      properties:
-        template_id:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppTemplateID'
-          readOnly: true
-          description: 'The template these messages were sent from, using the same `id` the WhatsApp template endpoints return. A send that resolved no template does not appear in this breakdown. A template renamed after it was used to send still reports under this one `id`, and a template deleted after sending keeps its row rather than dropping the messages.
-
-            '
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-    WhatsAppStatsSummary:
-      type: object
-      additionalProperties: false
-      description: 'WhatsApp lifecycle counts, rates, engagement, and latency percentiles for the full requested period. Counts aggregate the time buckets. Latency percentiles cover the whole period. Rates are null when their denominator is zero.
-
-        '
-      required:
-      - period
-      - delivery
-      - engagement
-      - latency
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-        comparison:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppStatsComparison'
-    CountryCode:
-      type: string
-      minLength: 2
-      maxLength: 2
-      pattern: ^[A-Za-z]{2}$
-      description: ISO 3166-1 alpha-2 country code.
-      example: US
-    WhatsAppStatsByPhoneNumberResponse:
-      type: object
-      additionalProperties: false
-      description: Per-phone-number breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The window the response covers (echoed back), plus `data_as_of`.
-        data:
-          type: array
-          readOnly: true
-          description: Phone-number rows ranked by accepted volume descending.
-          items:
-            $ref: '#/components/schemas/WhatsAppPhoneNumberStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total distinct phone numbers with activity in the period, regardless of `limit`.
-          example: 2
-    StatsComparePeriod:
-      type: string
-      description: 'Set to `previous_period` to also return the same figures for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
-
-        '
-      enum:
-      - previous_period
-    WhatsAppInboundStatsSummaryResponse:
-      type: object
-      additionalProperties: false
-      description: 'Total received messages for the requested period.
-
-        '
-      required:
-      - period
-      - received
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        received:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages received in the period, counted by the time each message reached your number. Computed across the whole window rather than summed from the daily or hourly series, so it can sit slightly below the sum of those rows.
-          example: 4210
-        comparison:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppInboundStatsComparison'
-    WhatsAppTemplateID:
-      type: string
-      minLength: 1
-      pattern: ^wat_[0-9a-hjkmnp-tv-z]{26}$
-      example: wat_01krdgeqcxet5s7t44vh8rt9mg
-    WhatsAppStatsByTemplateResponse:
-      type: object
-      additionalProperties: false
-      description: Per-template breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The window the response covers (echoed back), plus `data_as_of`.
-        data:
-          type: array
-          readOnly: true
-          description: Template rows ranked by accepted volume descending.
-          items:
-            $ref: '#/components/schemas/WhatsAppTemplateStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total distinct templates with activity in the period, regardless of `limit`.
-          example: 7
-    WhatsAppCountryStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Lifecycle counts, derived rates, engagement and latency for a single destination country over the requested period.
-      required:
-      - country
-      - delivery
-      - engagement
-      - latency
-      properties:
-        country:
-          readOnly: true
-          description: The destination country this row aggregates, as an ISO 3166-1 alpha-2 code. `ZZ` collects recipients whose country could not be resolved.
-          allOf:
-          - $ref: '#/components/schemas/CountryCode'
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-    WhatsAppDeliveryStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'WhatsApp lifecycle counts and rates for the requested period, attributed by send time, so a later delivery stays attributed to the period in which its message was accepted, and a recent period under-reports `delivered` while delivery reports are still arriving. The sibling `engagement` block reports read counts and rates. Rates are null when their denominator is zero. Very large counts are close estimates rather than exact tallies.
-
-        '
-      required:
-      - accepted
-      - sent
-      - delivered
-      - failed
-      - rejected
-      - delivery_rate
-      - failure_rate
-      properties:
-        accepted:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages accepted for sending after admission checks. This is the denominator for `delivery_rate` and `failure_rate`.
-          example: 4820
-        sent:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages handed off for delivery.
-          example: 4810
-        delivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages confirmed delivered to the recipient's device.
-          example: 4720
-        failed:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages that failed during sending or delivery.
-          example: 25
-        rejected:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages rejected before any send attempt, because the recipient is on the workspace's suppression list, no reachable recipient was given, the destination has no price, or the wallet could not fund the send. Rejected messages are never charged and are not counted in `accepted`, so the total addressed is `accepted + rejected`. Excluded from `failure_rate`, which covers send failures only.
-          example: 412
-        delivery_rate:
+        data_as_of:
           type:
-          - number
+          - string
           - 'null'
-          minimum: 0
-          maximum: 1
+          format: date-time
           readOnly: true
-          description: 'Share of accepted messages that were delivered, computed as `delivered / accepted`. Null when no messages were accepted in scope.
+          description: 'Latest time reflected in the statistics. More recent events might not be included yet. Null when the freshness boundary is unavailable.
 
             '
-          example: 0.9793
-        failure_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Share of accepted messages that ultimately failed, computed as `failed / accepted`. Null when no messages were accepted in scope.
-
-            '
-          example: 0.0052
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
+          example: '2026-05-25T14:03:10Z'
     WhatsAppErrorCode:
       type: string
       minLength: 1
@@ -1539,235 +1182,6 @@ components:
         This is an open enum. Accept unrecognized values.
 
         '
-    WhatsAppStatsComparison:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'The same statistics for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
-
-        '
-      required:
-      - period
-      - delivery
-      - engagement
-      - latency
-      - delta
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-25, this is 2026-04-06 to 2026-04-30, both inclusive.
-          example:
-            from: '2026-04-06'
-            to: '2026-04-30'
-            data_as_of: '2026-05-25T14:03:10Z'
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
-          example:
-            accepted: 3196
-            sent: 3190
-            delivered: 3120
-            failed: 31
-            rejected: 380
-            delivery_rate: 0.9762
-            failure_rate: 0.0097
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementStats'
-          example:
-            read: 1980
-            read_rate: 0.6346
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-        delta:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppStatsComparisonDelta'
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    WhatsAppInboundStatsByPhoneNumberResponse:
-      type: object
-      additionalProperties: false
-      description: Per-phone-number breakdown of received messages for the requested period, ranked by volume descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The window the response covers (echoed back), plus `data_as_of`.
-        data:
-          type: array
-          readOnly: true
-          description: 'Phone-number rows ranked by received-message volume descending, capped at the requested `limit`. A number with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
-
-            '
-          items:
-            $ref: '#/components/schemas/WhatsAppInboundPhoneNumberStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total distinct phone numbers with received messages in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
-          example: 2
-    WhatsAppInboundStatsResponse:
-      type: object
-      additionalProperties: false
-      description: 'Received-message time series. `period` echoes the range the server computed against; `data` is one row per bucket in chronological order.
-
-        '
-      required:
-      - period
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSeriesPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: One row per bucket (day or hour, matching the request) in the period, in chronological order. Buckets with no activity are included with a count of zero, so the series charts continuously without client-side gap handling.
-          items:
-            $ref: '#/components/schemas/WhatsAppInboundStatsPoint'
-    WhatsAppStatsByTemplateCategoryResponse:
-      type: object
-      additionalProperties: false
-      description: Per-template-category breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The window the response covers (echoed back), plus `data_as_of`.
-        data:
-          type: array
-          readOnly: true
-          description: Category rows ranked by accepted volume descending.
-          items:
-            $ref: '#/components/schemas/WhatsAppTemplateCategoryStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total distinct categories with activity in the period, regardless of `limit`.
-          example: 4
-    WhatsAppPhoneNumberStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Lifecycle counts, rates, and engagement for one business phone number over the requested period, including whether the number is shared.
-      required:
-      - phone_number
-      - shared
-      - delivery
-      - engagement
-      - latency
-      properties:
-        phone_number:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The business sender phone number in E.164 form.
-          example: '+13124495569'
-        shared:
-          type: boolean
-          readOnly: true
-          description: '`true` for a shared Bird-managed number; `false` for a number owned by your workspace.
-
-            '
-          example: true
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppLatencyStats'
-    WhatsAppErrorCodeStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Number of failed messages for a single normalized failure reason over the requested period.
-      required:
-      - error_code
-      - count
-      properties:
-        error_code:
-          readOnly: true
-          description: The normalized failure reason this row aggregates, matching the `last_error.code` reported on an individual failed message.
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppErrorCode'
-        count:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages that failed with this reason in scope.
-          example: 18
-    WhatsAppStatsResponse:
-      type: object
-      additionalProperties: false
-      description: 'Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
-
-        '
-      required:
-      - period
-      - data
-      properties:
-        period:
-          $ref: '#/components/schemas/WhatsAppStatsSeriesPeriod'
-        data:
-          type: array
-          readOnly: true
-          description: One row per day or hour in chronological order. Buckets with no activity contain zero counts.
-          items:
-            $ref: '#/components/schemas/WhatsAppStatsPoint'
     ErrorBody:
       type: object
       additionalProperties: false
@@ -1848,95 +1262,10 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    WhatsAppLatencyStats:
+    WhatsAppStatsByTemplateCategoryResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Latency percentiles in milliseconds for the requested scope:
-
-
-        - `processing`: From acceptance to WhatsApp handoff.
-
-        - `delivery`: From WhatsApp handoff to delivery confirmation.
-
-        - `total`: From acceptance to delivery confirmation.
-
-
-        Each family is omitted when no qualifying message contributes a measurement.
-
-        Individual percentiles can also be null. `delivery` is measured on a best-effort basis, so
-
-        it can be absent for a scope whose `processing` and `total` are present.
-
-        '
-      example:
-        processing:
-          p50_ms: 610
-          p95_ms: 2140
-          p99_ms: 5380
-        delivery:
-          p50_ms: 1530
-          p95_ms: 6820
-          p99_ms: 18400
-        total:
-          p50_ms: 2180
-          p95_ms: 9060
-          p99_ms: 24300
-      properties:
-        processing:
-          $ref: '#/components/schemas/WhatsAppLatencyQuantiles'
-        delivery:
-          $ref: '#/components/schemas/WhatsAppLatencyQuantiles'
-        total:
-          $ref: '#/components/schemas/WhatsAppLatencyQuantiles'
-    WhatsAppDeliveryCounts:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'WhatsApp lifecycle counts for a time bucket, attributed by send time. A message accepted on Monday and delivered on Tuesday counts in Monday''s bucket. The sibling `engagement` block reports read counts. Rates are available only for the whole period. Very large counts are close estimates rather than exact tallies.
-
-        '
-      required:
-      - accepted
-      - sent
-      - delivered
-      - failed
-      - rejected
-      properties:
-        accepted:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages accepted for sending after admission checks.
-          example: 4820
-        sent:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages handed off for delivery.
-          example: 4810
-        delivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages confirmed delivered to the recipient's device.
-          example: 4720
-        failed:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages that failed during sending or delivery.
-          example: 25
-        rejected:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages rejected before any send attempt, because the recipient is on the workspace's suppression list, no reachable recipient was given, the destination has no price, or the wallet could not fund the send. Rejected messages are never charged and are not counted in `accepted`, so the total addressed is `accepted + rejected`. Excluded from `failure_rate`, which covers send failures only.
-          example: 412
-    WhatsAppStatsByTagResponse:
-      type: object
-      additionalProperties: false
-      description: Per-tag breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      description: Per-template-category breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
       required:
       - period
       - data
@@ -1948,30 +1277,112 @@ components:
         data:
           type: array
           readOnly: true
-          description: Tag rows ranked by accepted volume descending.
+          description: Category rows ranked by accepted volume descending.
           items:
-            $ref: '#/components/schemas/WhatsAppTagStatsPoint'
+            $ref: '#/components/schemas/WhatsAppTemplateCategoryStatsPoint'
         total:
           type: integer
           minimum: 0
           readOnly: true
-          description: Total distinct tags with activity in the period, regardless of `limit`.
-          example: 12
-    WhatsAppTemplateCategoryStatsPoint:
+          description: Total distinct categories with activity in the period, regardless of `limit`.
+          example: 4
+    WhatsAppLatencyQuantiles:
       type: object
       additionalProperties: false
-      description: Lifecycle counts, derived rates, and engagement for a single WhatsApp template category over the requested period.
+      readOnly: true
+      description: 'Approximate p50, p95, and p99 latency percentiles in milliseconds for one latency family. All three are null when no qualifying event contributed a measurement.
+
+        '
       required:
-      - category
+      - p50_ms
+      - p95_ms
+      - p99_ms
+      properties:
+        p50_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 610
+        p95_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 2140
+        p99_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 5380
+    WhatsAppTemplateCategory:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - authentication
+      - utility
+      - marketing
+      description: 'Meta''s content classification for a template.
+
+
+        - `authentication`: delivers one-time passcodes.
+
+        - `utility`: delivers transaction-triggered updates (receipts, order status).
+
+        - `marketing`: carries promotional content.
+
+
+        The category determines the sender number and price. This is an open enum.
+
+        Accept unrecognized values.
+
+        '
+    WhatsAppStatsByPhoneNumberResponse:
+      type: object
+      additionalProperties: false
+      description: Per-phone-number breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        data:
+          type: array
+          readOnly: true
+          description: Phone-number rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/WhatsAppPhoneNumberStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct phone numbers with activity in the period, regardless of `limit`.
+          example: 2
+    WhatsAppCountryStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Lifecycle counts, derived rates, engagement and latency for a single destination country over the requested period.
+      required:
+      - country
       - delivery
       - engagement
       - latency
       properties:
-        category:
+        country:
           readOnly: true
-          description: The template category this row aggregates.
+          description: The destination country this row aggregates, as an ISO 3166-1 alpha-2 code. `ZZ` collects recipients whose country could not be resolved.
           allOf:
-          - $ref: '#/components/schemas/WhatsAppTemplateCategory'
+          - $ref: '#/components/schemas/CountryCode'
         delivery:
           readOnly: true
           allOf:
@@ -1984,33 +1395,13 @@ components:
           readOnly: true
           allOf:
           - $ref: '#/components/schemas/WhatsAppLatencyStats'
-    WhatsAppEngagementStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'WhatsApp engagement counts and the derived read rate for the scope of the containing row (the whole requested period or a breakdown dimension). The `read` field is the number of distinct messages confirmed read by the recipient. Send time determines attribution; the instant the read receipt arrived does not. A read is counted in the period its message was accepted in, alongside that message''s own delivery when one arrived. The read rate divides reads by messages delivered in the same scope and is null when its denominator is zero. Very large counts are close estimates rather than exact tallies.
+    StatsComparePeriod:
+      type: string
+      description: 'Set to `previous_period` to also return the same figures for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
 
         '
-      required:
-      - read
-      - read_rate
-      properties:
-        read:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct messages confirmed read by the recipient.
-          example: 3105
-        read_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'Distinct messages read relative to messages delivered in the same scope, computed as `read / delivery.delivered`. Both counts are attributed by send time, so a read is counted alongside its own message''s delivery. The rate can exceed 1 where a read receipt arrived for a message whose delivery receipt did not, or, at high volume, because the counts are close estimates. Null when `delivery.delivered` is zero.
-
-            '
-          example: 0.6578
+      enum:
+      - previous_period
     WhatsAppStatsSummaryPeriod:
       type: object
       additionalProperties: false
@@ -2045,35 +1436,24 @@ components:
 
             '
           example: '2026-05-25T14:03:10Z'
-    WhatsAppInboundStatsComparison:
+    WhatsAppStatsResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'The received-message count for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+      description: 'Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
 
         '
       required:
       - period
-      - received
-      - delta
+      - data
       properties:
         period:
-          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
-          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-25, this is 2026-04-06 to 2026-04-30, both inclusive.
-          example:
-            from: '2026-04-06'
-            to: '2026-04-30'
-            data_as_of: '2026-05-25T14:03:10Z'
-        received:
-          type: integer
-          minimum: 0
+          $ref: '#/components/schemas/WhatsAppStatsSeriesPeriod'
+        data:
+          type: array
           readOnly: true
-          description: Distinct messages received in the preceding period.
-          example: 3980
-        delta:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppInboundStatsComparisonDelta'
+          description: One row per day or hour in chronological order. Buckets with no activity contain zero counts.
+          items:
+            $ref: '#/components/schemas/WhatsAppStatsPoint'
     WhatsAppStatsComparisonDelta:
       type: object
       additionalProperties: false
@@ -2161,6 +1541,445 @@ components:
 
             '
           example: 0.0232
+    WhatsAppStatsSummary:
+      type: object
+      additionalProperties: false
+      description: 'WhatsApp lifecycle counts, rates, engagement, and latency percentiles for the full requested period. Counts aggregate the time buckets. Latency percentiles cover the whole period. Rates are null when their denominator is zero.
+
+        '
+      required:
+      - period
+      - delivery
+      - engagement
+      - latency
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
+        comparison:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppStatsComparison'
+    WhatsAppTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^wat_[0-9a-hjkmnp-tv-z]{26}$
+      example: wat_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppInboundPhoneNumberStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: Received-message count for a single business phone number over the requested period.
+      required:
+      - phone_number
+      - received
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The business phone number that received the messages, in E.164 form.
+          example: '+13124495569'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages the number received in the period.
+          example: 182
+    WhatsAppStatsByCountryResponse:
+      type: object
+      additionalProperties: false
+      description: 'Per-country breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+
+        '
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          readOnly: true
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        data:
+          type: array
+          readOnly: true
+          description: 'Country rows ranked by accepted volume descending. Empty when no eligible activity occurred in the period; rows sum to the summary less group-send volume, and less any pre-cutover phone-addressed sends still inside the window.
+
+            '
+          items:
+            $ref: '#/components/schemas/WhatsAppCountryStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct countries with activity in the period, regardless of `limit`.
+          example: 4
+    WhatsAppInboundStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The received-message count for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - received
+      - delta
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-25, this is 2026-04-06 to 2026-04-30, both inclusive.
+          example:
+            from: '2026-04-06'
+            to: '2026-04-30'
+            data_as_of: '2026-05-25T14:03:10Z'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in the preceding period.
+          example: 3980
+        delta:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppInboundStatsComparisonDelta'
+    WhatsAppErrorCodeStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Number of failed messages for a single normalized failure reason over the requested period.
+      required:
+      - error_code
+      - count
+      properties:
+        error_code:
+          readOnly: true
+          description: The normalized failure reason this row aggregates, matching the `last_error.code` reported on an individual failed message.
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppErrorCode'
+        count:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages that failed with this reason in scope.
+          example: 18
+    WhatsAppTagStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Lifecycle counts, derived rates, and engagement for a single tag (name:value) over the requested period.
+      required:
+      - tag
+      - delivery
+      - engagement
+      - latency
+      properties:
+        tag:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The tag this row aggregates, in `name:value` form.
+          example: campaign:summer_sale
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+    WhatsAppStatsByTemplateResponse:
+      type: object
+      additionalProperties: false
+      description: Per-template breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        data:
+          type: array
+          readOnly: true
+          description: Template rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/WhatsAppTemplateStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct templates with activity in the period, regardless of `limit`.
+          example: 7
+    WhatsAppEngagementStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'WhatsApp engagement counts and the derived read rate for the scope of the containing row (the whole requested period or a breakdown dimension). The `read` field is the number of distinct messages confirmed read by the recipient. Send time determines attribution; the instant the read receipt arrived does not. A read is counted in the period its message was accepted in, alongside that message''s own delivery when one arrived. The read rate divides reads by messages delivered in the same scope and is null when its denominator is zero. Very large counts are close estimates rather than exact tallies.
+
+        '
+      required:
+      - read
+      - read_rate
+      properties:
+        read:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages confirmed read by the recipient.
+          example: 3105
+        read_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Distinct messages read relative to messages delivered in the same scope, computed as `read / delivery.delivered`. Both counts are attributed by send time, so a read is counted alongside its own message''s delivery. The rate can exceed 1 where a read receipt arrived for a message whose delivery receipt did not, or, at high volume, because the counts are close estimates. Null when `delivery.delivered` is zero.
+
+            '
+          example: 0.6578
+    WhatsAppInboundStatsComparisonDelta:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The change from the preceding period to the requested one. The `received_pct_change` field is a signed relative change, computed as `(current - previous) / previous`. A value of `0.5` means 50% higher, and `-0.2` means 20% lower. The field is null when the previous period received none.
+
+        '
+      required:
+      - received_pct_change
+      properties:
+        received_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in received messages versus the previous period, as a signed fraction. Null when the previous period received none.
+          example: 0.058
+    WhatsAppDeliveryCounts:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'WhatsApp lifecycle counts for a time bucket, attributed by send time. A message accepted on Monday and delivered on Tuesday counts in Monday''s bucket. The sibling `engagement` block reports read counts. Rates are available only for the whole period. Very large counts are close estimates rather than exact tallies.
+
+        '
+      required:
+      - accepted
+      - sent
+      - delivered
+      - failed
+      - rejected
+      properties:
+        accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages accepted for sending after admission checks.
+          example: 4820
+        sent:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages handed off for delivery.
+          example: 4810
+        delivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages confirmed delivered to the recipient's device.
+          example: 4720
+        failed:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages that failed during sending or delivery.
+          example: 25
+        rejected:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages rejected before any send attempt, because the recipient is on the workspace's suppression list, no reachable recipient was given, the destination has no price, or the wallet could not fund the send. Rejected messages are never charged and are not counted in `accepted`, so the total addressed is `accepted + rejected`. Excluded from `failure_rate`, which covers send failures only.
+          example: 412
+    WhatsAppStatsByTagResponse:
+      type: object
+      additionalProperties: false
+      description: Per-tag breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        data:
+          type: array
+          readOnly: true
+          description: Tag rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/WhatsAppTagStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct tags with activity in the period, regardless of `limit`.
+          example: 12
+    WhatsAppStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The same statistics for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - delivery
+      - engagement
+      - latency
+      - delta
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-25, this is 2026-04-06 to 2026-04-30, both inclusive.
+          example:
+            from: '2026-04-06'
+            to: '2026-04-30'
+            data_as_of: '2026-05-25T14:03:10Z'
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
+          example:
+            accepted: 3196
+            sent: 3190
+            delivered: 3120
+            failed: 31
+            rejected: 380
+            delivery_rate: 0.9762
+            failure_rate: 0.0097
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementStats'
+          example:
+            read: 1980
+            read_rate: 0.6346
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
+        delta:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppStatsComparisonDelta'
+    WhatsAppInboundStatsSummaryResponse:
+      type: object
+      additionalProperties: false
+      description: 'Total received messages for the requested period.
+
+        '
+      required:
+      - period
+      - received
+      properties:
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in the period, counted by the time each message reached your number. Computed across the whole window rather than summed from the daily or hourly series, so it can sit slightly below the sum of those rows.
+          example: 4210
+        comparison:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppInboundStatsComparison'
+    WhatsAppTemplateCategoryStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Lifecycle counts, derived rates, and engagement for a single WhatsApp template category over the requested period.
+      required:
+      - category
+      - delivery
+      - engagement
+      - latency
+      properties:
+        category:
+          readOnly: true
+          description: The template category this row aggregates.
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateCategory'
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
+    WhatsAppPhoneNumberStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Lifecycle counts, rates, and engagement for one business phone number over the requested period, including whether the number is shared.
+      required:
+      - phone_number
+      - shared
+      - delivery
+      - engagement
+      - latency
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The business sender phone number in E.164 form.
+          example: '+13124495569'
+        shared:
+          type: boolean
+          readOnly: true
+          description: '`true` for a shared Bird-managed number; `false` for a number owned by your workspace.
+
+            '
+          example: true
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -2178,6 +1997,138 @@ components:
           type: string
           minLength: 1
           description: What is wrong with this field.
+    WhatsAppEngagementCounts:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'WhatsApp engagement counts for a time bucket, attributed by send time. A message accepted on Monday and read on Tuesday counts in Monday''s bucket. Read rates are available only for the whole period. Very large counts are close estimates rather than exact tallies.
+
+        '
+      required:
+      - read
+      properties:
+        read:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages confirmed read by the recipient.
+          example: 3105
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    WhatsAppDeliveryStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'WhatsApp lifecycle counts and rates for the requested period, attributed by send time, so a later delivery stays attributed to the period in which its message was accepted, and a recent period under-reports `delivered` while delivery reports are still arriving. The sibling `engagement` block reports read counts and rates. Rates are null when their denominator is zero. Very large counts are close estimates rather than exact tallies.
+
+        '
+      required:
+      - accepted
+      - sent
+      - delivered
+      - failed
+      - rejected
+      - delivery_rate
+      - failure_rate
+      properties:
+        accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages accepted for sending after admission checks. This is the denominator for `delivery_rate` and `failure_rate`.
+          example: 4820
+        sent:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages handed off for delivery.
+          example: 4810
+        delivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages confirmed delivered to the recipient's device.
+          example: 4720
+        failed:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages that failed during sending or delivery.
+          example: 25
+        rejected:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages rejected before any send attempt, because the recipient is on the workspace's suppression list, no reachable recipient was given, the destination has no price, or the wallet could not fund the send. Rejected messages are never charged and are not counted in `accepted`, so the total addressed is `accepted + rejected`. Excluded from `failure_rate`, which covers send failures only.
+          example: 412
+        delivery_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of accepted messages that were delivered, computed as `delivered / accepted`. Null when no messages were accepted in scope.
+
+            '
+          example: 0.9793
+        failure_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of accepted messages that ultimately failed, computed as `failed / accepted`. Null when no messages were accepted in scope.
+
+            '
+          example: 0.0052
     WhatsAppStatsByErrorCodeResponse:
       type: object
       additionalProperties: false
@@ -2202,66 +2153,32 @@ components:
           readOnly: true
           description: Total distinct error codes with failures in the period, regardless of `limit`.
           example: 3
-    WhatsAppTemplateCategory:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - authentication
-      - utility
-      - marketing
-      description: 'Meta''s content classification for a template.
-
-
-        - `authentication`: delivers one-time passcodes.
-
-        - `utility`: delivers transaction-triggered updates (receipts, order status).
-
-        - `marketing`: carries promotional content.
-
-
-        The category determines the sender number and price. This is an open enum.
-
-        Accept unrecognized values.
-
-        '
-    WhatsAppStatsSeriesPeriod:
+    WhatsAppInboundStatsByPhoneNumberResponse:
       type: object
       additionalProperties: false
-      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
-
-        '
+      description: Per-phone-number breakdown of received messages for the requested period, ranked by volume descending and capped at the requested `limit` (default 50, max 200).
       required:
-      - from
-      - to
-      - grain
+      - period
+      - data
+      - total
       properties:
-        from:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        data:
+          type: array
           readOnly: true
-          description: Inclusive start of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant on the hour grain.
-          example: '2026-05-01'
-        to:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive end of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant on the hour grain.
-          example: '2026-05-25'
-        grain:
-          $ref: '#/components/schemas/StatsGrain'
-          readOnly: true
-        data_as_of:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'Latest time reflected in the statistics. More recent events might not be included yet. Null when the freshness boundary is unavailable.
+          description: 'Phone-number rows ranked by received-message volume descending, capped at the requested `limit`. A number with no messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
 
             '
-          example: '2026-05-25T14:03:10Z'
+          items:
+            $ref: '#/components/schemas/WhatsAppInboundPhoneNumberStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct phone numbers with received messages in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.
+          example: 2
     StatsGrain:
       type: string
       minLength: 1
@@ -2271,65 +2188,150 @@ components:
       readOnly: true
       description: The bucket grain of the series, either `day` or `hour`.
       example: day
-    WhatsAppLatencyQuantiles:
+    WhatsAppInboundStatsResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Approximate p50, p95, and p99 latency percentiles in milliseconds for one latency family. All three are null when no qualifying event contributed a measurement.
+      description: 'Received-message time series. `period` echoes the range the server computed against; `data` is one row per bucket in chronological order.
 
         '
       required:
-      - p50_ms
-      - p95_ms
-      - p99_ms
+      - period
+      - data
       properties:
-        p50_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
+        period:
+          $ref: '#/components/schemas/WhatsAppStatsSeriesPeriod'
+        data:
+          type: array
           readOnly: true
-          description: Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
-          example: 610
-        p95_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
+          description: One row per bucket (day or hour, matching the request) in the period, in chronological order. Buckets with no activity are included with a count of zero, so the series charts continuously without client-side gap handling.
+          items:
+            $ref: '#/components/schemas/WhatsAppInboundStatsPoint'
+    WhatsAppStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'WhatsApp lifecycle counts, engagement, and latency percentiles for one time bucket (a calendar day or hour), bucketed by send time. Every count in a bucket describes the messages accepted in it, regardless of when their later events arrived. Rates apply to the whole window rather than individual buckets.
+
+        '
+      required:
+      - bucket
+      - delivery
+      - engagement
+      - latency
+      properties:
+        bucket:
+          type: string
+          minLength: 1
           readOnly: true
-          description: 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
-          example: 2140
-        p99_ms:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
+          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the period's grain.
+          example: '2026-05-25'
+        delivery:
           readOnly: true
-          description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
-          example: 5380
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryCounts'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementCounts'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
+    WhatsAppTemplateStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Lifecycle counts, derived rates, engagement and latency for a single WhatsApp template over the requested period.
+      required:
+      - template_id
+      - delivery
+      - engagement
+      - latency
+      properties:
+        template_id:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppTemplateID'
+          readOnly: true
+          description: 'The template these messages were sent from, using the same `id` the WhatsApp template endpoints return. A send that resolved no template does not appear in this breakdown. A template renamed after it was used to send still reports under this one `id`, and a template deleted after sending keeps its row rather than dropping the messages.
+
+            '
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppLatencyStats'
+    WhatsAppLatencyStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Latency percentiles in milliseconds for the requested scope:
+
+
+        - `processing`: From acceptance to WhatsApp handoff.
+
+        - `delivery`: From WhatsApp handoff to delivery confirmation.
+
+        - `total`: From acceptance to delivery confirmation.
+
+
+        Each family is omitted when no qualifying message contributes a measurement.
+
+        Individual percentiles can also be null. `delivery` is measured on a best-effort basis, so
+
+        it can be absent for a scope whose `processing` and `total` are present.
+
+        '
+      example:
+        processing:
+          p50_ms: 610
+          p95_ms: 2140
+          p99_ms: 5380
+        delivery:
+          p50_ms: 1530
+          p95_ms: 6820
+          p99_ms: 18400
+        total:
+          p50_ms: 2180
+          p95_ms: 9060
+          p99_ms: 24300
+      properties:
+        processing:
+          $ref: '#/components/schemas/WhatsAppLatencyQuantiles'
+        delivery:
+          $ref: '#/components/schemas/WhatsAppLatencyQuantiles'
+        total:
+          $ref: '#/components/schemas/WhatsAppLatencyQuantiles'
+  parameters:
+    StatsTimezone:
+      name: timezone
+      in: query
+      required: false
+      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
 
         '
       schema:
         type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+        minLength: 1
+        example: Asia/Kathmandu
+    WhatsAppStatsTemplateFilter:
+      name: template
+      in: query
+      required: false
+      description: 'Restricts the statistics to one template, identified by its ID (`wat_…`) or slug. Mutually exclusive with the other dimension filters (`category`, `phone_number`, `tag`); only one may be set per request. An ID matches the `template_id` key on a row of the per-template breakdown; a slug is accepted for callers that predate that key and resolves to the same messages.
 
         '
       schema:
         type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
+        minLength: 1
+        maxLength: 63
+        pattern: ^(wat_[0-9a-hjkmnp-tv-z]{26}|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$
+        example: wat_01krdgeqcxet5s7t44vh8rt9mg
   responses:
     InternalError:
       description: Internal server error
@@ -2346,6 +2348,12 @@ components:
           $ref: '#/components/headers/RateLimit-Policy'
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -2369,49 +2377,41 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
     BadRequest:
       description: Bad request
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-  parameters:
-    WhatsAppStatsTemplateFilter:
-      name: template
-      in: query
-      required: false
-      description: 'Restricts the statistics to one template, identified by its ID (`wat_…`) or slug. Mutually exclusive with the other dimension filters (`category`, `phone_number`, `tag`); only one may be set per request. An ID matches the `template_id` key on a row of the per-template breakdown; a slug is accepted for callers that predate that key and resolves to the same messages.
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
 
         '
       schema:
         type: string
-        minLength: 1
-        maxLength: 63
-        pattern: ^(wat_[0-9a-hjkmnp-tv-z]{26}|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$
-        example: wat_01krdgeqcxet5s7t44vh8rt9mg
-    StatsTimezone:
-      name: timezone
-      in: query
-      required: false
-      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
 
         '
       schema:
         type: string
-        minLength: 1
-        example: Asia/Kathmandu
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

@@ -136,27 +136,14 @@ paths:
           description: Number not found
 components:
   schemas:
-    NumberPurchase:
+    NumberUpdate:
       type: object
-      required:
-      - number
-      - countryCode
       properties:
-        number:
-          type: string
-          description: The phone number to purchase in E.164 format.
-        countryCode:
-          type: string
-          description: The two-letter ISO 3166-1 country code.
-          minLength: 2
-          maxLength: 2
-        billingIntervalMonths:
-          type: integer
-          description: The billing interval in months.
-          enum:
-          - 1
-          - 12
-          default: 1
+        tags:
+          type: array
+          description: Tags to assign to the number.
+          items:
+            type: string
     PurchasedNumber:
       type: object
       properties:
@@ -199,6 +186,27 @@ components:
           type: string
           format: date-time
           description: The date and time of the next renewal.
+    NumberPurchase:
+      type: object
+      required:
+      - number
+      - countryCode
+      properties:
+        number:
+          type: string
+          description: The phone number to purchase in E.164 format.
+        countryCode:
+          type: string
+          description: The two-letter ISO 3166-1 country code.
+          minLength: 2
+          maxLength: 2
+        billingIntervalMonths:
+          type: integer
+          description: The billing interval in months.
+          enum:
+          - 1
+          - 12
+          default: 1
     PurchasedNumberList:
       type: object
       properties:
@@ -218,14 +226,6 @@ components:
         limit:
           type: integer
           description: The limit applied.
-    NumberUpdate:
-      type: object
-      properties:
-        tags:
-          type: array
-          description: Tags to assign to the number.
-          items:
-            type: string
   parameters:
     numberParam:
       name: number

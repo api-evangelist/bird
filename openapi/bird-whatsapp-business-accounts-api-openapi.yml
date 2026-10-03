@@ -180,243 +180,16 @@ paths:
       - sdk
 components:
   schemas:
-    WhatsAppBusinessAccountList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: The WhatsApp Business Accounts your workspace has connected.
-            items:
-              $ref: '#/components/schemas/WhatsAppBusinessAccount'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    WhatsAppBusinessPortfolio:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      required:
-      - meta_id
-      description: 'The Meta business portfolio that owns a WhatsApp Business Account. Bird holds no resource of its own for a portfolio, which is why the identifier is named `meta_id`: it is meaningful only against Meta''s own tools, and it is not a Bird identifier.'
-      properties:
-        meta_id:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: Meta's identifier for the portfolio. Treat it as an opaque string.
-          example: '178563218361309'
-        name:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The portfolio's name, as Meta reports it. Absent when Meta returned none.
-          example: Acme Holdings
-        marketing_messages_onboarding_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessPortfolioMarketingMessagesStatus'
-          readOnly: true
-          description: 'How far this portfolio has got through Meta''s Marketing Messages terms of service. Absent until Meta has reported it. Distinct from the account''s own `marketing_messages_onboarding_status`, which Meta gives the same field name but a different vocabulary: that one is the account''s own eligibility, this one is the portfolio''s Terms-of-Service progress.'
-    SortOrder:
-      type: string
-      enum:
-      - asc
-      - desc
-      description: Sort direction, ascending or descending.
-    WhatsAppBusinessVerificationStatus:
+    WhatsAppBusinessAccountReviewStatus:
       type: string
       minLength: 1
       x-extensible-enum:
-      - expired
-      - failed
-      - ineligible
-      - not_verified
+      - approved
+      - deferred
       - pending
-      - pending_need_more_info
-      - pending_submission
       - rejected
-      - revoked
-      - verified
-      description: 'Whether Meta has verified the business behind this WhatsApp Business Account. Verification is one of the paths to a higher messaging limit, so a value other than `verified` is often the reason a limit has not moved. Values are Meta''s own tokens, lower-cased. Open enum: treat an unrecognized value as a state Meta added rather than as an error.'
-      example: verified
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    WhatsAppBusinessAccountMarketingMessagesStatus:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - eligible
-      - onboarded
-      description: Whether this account can use WhatsApp's Marketing Messages API. `eligible` means WhatsApp would accept an onboarding request for it; `onboarded` means it has already been onboarded. Values are WhatsApp's own tokens, lower-cased. Open enum out of necessity. WhatsApp's onboarding guide names these two values and defers the rest to an API reference that does not document the field. Treat anything else as a state WhatsApp reports that this list has not caught up with.
-      example: onboarded
-    WhatsAppBusinessPortfolioMarketingMessagesStatus:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - not_started
-      - request_sent
-      - term_of_service_signed
-      description: 'How far the business portfolio has got through Meta''s Marketing Messages
-
-        terms of service.
-
-
-        - `not_started`: the portfolio has not begun the process.
-
-        - `request_sent`: a request is in.
-
-        - `term_of_service_signed`: the terms are accepted.
-
-
-        A portfolio property, so every account the portfolio owns reports the same
-
-        value. Distinct from the account''s own marketing-messages status, which Meta
-
-        confusingly gives the same name. Values are Meta''s own tokens, lower-cased.
-
-        Open enum: treat an unrecognized value as a state Meta added rather than as
-
-        an error.
-
-        '
-      example: not_started
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    WhatsAppBusinessAccount:
-      type: object
-      additionalProperties: false
-      required:
-      - id
-      - waba
-      - name
-      - status
-      - created_at
-      - updated_at
-      properties:
-        id:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessAccountID'
-          readOnly: true
-          description: Unique identifier for the WhatsApp Business Account.
-        waba:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'Meta''s own identifier for this WhatsApp Business Account. This is the value to send when creating a template on the account.
-
-            '
-          example: '102290129340398'
-        name:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The account's name, as WhatsApp reports it.
-          example: Acme Inc
-        status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessAccountStatus'
-          readOnly: true
-          description: WhatsApp's own state for this account as of `meta_synced_at`. The status is `active` until WhatsApp reports otherwise. WhatsApp already considers an account usable if Bird could connect a number under it. The absence of a reading is therefore not evidence of another state.
-        account_review_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessAccountReviewStatus'
-          readOnly: true
-          description: How far WhatsApp's review of this account had got as of `meta_synced_at`. Absent until WhatsApp has reported it.
-        business_verification_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessVerificationStatus'
-          readOnly: true
-          description: Whether Meta had verified the business behind this account as of `meta_synced_at`. Absent until Meta has reported it.
-        marketing_messages_onboarding_status:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessAccountMarketingMessagesStatus'
-          readOnly: true
-          description: 'Whether this account can use WhatsApp''s Marketing Messages API, as of `meta_synced_at`. Absent until WhatsApp has reported it. Distinct from the owning portfolio''s `marketing_messages_onboarding_status` (`portfolio.marketing_messages_onboarding_status`), which Meta gives the same field name but a different vocabulary: this one is the account''s own eligibility, that one is the portfolio''s Terms-of-Service progress.'
-        portfolio:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessPortfolio'
-          readOnly: true
-          description: The Meta business portfolio that owns this account. Absent until Meta has reported it. The portfolio is where a messaging limit is set, so every account it owns shares one.
-        ban:
-          allOf:
-          - $ref: '#/components/schemas/WhatsAppBusinessAccountBan'
-          readOnly: true
-          description: WhatsApp's ban on this account, absent unless Bird was told of one. `status` is what the account said when Bird last read it; this is what WhatsApp announced, which arrives only on the webhook that announces it and is never re-read.
-        meta_synced_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When Bird last read this account's state from WhatsApp. `status`, `account_review_status`, `business_verification_status`, `marketing_messages_onboarding_status` and `portfolio` are all that reading rather than live values; Bird re-reads roughly hourly. Absent for an account Bird has never read back.
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When this account was connected.
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When this account was last changed.
-    WhatsAppBusinessAccountBanState:
-      type: string
-      minLength: 1
-      enum:
-      - disabled
-      - scheduled_for_disable
-      description: "Whether WhatsApp has disabled a WhatsApp Business Account or scheduled it to be\ndisabled:\n\n- `disabled`: WhatsApp has disabled the account, and it cannot send.\n- `scheduled_for_disable`: WhatsApp has set a date to disable the account, which can\n  still send until then.\n\nAn account WhatsApp has reinstated reports no `ban` at all rather than a third value\nhere.\n"
-      example: disabled
-    WhatsAppBusinessAccountID:
-      type: string
-      minLength: 1
-      pattern: ^waa_[0-9a-hjkmnp-tv-z]{26}$
-      example: waa_01krdgeqcxet5s7t44vh8rt9mg
+      description: 'How far WhatsApp''s own review of this WhatsApp Business Account has got. `deferred` is WhatsApp postponing the review rather than refusing it. Values are WhatsApp''s own tokens, lower-cased. Open enum: treat an unrecognized value as a review state WhatsApp added rather than as an error.'
+      example: approved
     ErrorBody:
       type: object
       additionalProperties: false
@@ -497,16 +270,213 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    WhatsAppBusinessAccountReviewStatus:
+    WhatsAppBusinessVerificationStatus:
       type: string
       minLength: 1
       x-extensible-enum:
-      - approved
-      - deferred
+      - expired
+      - failed
+      - ineligible
+      - not_verified
       - pending
+      - pending_need_more_info
+      - pending_submission
       - rejected
-      description: 'How far WhatsApp''s own review of this WhatsApp Business Account has got. `deferred` is WhatsApp postponing the review rather than refusing it. Values are WhatsApp''s own tokens, lower-cased. Open enum: treat an unrecognized value as a review state WhatsApp added rather than as an error.'
-      example: approved
+      - revoked
+      - verified
+      description: 'Whether Meta has verified the business behind this WhatsApp Business Account. Verification is one of the paths to a higher messaging limit, so a value other than `verified` is often the reason a limit has not moved. Values are Meta''s own tokens, lower-cased. Open enum: treat an unrecognized value as a state Meta added rather than as an error.'
+      example: verified
+    WhatsAppBusinessAccountID:
+      type: string
+      minLength: 1
+      pattern: ^waa_[0-9a-hjkmnp-tv-z]{26}$
+      example: waa_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppBusinessAccount:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - waba
+      - name
+      - status
+      - created_at
+      - updated_at
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessAccountID'
+          readOnly: true
+          description: Unique identifier for the WhatsApp Business Account.
+        waba:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Meta''s own identifier for this WhatsApp Business Account. This is the value to send when creating a template on the account.
+
+            '
+          example: '102290129340398'
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The account's name, as WhatsApp reports it.
+          example: Acme Inc
+        status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessAccountStatus'
+          readOnly: true
+          description: WhatsApp's own state for this account as of `meta_synced_at`. The status is `active` until WhatsApp reports otherwise. WhatsApp already considers an account usable if Bird could connect a number under it. The absence of a reading is therefore not evidence of another state.
+        account_review_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessAccountReviewStatus'
+          readOnly: true
+          description: How far WhatsApp's review of this account had got as of `meta_synced_at`. Absent until WhatsApp has reported it.
+        business_verification_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessVerificationStatus'
+          readOnly: true
+          description: Whether Meta had verified the business behind this account as of `meta_synced_at`. Absent until Meta has reported it.
+        marketing_messages_onboarding_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessAccountMarketingMessagesStatus'
+          readOnly: true
+          description: 'Whether this account can use WhatsApp''s Marketing Messages API, as of `meta_synced_at`. Absent until WhatsApp has reported it. Distinct from the owning portfolio''s `marketing_messages_onboarding_status` (`portfolio.marketing_messages_onboarding_status`), which Meta gives the same field name but a different vocabulary: this one is the account''s own eligibility, that one is the portfolio''s Terms-of-Service progress.'
+        portfolio:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessPortfolio'
+          readOnly: true
+          description: The Meta business portfolio that owns this account. Absent until Meta has reported it. The portfolio is where a messaging limit is set, so every account it owns shares one.
+        ban:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessAccountBan'
+          readOnly: true
+          description: WhatsApp's ban on this account, absent unless Bird was told of one. `status` is what the account said when Bird last read it; this is what WhatsApp announced, which arrives only on the webhook that announces it and is never re-read.
+        meta_synced_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When Bird last read this account's state from WhatsApp. `status`, `account_review_status`, `business_verification_status`, `marketing_messages_onboarding_status` and `portfolio` are all that reading rather than live values; Bird re-reads roughly hourly. Absent for an account Bird has never read back.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When this account was connected.
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When this account was last changed.
+    WhatsAppBusinessAccountStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - active
+      description: WhatsApp's own state for a WhatsApp Business Account. Values are WhatsApp's own tokens, lower-cased. This enum is open because WhatsApp documents the field in neither its API reference nor its machine-readable schema. The `active` value is the only value in WhatsApp's example response, so it is the only one Bird can name. Treat anything else as a state WhatsApp reports and this list has not caught up with.
+      example: active
+    WhatsAppBusinessPortfolioMarketingMessagesStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - not_started
+      - request_sent
+      - term_of_service_signed
+      description: 'How far the business portfolio has got through Meta''s Marketing Messages
+
+        terms of service.
+
+
+        - `not_started`: the portfolio has not begun the process.
+
+        - `request_sent`: a request is in.
+
+        - `term_of_service_signed`: the terms are accepted.
+
+
+        A portfolio property, so every account the portfolio owns reports the same
+
+        value. Distinct from the account''s own marketing-messages status, which Meta
+
+        confusingly gives the same name. Values are Meta''s own tokens, lower-cased.
+
+        Open enum: treat an unrecognized value as a state Meta added rather than as
+
+        an error.
+
+        '
+      example: not_started
+    WhatsAppBusinessAccountList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: The WhatsApp Business Accounts your workspace has connected.
+            items:
+              $ref: '#/components/schemas/WhatsAppBusinessAccount'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    WhatsAppBusinessPortfolio:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      required:
+      - meta_id
+      description: 'The Meta business portfolio that owns a WhatsApp Business Account. Bird holds no resource of its own for a portfolio, which is why the identifier is named `meta_id`: it is meaningful only against Meta''s own tools, and it is not a Bird identifier.'
+      properties:
+        meta_id:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Meta's identifier for the portfolio. Treat it as an opaque string.
+          example: '178563218361309'
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The portfolio's name, as Meta reports it. Absent when Meta returned none.
+          example: Acme Holdings
+        marketing_messages_onboarding_status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppBusinessPortfolioMarketingMessagesStatus'
+          readOnly: true
+          description: 'How far this portfolio has got through Meta''s Marketing Messages terms of service. Absent until Meta has reported it. Distinct from the account''s own `marketing_messages_onboarding_status`, which Meta gives the same field name but a different vocabulary: that one is the account''s own eligibility, this one is the portfolio''s Terms-of-Service progress.'
+    WhatsAppBusinessAccountMarketingMessagesStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - eligible
+      - onboarded
+      description: Whether this account can use WhatsApp's Marketing Messages API. `eligible` means WhatsApp would accept an onboarding request for it; `onboarded` means it has already been onboarded. Values are WhatsApp's own tokens, lower-cased. Open enum out of necessity. WhatsApp's onboarding guide names these two values and defers the rest to an API reference that does not document the field. Treat anything else as a state WhatsApp reports that this list has not caught up with.
+      example: onboarded
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
     WhatsAppBusinessAccountBan:
       type: object
       additionalProperties: false
@@ -533,31 +503,6 @@ components:
           readOnly: true
           description: Where to appeal WhatsApp's decision with Meta Business Support, because neither Bird nor this API can lift one. Absent when Bird does not know the account's Meta business portfolio, since there is no support-home path to build without one.
           example: https://business.facebook.com/business-support-home/178563218361309/102290129340398
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -575,19 +520,143 @@ components:
           type: string
           minLength: 1
           description: What is wrong with this field.
+    WhatsAppBusinessAccountBanState:
+      type: string
+      minLength: 1
+      enum:
+      - disabled
+      - scheduled_for_disable
+      description: "Whether WhatsApp has disabled a WhatsApp Business Account or scheduled it to be\ndisabled:\n\n- `disabled`: WhatsApp has disabled the account, and it cannot send.\n- `scheduled_for_disable`: WhatsApp has set a date to disable the account, which can\n  still send until then.\n\nAn account WhatsApp has reinstated reports no `ban` at all rather than a third value\nhere.\n"
+      example: disabled
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
     WhatsAppBusinessAccountSortField:
       type: string
       enum:
       - created_at
       default: created_at
       description: Sortable fields for a WhatsApp Business Account list.
-    WhatsAppBusinessAccountStatus:
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    SortOrder:
       type: string
-      minLength: 1
-      x-extensible-enum:
-      - active
-      description: WhatsApp's own state for a WhatsApp Business Account. Values are WhatsApp's own tokens, lower-cased. This enum is open because WhatsApp documents the field in neither its API reference nor its machine-readable schema. The `active` value is the only value in WhatsApp's example response, so it is the only one Bird can name. Treat anything else as a state WhatsApp reports and this list has not caught up with.
-      example: active
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   parameters:
     StartingAfter:
       name: starting_after
@@ -623,75 +692,6 @@ components:
       schema:
         $ref: '#/components/schemas/SortOrder'
         default: desc
-  headers:
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

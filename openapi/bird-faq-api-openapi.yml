@@ -166,39 +166,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    Answer:
-      type: object
-      description: An answer which corresponds to one or more example questions in the dataset.
-      properties:
-        text:
-          type: string
-          example: Messagebird was founded by Robert Vis in 2011.
-          description: The text containing the answer.
-        url:
-          type: string
-          example: https://messagebird.com/en/about
-          description: The URL with additional information for this answer.
-        title:
-          type: string
-          example: MessageBird Founder
-          description: The short title representing the answer.
-    ListDatasetsResponse:
-      type: object
-      description: A response containing the FAQ datasets that were queried.
-      properties:
-        datasets:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dataset'
-          description: The paginated collection of datasets.
-        limit:
-          type: integer
-          example: 20
-          description: The effective limit for the maximum number of datasets returned.
-        nextCursor:
-          type: string
-          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
-          description: The cursor to query the next paginated collection of results.
     PredictAnswerResponse:
       type: object
       description: 'A response that contains the answer and its related metadata. If the FAQ API could not find a corresponding answer, the answer field will not be populated.
@@ -216,15 +183,23 @@ components:
           description: 'Indicates if an answer was predicted. If false, the phrase could not be matched with an answer.
 
             '
-    LanguageList:
+    ListDatasetsResponse:
       type: object
-      description: List of recognized languages.
+      description: A response containing the FAQ datasets that were queried.
       properties:
-        languages:
+        datasets:
           type: array
           items:
-            $ref: '#/components/schemas/Language'
-          description: The collection of languages.
+            $ref: '#/components/schemas/Dataset'
+          description: The paginated collection of datasets.
+        limit:
+          type: integer
+          example: 20
+          description: The effective limit for the maximum number of datasets returned.
+        nextCursor:
+          type: string
+          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
+          description: The cursor to query the next paginated collection of results.
     PredictAnswerRequest:
       type: object
       description: A request for predicting an answer from a phrase and a dataset ID.
@@ -235,18 +210,22 @@ components:
           type: string
           example: Who founded MessageBird?
           description: The phrase that might contain a question to be answered.
-    Error:
+    Answer:
       type: object
+      description: An answer which corresponds to one or more example questions in the dataset.
       properties:
-        code:
-          type: integer
-        message:
+        text:
           type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
+          example: Messagebird was founded by Robert Vis in 2011.
+          description: The text containing the answer.
+        url:
+          type: string
+          example: https://messagebird.com/en/about
+          description: The URL with additional information for this answer.
+        title:
+          type: string
+          example: MessageBird Founder
+          description: The short title representing the answer.
     Dataset:
       type: object
       description: A collection of answers with matching questions.
@@ -304,6 +283,27 @@ components:
           type: string
           example: NLD
           description: The ISO639-3 language code enum value.
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   securitySchemes:
     AccessKey:
       type: apiKey
