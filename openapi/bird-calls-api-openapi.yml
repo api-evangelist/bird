@@ -95,61 +95,21 @@ paths:
           description: Call not found
 components:
   schemas:
-    CallResponse:
+    Pagination:
       type: object
       properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Call'
-    CallCreate:
-      type: object
-      required:
-      - source
-      - destination
-      - callFlow
-      properties:
-        source:
-          type: string
-          description: The caller ID to display, must be a purchased MessageBird number.
-        destination:
-          type: string
-          description: The phone number or SIP URI to call.
-        callFlow:
-          $ref: '#/components/schemas/CallFlowCreate'
-        webhook:
-          $ref: '#/components/schemas/VoiceWebhookCreate'
-    CallFlowStep:
-      type: object
-      required:
-      - action
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the step.
-        action:
-          type: string
-          description: The action to perform in this step.
-          enum:
-          - say
-          - play
-          - pause
-          - record
-          - fetchCallFlow
-          - hangup
-          - transfer
-        options:
-          type: object
-          description: Action-specific options for the step.
-    CallList:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Call'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
+        totalCount:
+          type: integer
+          description: The total number of items available.
+        pageCount:
+          type: integer
+          description: The total number of pages.
+        currentPage:
+          type: integer
+          description: The current page number.
+        perPage:
+          type: integer
+          description: The number of items per page.
     Call:
       type: object
       properties:
@@ -182,6 +142,37 @@ components:
           type: string
           format: date-time
           description: The date and time when the call ended.
+    CallFlowStep:
+      type: object
+      required:
+      - action
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the step.
+        action:
+          type: string
+          description: The action to perform in this step.
+          enum:
+          - say
+          - play
+          - pause
+          - record
+          - fetchCallFlow
+          - hangup
+          - transfer
+        options:
+          type: object
+          description: Action-specific options for the step.
+    CallList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     CallFlowCreate:
       type: object
       required:
@@ -198,21 +189,23 @@ components:
           description: A sequence of steps that define the call flow behavior.
           items:
             $ref: '#/components/schemas/CallFlowStep'
-    Pagination:
+    CallCreate:
       type: object
+      required:
+      - source
+      - destination
+      - callFlow
       properties:
-        totalCount:
-          type: integer
-          description: The total number of items available.
-        pageCount:
-          type: integer
-          description: The total number of pages.
-        currentPage:
-          type: integer
-          description: The current page number.
-        perPage:
-          type: integer
-          description: The number of items per page.
+        source:
+          type: string
+          description: The caller ID to display, must be a purchased MessageBird number.
+        destination:
+          type: string
+          description: The phone number or SIP URI to call.
+        callFlow:
+          $ref: '#/components/schemas/CallFlowCreate'
+        webhook:
+          $ref: '#/components/schemas/VoiceWebhookCreate'
     VoiceWebhookCreate:
       type: object
       required:
@@ -225,6 +218,13 @@ components:
         token:
           type: string
           description: A token for webhook signature validation.
+    CallResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
   parameters:
     callIdParam:
       name: callId
@@ -233,14 +233,6 @@ components:
       description: The unique identifier of the call.
       schema:
         type: string
-    pageParam:
-      name: page
-      in: query
-      required: false
-      description: The page number for pagination.
-      schema:
-        type: integer
-        default: 1
     perPageParam:
       name: perPage
       in: query
@@ -249,6 +241,14 @@ components:
       schema:
         type: integer
         default: 10
+    pageParam:
+      name: page
+      in: query
+      required: false
+      description: The page number for pagination.
+      schema:
+        type: integer
+        default: 1
   securitySchemes:
     accessKey:
       type: apiKey

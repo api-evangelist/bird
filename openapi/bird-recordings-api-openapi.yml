@@ -73,38 +73,22 @@ paths:
         '404':
           description: Recording not found
 components:
-  parameters:
-    recordingIdParam:
-      name: recordingId
-      in: path
-      required: true
-      description: The unique identifier of the recording.
-      schema:
-        type: string
-    callIdParam:
-      name: callId
-      in: path
-      required: true
-      description: The unique identifier of the call.
-      schema:
-        type: string
-    legIdParam:
-      name: legId
-      in: path
-      required: true
-      description: The unique identifier of the leg.
-      schema:
-        type: string
   schemas:
-    RecordingList:
+    Pagination:
       type: object
       properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Recording'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
+        totalCount:
+          type: integer
+          description: The total number of items available.
+        pageCount:
+          type: integer
+          description: The total number of pages.
+        currentPage:
+          type: integer
+          description: The current page number.
+        perPage:
+          type: integer
+          description: The number of items per page.
     Recording:
       type: object
       properties:
@@ -145,21 +129,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Recording'
-    Pagination:
+    RecordingList:
       type: object
       properties:
-        totalCount:
-          type: integer
-          description: The total number of items available.
-        pageCount:
-          type: integer
-          description: The total number of pages.
-        currentPage:
-          type: integer
-          description: The current page number.
-        perPage:
-          type: integer
-          description: The number of items per page.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recording'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+  parameters:
+    callIdParam:
+      name: callId
+      in: path
+      required: true
+      description: The unique identifier of the call.
+      schema:
+        type: string
+    recordingIdParam:
+      name: recordingId
+      in: path
+      required: true
+      description: The unique identifier of the recording.
+      schema:
+        type: string
+    legIdParam:
+      name: legId
+      in: path
+      required: true
+      description: The unique identifier of the leg.
+      schema:
+        type: string
   securitySchemes:
     accessKey:
       type: apiKey

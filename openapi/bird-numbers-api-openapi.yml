@@ -670,6 +670,15 @@ paths:
       description: Local development.
 components:
   schemas:
+    NumberList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Number'
+        nextPageToken:
+          type: string
     Number:
       type: object
       properties:
@@ -683,15 +692,6 @@ components:
           type: array
           items:
             type: string
-    NumberList:
-      type: object
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Number'
-        nextPageToken:
-          type: string
     NumberLookup:
       type: object
       properties:
@@ -703,76 +703,53 @@ components:
           type: string
         type:
           type: string
-    NumbersOrder:
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    NumbersOrderID:
+      type: string
+      minLength: 1
+      pattern: ^nor_[0-9a-hjkmnp-tv-z]{26}$
+      example: nor_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorDetail:
       type: object
       additionalProperties: false
       required:
-      - id
-      - number
-      - country_code
-      - number_type
-      - status
-      - created_at
-      - updated_at
+      - param
+      - message
       properties:
-        id:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/NumbersOrderID'
-          description: Identifier of this purchase order.
-        number:
+        param:
           type: string
           minLength: 1
-          readOnly: true
-          description: The number being acquired, in E.164 format.
-        country_code:
-          allOf:
-          - $ref: '#/components/schemas/CountryCode'
-          readOnly: true
-        number_type:
-          allOf:
-          - $ref: '#/components/schemas/NumberType'
-          readOnly: true
-          description: Physical type of the number being acquired.
-        status:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/NumbersOrderStatus'
-        number_id:
-          readOnly: true
-          description: 'Identifier of the number this order produced, set when `status` is `completed`. Pass it as `number_id` to `GET /v1/numbers/{number_id}` or `DELETE /v1/numbers/{number_id}`. `null` until the order completes.
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
 
             '
-          oneOf:
-          - $ref: '#/components/schemas/NumbersDedicatedAllocationID'
-          - type: 'null'
-        failure_reason:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'Human-readable reason the purchase failed. `null` unless status is failed. An order can fail some time after it was created, so `updated_at` tells you when the failure was recorded rather than when the order was placed.
-
-            '
-        completed_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'When the purchase completed and the number became owned (status completed). `null` for orders still in progress or failed.
-
-            '
-        created_at:
+        message:
           type: string
-          format: date-time
           minLength: 1
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -853,14 +830,6 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    NumberCapability:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - sms
-      - mms
-      - voice
-      description: A capability supported by a phone number. New capabilities may be added over time, so treat unrecognized values as supported capabilities rather than errors.
     NumberList_2:
       allOf:
       - type: object
@@ -872,11 +841,116 @@ components:
             items:
               $ref: '#/components/schemas/Number_2'
       - $ref: '#/components/schemas/_ListEnvelope'
-    NumbersDedicatedAllocationID:
-      type: string
-      minLength: 1
-      pattern: ^nda_[0-9a-hjkmnp-tv-z]{26}$
-      example: nda_01krdgeqcxet5s7t44vh8rt9mg
+    NumbersOrder:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - number
+      - country_code
+      - number_type
+      - status
+      - created_at
+      - updated_at
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/NumbersOrderID'
+          description: Identifier of this purchase order.
+        number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The number being acquired, in E.164 format.
+        country_code:
+          allOf:
+          - $ref: '#/components/schemas/CountryCode'
+          readOnly: true
+        number_type:
+          allOf:
+          - $ref: '#/components/schemas/NumberType'
+          readOnly: true
+          description: Physical type of the number being acquired.
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/NumbersOrderStatus'
+        number_id:
+          readOnly: true
+          description: 'Identifier of the number this order produced, set when `status` is `completed`. Pass it as `number_id` to `GET /v1/numbers/{number_id}` or `DELETE /v1/numbers/{number_id}`. `null` until the order completes.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/NumbersDedicatedAllocationID'
+          - type: 'null'
+        failure_reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Human-readable reason the purchase failed. `null` unless status is failed. An order can fail some time after it was created, so `updated_at` tells you when the failure was recorded rather than when the order was placed.
+
+            '
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When the purchase completed and the number became owned (status completed). `null` for orders still in progress or failed.
+
+            '
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
     NumberType:
       type: string
       minLength: 1
@@ -888,6 +962,83 @@ components:
       - short_code_fteu
       - toll_free
       description: Physical type of a phone number. New number types may be added over time, so treat unrecognized values as supported types rather than errors.
+    AllocatedNumberID:
+      type: string
+      minLength: 1
+      pattern: ^(nda|nal)_[0-9a-hjkmnp-tv-z]{26}$
+      example: nda_01krdgeqcxet5s7t44vh8rt9mg
+      description: Identifier of a number allocated to your workspace, as returned in the id field of `GET /v1/numbers`.
+    NumberCapability:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - sms
+      - mms
+      - voice
+      description: A capability supported by a phone number. New capabilities may be added over time, so treat unrecognized values as supported capabilities rather than errors.
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+    NumbersOrderCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - number
+      properties:
+        number:
+          type: string
+          minLength: 1
+          description: The number to acquire, in E.164 format, as returned by `GET /v1/numbers/available`.
+          example: '+18005550100'
+    NumbersOrderStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - charging
+      - ordering
+      - pending
+      - completed
+      - failed
+      description: 'Lifecycle state of a number purchase order:
+
+
+        - `charging`: Securing funds.
+
+        - `ordering`: Placing the order with the carrier.
+
+        - `pending`: The carrier accepted the order and is provisioning the number.
+
+        - `completed`: Your workspace owns the number.
+
+        - `failed`: The purchase did not complete.
+
+
+        A setup fee already charged is non-refundable. Contact support about a failed
+
+        order.'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    AvailableNumberList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/AvailableNumber'
+      - $ref: '#/components/schemas/_ListEnvelope'
     Number_2:
       type: object
       additionalProperties: false
@@ -964,191 +1115,6 @@ components:
           oneOf:
           - $ref: '#/components/schemas/NumberOwnership'
           - type: 'null'
-    CountryCode:
-      type: string
-      minLength: 2
-      maxLength: 2
-      pattern: ^[A-Za-z]{2}$
-      description: ISO 3166-1 alpha-2 country code.
-      example: US
-    NumbersOrderStatus:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - charging
-      - ordering
-      - pending
-      - completed
-      - failed
-      description: 'Lifecycle state of a number purchase order:
-
-
-        - `charging`: Securing funds.
-
-        - `ordering`: Placing the order with the carrier.
-
-        - `pending`: The carrier accepted the order and is provisioning the number.
-
-        - `completed`: Your workspace owns the number.
-
-        - `failed`: The purchase did not complete.
-
-
-        A setup fee already charged is non-refundable. Contact support about a failed
-
-        order.'
-    NumbersOrderCreate:
-      type: object
-      additionalProperties: false
-      required:
-      - number
-      properties:
-        number:
-          type: string
-          minLength: 1
-          description: The number to acquire, in E.164 format, as returned by `GET /v1/numbers/available`.
-          example: '+18005550100'
-    AllocatedNumberID:
-      type: string
-      minLength: 1
-      pattern: ^(nda|nal)_[0-9a-hjkmnp-tv-z]{26}$
-      example: nda_01krdgeqcxet5s7t44vh8rt9mg
-      description: Identifier of a number allocated to your workspace, as returned in the id field of `GET /v1/numbers`.
-    NumbersOrderList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            items:
-              $ref: '#/components/schemas/NumbersOrder'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    NumbersOrderID:
-      type: string
-      minLength: 1
-      pattern: ^nor_[0-9a-hjkmnp-tv-z]{26}$
-      example: nor_01krdgeqcxet5s7t44vh8rt9mg
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    AvailableNumber:
-      type: object
-      readOnly: true
-      additionalProperties: false
-      required:
-      - number
-      - country_code
-      - number_type
-      - capabilities
-      - ownership_registration_required
-      properties:
-        number:
-          type: string
-          minLength: 1
-          description: Phone number in E.164 format.
-        country_code:
-          $ref: '#/components/schemas/CountryCode'
-        number_type:
-          allOf:
-          - $ref: '#/components/schemas/NumberType'
-          description: Physical type of this phone number.
-        capabilities:
-          type: array
-          items:
-            $ref: '#/components/schemas/NumberCapability'
-          description: Capabilities supported by this number.
-        ownership_registration_required:
-          type: boolean
-          description: Whether ownership paperwork must be approved before outbound SMS and voice use. Customer availability accounts for organization exemptions; admin supplier searches report the general country and number-type requirement. You can acquire the number, including Bird stock, and submit paperwork afterward. Any setup fee is charged during purchase. Monthly billing starts at assignment even while approval is pending; assignment may follow completion of a pending supplier order.
     NumberOwnership:
       type: object
       additionalProperties: false
@@ -1182,7 +1148,36 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    AvailableNumberList:
+    AvailableNumber:
+      type: object
+      readOnly: true
+      additionalProperties: false
+      required:
+      - number
+      - country_code
+      - number_type
+      - capabilities
+      - ownership_registration_required
+      properties:
+        number:
+          type: string
+          minLength: 1
+          description: Phone number in E.164 format.
+        country_code:
+          $ref: '#/components/schemas/CountryCode'
+        number_type:
+          allOf:
+          - $ref: '#/components/schemas/NumberType'
+          description: Physical type of this phone number.
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/NumberCapability'
+          description: Capabilities supported by this number.
+        ownership_registration_required:
+          type: boolean
+          description: Whether ownership paperwork must be approved before outbound SMS and voice use. Customer availability accounts for organization exemptions; admin supplier searches report the general country and number-type requirement. You can acquire the number, including Bird stock, and submit paperwork afterward. Any setup fee is charged during purchase. Monthly billing starts at assignment even while approval is pending; assignment may follow completion of a pending supplier order.
+    NumbersOrderList:
       allOf:
       - type: object
         required:
@@ -1191,8 +1186,13 @@ components:
           data:
             type: array
             items:
-              $ref: '#/components/schemas/AvailableNumber'
+              $ref: '#/components/schemas/NumbersOrder'
       - $ref: '#/components/schemas/_ListEnvelope'
+    NumbersDedicatedAllocationID:
+      type: string
+      minLength: 1
+      pattern: ^nda_[0-9a-hjkmnp-tv-z]{26}$
+      example: nda_01krdgeqcxet5s7t44vh8rt9mg
   parameters:
     WorkspaceId:
       name: workspaceId
@@ -1201,6 +1201,14 @@ components:
       description: Bird workspace identifier.
       schema:
         type: string
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
     PaginationLimit:
       name: limit
       in: query
@@ -1233,95 +1241,6 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
-    XWorkspaceId:
-      name: X-Workspace-Id
-      in: header
-      required: false
-      description: Workspace context for the request. Required for dashboard authentication. An API key or access token carries its own workspace, so send either that workspace or no header at all; a different one is rejected.
-      schema:
-        type: string
-        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
-  responses:
-    PreconditionFailed:
-      description: Precondition failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    PaymentRequired:
-      description: Insufficient balance
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -1345,6 +1264,87 @@ components:
       schema:
         type: string
       example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PreconditionFailed:
+      description: Precondition failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   securitySchemes:
     AccessKey:
       type: apiKey

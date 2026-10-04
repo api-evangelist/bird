@@ -309,6 +309,28 @@ paths:
       - sdk
 components:
   schemas:
+    WhatsAppKeywordRuleID:
+      type: string
+      minLength: 1
+      pattern: ^wkr_[0-9a-hjkmnp-tv-z]{26}$
+      example: wkr_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -389,6 +411,32 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
+    WhatsAppKeywordRuleUpdate:
+      type: object
+      additionalProperties: false
+      description: 'Changes the reply and the added keywords. What a rule applies to (its operation, country and WhatsApp Business Account) is fixed once created: those decide which inbound messages reach it, so changing one would make it a different rule. Delete it and create the one you want.
+
+        '
+      properties:
+        keywords:
+          type: array
+          description: 'Replaces the extra keywords this rule matches, on top of the ones Bird ships. Send an empty array to keep Bird''s keywords only. Omit to leave the current ones unchanged.
+
+            '
+          items:
+            type: string
+            minLength: 1
+          example:
+          - no more texts
+        reply:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: 'Replaces the message sent back when a keyword matches. Set it to null to send nothing. Omit to leave it unchanged.
+
+            '
+          example: You're off the list. ACME Courier won't message you again.
     WhatsAppKeywordOperation:
       type: string
       minLength: 1
@@ -397,6 +445,46 @@ components:
       - opt_out
       description: "What Bird does when an inbound message matches the rule.\n\n- `opt_out` records that the sender no longer consents to receive any messages from your\n  WhatsApp Business Account, including transactional ones. Typing the word is the person's\n  own statement, so it covers everything, unlike WhatsApp's built-in marketing opt-out\n  control, which stops marketing alone.\n- `opt_in` records that they consent again.\n\nA rule's operation is fixed once created, and a keyword belongs to exactly one operation, so\na keyword Bird ships for `opt_out` cannot be reused for `opt_in`.\n\nThis is an open enum. Accept unrecognized values: SMS already answers `help`, `info`, `confirm`\nand `custom`, and WhatsApp gains an operation without a new API version. Sending one Bird does\nnot answer yet is refused with `E15082`.\n"
       example: opt_out
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
     WhatsAppKeywordRuleList:
       type: object
       additionalProperties: false
@@ -448,32 +536,6 @@ components:
           type: string
           minLength: 1
           description: 'The message to send back when a keyword matches. Omit it to send nothing.
-
-            '
-          example: You're off the list. ACME Courier won't message you again.
-    WhatsAppKeywordRuleUpdate:
-      type: object
-      additionalProperties: false
-      description: 'Changes the reply and the added keywords. What a rule applies to (its operation, country and WhatsApp Business Account) is fixed once created: those decide which inbound messages reach it, so changing one would make it a different rule. Delete it and create the one you want.
-
-        '
-      properties:
-        keywords:
-          type: array
-          description: 'Replaces the extra keywords this rule matches, on top of the ones Bird ships. Send an empty array to keep Bird''s keywords only. Omit to leave the current ones unchanged.
-
-            '
-          items:
-            type: string
-            minLength: 1
-          example:
-          - no more texts
-        reply:
-          type:
-          - string
-          - 'null'
-          minLength: 1
-          description: 'Replaces the message sent back when a keyword matches. Set it to null to send nothing. Omit to leave it unchanged.
 
             '
           example: You're off the list. ACME Courier won't message you again.
@@ -572,63 +634,6 @@ components:
 
         '
       example: workspace
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
     Error:
       type: object
       additionalProperties: false
@@ -637,11 +642,6 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ErrorBody'
-    WhatsAppKeywordRuleID:
-      type: string
-      minLength: 1
-      pattern: ^wkr_[0-9a-hjkmnp-tv-z]{26}$
-      example: wkr_01krdgeqcxet5s7t44vh8rt9mg
     WhatsAppKeywordOperationWrite:
       type: string
       minLength: 1
@@ -653,75 +653,6 @@ components:
       - WhatsAppKeywordOperationWriteOptOut
       description: "What Bird does when an inbound message matches the rule.\n\n- `opt_out` records that the sender no longer consents to receive any messages from your\n  WhatsApp Business Account, including transactional ones. Typing the word is the person's\n  own statement, so it covers everything, unlike WhatsApp's built-in marketing opt-out\n  control, which stops marketing alone.\n- `opt_in` records that they consent again.\n\nA rule's operation is fixed once created, and a keyword belongs to exactly one operation, so\na keyword Bird ships for `opt_out` cannot be reused for `opt_in`.\n\nClosed on the write side: an operation Bird does not answer is rejected here rather than\nstored as a rule that never fires. The read side is open, because Bird can gain an operation\nwithout a new API version.\n"
       example: opt_out
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -745,15 +676,76 @@ components:
       schema:
         type: string
       example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
     XWorkspaceId:
       name: X-Workspace-Id
       in: header
@@ -762,6 +754,14 @@ components:
       schema:
         type: string
         pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
   securitySchemes:
     BearerAuth:
       type: http

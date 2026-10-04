@@ -74,32 +74,15 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    PredictEntitiesRequest:
+    ListSupportedLanguagesResponse:
       type: object
-      description: A request for extracting named entities from a phrase.
-      required:
-      - phrase
+      description: A response containing the supported languages and their entity types.
       properties:
-        phrase:
-          type: string
-          example: I would like to go to Amsterdam on Sunday at 3pm for 2 hours.
-          description: The phrase from which to extract named entities.
-        language:
-          type: string
-          example: ENG
-          description: 'The ISO-639-3 language code of the phrase. If not specified, the API will try to infer the language automatically.
-
-            '
-        entityTypes:
+        languages:
           type: array
           items:
-            type: string
-          example:
-          - LOCATION
-          - DATE_TIME
-          description: 'The entity types to extract. If not specified, all entity types will be extracted.
-
-            '
+            $ref: '#/components/schemas/SupportedLanguageEntry'
+          description: The collection of supported languages with their entity types.
     SupportedLanguageEntry:
       type: object
       description: A language and its supported entity types.
@@ -121,27 +104,17 @@ components:
           - LOCATION
           - PERSON
           description: The entity types supported for this language.
-    EntityValue:
+    PredictEntitiesResponse:
       type: object
-      description: A structured value for a recognized entity.
+      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
+
+        '
       properties:
-        type:
-          type: string
-          example: LOCATION
-          description: The entity type.
-        value:
-          type: object
-          additionalProperties: true
-          description: The structured value of the entity (varies by type).
-    ListSupportedLanguagesResponse:
-      type: object
-      description: A response containing the supported languages and their entity types.
-      properties:
-        languages:
+        entities:
           type: array
           items:
-            $ref: '#/components/schemas/SupportedLanguageEntry'
-          description: The collection of supported languages with their entity types.
+            $ref: '#/components/schemas/Entity'
+          description: The collection of recognized named entities.
     Entity:
       type: object
       description: A recognized named entity with one or more possible interpretations.
@@ -169,17 +142,44 @@ components:
           description: 'One or more possible interpretations of this entity. Most recognized entities will contain only one interpretation.
 
             '
-    PredictEntitiesResponse:
+    EntityValue:
       type: object
-      description: 'A response containing the extracted named entities. If no entities can be found, an empty collection is returned.
-
-        '
+      description: A structured value for a recognized entity.
       properties:
-        entities:
+        type:
+          type: string
+          example: LOCATION
+          description: The entity type.
+        value:
+          type: object
+          additionalProperties: true
+          description: The structured value of the entity (varies by type).
+    PredictEntitiesRequest:
+      type: object
+      description: A request for extracting named entities from a phrase.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: I would like to go to Amsterdam on Sunday at 3pm for 2 hours.
+          description: The phrase from which to extract named entities.
+        language:
+          type: string
+          example: ENG
+          description: 'The ISO-639-3 language code of the phrase. If not specified, the API will try to infer the language automatically.
+
+            '
+        entityTypes:
           type: array
           items:
-            $ref: '#/components/schemas/Entity'
-          description: The collection of recognized named entities.
+            type: string
+          example:
+          - LOCATION
+          - DATE_TIME
+          description: 'The entity types to extract. If not specified, all entity types will be extracted.
+
+            '
     Error:
       type: object
       properties:

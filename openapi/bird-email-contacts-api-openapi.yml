@@ -681,11 +681,82 @@ paths:
       - sdk
 components:
   schemas:
-    AudienceID:
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ContactPropertyID:
       type: string
       minLength: 1
-      pattern: ^adn_[0-9a-hjkmnp-tv-z]{26}$
-      example: adn_01krdgeqcxet5s7t44vh8rt9mg
+      pattern: ^prp_[0-9a-hjkmnp-tv-z]{26}$
+      example: prp_01krdgeqcxet5s7t44vh8rt9mg
+    ContactUpsertEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - phone_number
+      - external_id
+      description: The identifiers a batch entry supplied, in the normalized form used for matching. A field is `null` when the entry did not include it. These values identify the request entry and do not represent the contact's current state.
+      properties:
+        email:
+          type:
+          - string
+          - 'null'
+          description: Email address this entry carried, trimmed and lowercased. `null` when the entry carried none.
+        phone_number:
+          type:
+          - string
+          - 'null'
+          description: Phone number this entry carried, in its normalized international form. `null` when the entry carried none. A row rejected for an invalid phone echoes the value as sent, trimmed, since no normalized form exists.
+        external_id:
+          type:
+          - string
+          - 'null'
+          description: Your own identifier for this entry, when the entry supplied one.
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    ContactID:
+      type: string
+      minLength: 1
+      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
+      example: con_01krdgeqcxet5s7t44vh8rt9mg
     ErrorBody:
       type: object
       additionalProperties: false
@@ -766,6 +837,97 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
+    ContactIdentifierFilter:
+      type: string
+      enum:
+      - email
+      - phone_number
+      description: Which identifier a contact has on file, `email` for an email address or `phone_number` for a phone number.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    ContactUpsertResultItem:
+      type: object
+      additionalProperties: false
+      required:
+      - entry
+      - matched_on
+      - status
+      properties:
+        entry:
+          $ref: '#/components/schemas/ContactUpsertEntry'
+        matched_on:
+          $ref: '#/components/schemas/ContactMatchedOn'
+          description: Which identifier matched this entry to an existing contact. `null` when the entry created a new contact.
+        status:
+          type: string
+          minLength: 1
+          enum:
+          - created
+          - updated
+          - failed
+          description: "What happened to this contact.\n\n- `created`: a new contact was created for the address.\n- `updated`: an existing contact with the address was updated.\n- `failed`: the entry was rejected and `error` explains why. A failed entry\n  does not affect the other entries in the request.\n"
+        contact_id:
+          $ref: '#/components/schemas/ContactID'
+          description: ID of the created or updated contact. Absent when the entry failed.
+        error:
+          $ref: '#/components/schemas/ContactUpsertError'
+          description: Why this entry failed. Absent for successful entries.
     ContactUpdateRequest:
       type: object
       additionalProperties: false
@@ -808,68 +970,39 @@ components:
       example:
         first_name: Alice
         last_name: Anderson
-    ContactPropertyID:
-      type: string
-      minLength: 1
-      pattern: ^prp_[0-9a-hjkmnp-tv-z]{26}$
-      example: prp_01krdgeqcxet5s7t44vh8rt9mg
-    ContactMatchedOn:
-      type:
-      - string
-      - 'null'
-      enum:
-      - email
-      - phone_number
-      - external_id
-      - null
-      description: Which identifier matched a batch entry to an existing contact. `null` when the entry created a new contact.
-    ContactUpsertResultItem:
+    ContactPropertyList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of contact property objects.
+            items:
+              $ref: '#/components/schemas/ContactProperty'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    ContactUpsertError:
       type: object
       additionalProperties: false
       required:
-      - entry
-      - matched_on
-      - status
+      - type
+      - code
+      - message
       properties:
-        entry:
-          $ref: '#/components/schemas/ContactUpsertEntry'
-        matched_on:
-          $ref: '#/components/schemas/ContactMatchedOn'
-          description: Which identifier matched this entry to an existing contact. `null` when the entry created a new contact.
-        status:
+        type:
           type: string
           minLength: 1
-          enum:
-          - created
-          - updated
-          - failed
-          description: "What happened to this contact.\n\n- `created`: a new contact was created for the address.\n- `updated`: an existing contact with the address was updated.\n- `failed`: the entry was rejected and `error` explains why. A failed entry\n  does not affect the other entries in the request.\n"
-        contact_id:
-          $ref: '#/components/schemas/ContactID'
-          description: ID of the created or updated contact. Absent when the entry failed.
-        error:
-          $ref: '#/components/schemas/ContactUpsertError'
-          description: Why this entry failed. Absent for successful entries.
-    ContactUpsertResult:
-      type: object
-      additionalProperties: false
-      required:
-      - data
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ContactUpsertResultItem'
-          description: One entry per contact in the request, in submission order.
-    ContactPropertyUpdateRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        fallback_value:
-          maxLength: 500
-          description: Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to `500` characters); a value of another type returns a validation error. Set to `null` to remove the fallback.
-      example:
-        fallback_value: free
+          description: Machine-readable error category for this entry, such as `validation_error` or `conflict_error`, in the same vocabulary as the top-level error `type`. New categories may be added over time, so treat unrecognized values as a generic failure.
+        code:
+          type: string
+          minLength: 6
+          pattern: ^E\d{5}$
+          description: Specific error code for this entry, from the same catalog as the top-level error `code`. `E04058` means the entry matched two contacts and requires review. `E04055` means the phone number belongs to another contact and you must retry with different data. Both are `conflict_error` errors; the code distinguishes them.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable explanation of why this entry failed.
     _ListEnvelopeWithTotal:
       allOf:
       - $ref: '#/components/schemas/_ListEnvelope'
@@ -882,183 +1015,6 @@ components:
             format: int64
             minimum: 0
             description: Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise `null`.
-    ContactPropertyCreateRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - key
-      - type
-      properties:
-        key:
-          type: string
-          minLength: 1
-          maxLength: 50
-          pattern: ^[a-z][a-z0-9_]*$
-          description: The property key, used as the key in contact data and as the attribute in the `bird.contact.<key>` broadcast template variable. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
-        type:
-          $ref: '#/components/schemas/ContactPropertyType'
-        fallback_value:
-          maxLength: 500
-          description: Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to `500` characters), or `null` for no fallback; a value of another type returns a validation error.
-      example:
-        key: plan
-        type: string
-        fallback_value: free
-    ContactIdentifierFilter:
-      type: string
-      enum:
-      - email
-      - phone_number
-      description: Which identifier a contact has on file, `email` for an email address or `phone_number` for a phone number.
-    ContactUpsertRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - contacts
-      properties:
-        contacts:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/ContactCreateRequest'
-          description: Contacts to create or update, matched automatically against every identifier an entry supplies. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. Unmatched entries create contacts.
-        audience_ids:
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            $ref: '#/components/schemas/AudienceID'
-          description: Audiences every contact in this request is added to. Contacts that are already members are left in place. Every listed audience must exist, or the whole request fails with a validation error and nothing is written.
-        match_on:
-          $ref: '#/components/schemas/ContactMatchKey'
-          description: Optional field used to match every entry to an existing contact. Every entry must include this field when set. When omitted, each entry is matched against all identifiers it supplies. No match creates a contact, one match updates it, and identifiers that match multiple contacts return an error naming each contact.
-        data_mode:
-          type: string
-          enum:
-          - merge
-          - replace
-          default: merge
-          description: 'How a supplied `data` object is applied to an existing contact. The default `merge` mode adds the supplied keys to the contact''s stored custom values. A key with a `null` value deletes that key. The `replace` mode overwrites the whole stored `data` map with the supplied map. In both modes a contact that omits `data` keeps its stored values unchanged, so an import that touches one attribute never wipes the others.
-
-            '
-      example:
-        contacts:
-        - email: alice@acme.com
-          first_name: Alice
-          last_name: Anderson
-        - email: bob@acme.com
-          first_name: Bob
-          last_name: Baker
-        audience_ids:
-        - adn_01krdgeqcxet5s7t44vh8rt9mg
-    ContactID:
-      type: string
-      minLength: 1
-      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
-      example: con_01krdgeqcxet5s7t44vh8rt9mg
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    Timestamps:
-      type: object
-      required:
-      - created_at
-      - updated_at
-      properties:
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-20T09:14:52Z'
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-25T16:42:01Z'
-    ContactList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of contact objects.
-            items:
-              $ref: '#/components/schemas/Contact'
-      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    ContactProperty:
-      allOf:
-      - type: object
-        required:
-        - id
-        - key
-        - type
-        - created_at
-        - updated_at
-        properties:
-          id:
-            readOnly: true
-            $ref: '#/components/schemas/ContactPropertyID'
-            description: ID of the property, accepted by every operation that takes a `property_id`.
-          key:
-            type: string
-            minLength: 1
-            maxLength: 50
-            pattern: ^[a-z][a-z0-9_]*$
-            description: The property key, used as the key in contact data and as the attribute in the `bird.contact.<key>` broadcast template variable. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
-          type:
-            $ref: '#/components/schemas/ContactPropertyType'
-          fallback_value:
-            maxLength: 500
-            description: Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to `500` characters), or `null` when no fallback is set.
-          archived:
-            type: boolean
-            readOnly: true
-            description: Whether the property is archived. An archived property is rejected in new contact writes and stops rendering in templates, but every value already stored on contacts is preserved. Reactivate it with unarchive.
-      - $ref: '#/components/schemas/Timestamps'
     ContactCreateRequest:
       type: object
       additionalProperties: false
@@ -1094,154 +1050,11 @@ components:
         phone_number: '+31612345678'
         first_name: Alice
         last_name: Anderson
-    ContactUpsertEntry:
-      type: object
-      additionalProperties: false
-      required:
-      - email
-      - phone_number
-      - external_id
-      description: The identifiers a batch entry supplied, in the normalized form used for matching. A field is `null` when the entry did not include it. These values identify the request entry and do not represent the contact's current state.
-      properties:
-        email:
-          type:
-          - string
-          - 'null'
-          description: Email address this entry carried, trimmed and lowercased. `null` when the entry carried none.
-        phone_number:
-          type:
-          - string
-          - 'null'
-          description: Phone number this entry carried, in its normalized international form. `null` when the entry carried none. A row rejected for an invalid phone echoes the value as sent, trimmed, since no normalized form exists.
-        external_id:
-          type:
-          - string
-          - 'null'
-          description: Your own identifier for this entry, when the entry supplied one.
-    AudienceRef:
-      type: object
-      additionalProperties: false
-      required:
-      - id
-      - name
-      description: A compact reference to an audience, carrying its ID and display name.
-      properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/AudienceID'
-          description: ID of the referenced audience.
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: The audience's display name.
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    ContactMatchKey:
-      type: string
-      enum:
-      - email
-      - phone_number
-      - external_id
-      description: A contact identifier a batch entry can be matched on.
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    ContactUpsertError:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - message
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Machine-readable error category for this entry, such as `validation_error` or `conflict_error`, in the same vocabulary as the top-level error `type`. New categories may be added over time, so treat unrecognized values as a generic failure.
-        code:
-          type: string
-          minLength: 6
-          pattern: ^E\d{5}$
-          description: Specific error code for this entry, from the same catalog as the top-level error `code`. `E04058` means the entry matched two contacts and requires review. `E04055` means the phone number belongs to another contact and you must retry with different data. Both are `conflict_error` errors; the code distinguishes them.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable explanation of why this entry failed.
-    ContactPropertyType:
+    AudienceID:
       type: string
       minLength: 1
-      enum:
-      - string
-      - number
-      - boolean
-      - datetime
-      x-enum-varnames:
-      - ContactPropertyTypeString
-      - ContactPropertyTypeNumber
-      - ContactPropertyTypeBoolean
-      - ContactPropertyTypeDatetime
-      description: 'The value type every contact must use for a property. Cannot be changed after creation.
-
-
-        `datetime` values are RFC 3339 timestamps with an explicit offset. Examples include `2024-01-15T09:30:00Z` and `2024-01-15T11:30:00+02:00`. A bare date or a time with no offset is rejected. The value is normalized to UTC with second precision on write, so `2024-01-15T11:30:00+02:00` is stored and returned as `2024-01-15T09:30:00Z`, and any fractional seconds are dropped.
-
-        '
-    ContactPropertyList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of contact property objects.
-            items:
-              $ref: '#/components/schemas/ContactProperty'
-      - $ref: '#/components/schemas/_ListEnvelope'
+      pattern: ^adn_[0-9a-hjkmnp-tv-z]{26}$
+      example: adn_01krdgeqcxet5s7t44vh8rt9mg
     Contact:
       allOf:
       - type: object
@@ -1301,7 +1114,302 @@ components:
             items:
               $ref: '#/components/schemas/AudienceRef'
       - $ref: '#/components/schemas/Timestamps'
+    ContactMatchedOn:
+      type:
+      - string
+      - 'null'
+      enum:
+      - email
+      - phone_number
+      - external_id
+      - null
+      description: Which identifier matched a batch entry to an existing contact. `null` when the entry created a new contact.
+    ContactList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of contact objects.
+            items:
+              $ref: '#/components/schemas/Contact'
+      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    ContactUpsertResult:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactUpsertResultItem'
+          description: One entry per contact in the request, in submission order.
+    ContactPropertyType:
+      type: string
+      minLength: 1
+      enum:
+      - string
+      - number
+      - boolean
+      - datetime
+      x-enum-varnames:
+      - ContactPropertyTypeString
+      - ContactPropertyTypeNumber
+      - ContactPropertyTypeBoolean
+      - ContactPropertyTypeDatetime
+      description: 'The value type every contact must use for a property. Cannot be changed after creation.
+
+
+        `datetime` values are RFC 3339 timestamps with an explicit offset. Examples include `2024-01-15T09:30:00Z` and `2024-01-15T11:30:00+02:00`. A bare date or a time with no offset is rejected. The value is normalized to UTC with second precision on write, so `2024-01-15T11:30:00+02:00` is stored and returned as `2024-01-15T09:30:00Z`, and any fractional seconds are dropped.
+
+        '
+    ContactProperty:
+      allOf:
+      - type: object
+        required:
+        - id
+        - key
+        - type
+        - created_at
+        - updated_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/ContactPropertyID'
+            description: ID of the property, accepted by every operation that takes a `property_id`.
+          key:
+            type: string
+            minLength: 1
+            maxLength: 50
+            pattern: ^[a-z][a-z0-9_]*$
+            description: The property key, used as the key in contact data and as the attribute in the `bird.contact.<key>` broadcast template variable. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
+          type:
+            $ref: '#/components/schemas/ContactPropertyType'
+          fallback_value:
+            maxLength: 500
+            description: Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to `500` characters), or `null` when no fallback is set.
+          archived:
+            type: boolean
+            readOnly: true
+            description: Whether the property is archived. An archived property is rejected in new contact writes and stops rendering in templates, but every value already stored on contacts is preserved. Reactivate it with unarchive.
+      - $ref: '#/components/schemas/Timestamps'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    ContactUpsertRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - contacts
+      properties:
+        contacts:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/ContactCreateRequest'
+          description: Contacts to create or update, matched automatically against every identifier an entry supplies. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. Unmatched entries create contacts.
+        audience_ids:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/AudienceID'
+          description: Audiences every contact in this request is added to. Contacts that are already members are left in place. Every listed audience must exist, or the whole request fails with a validation error and nothing is written.
+        match_on:
+          $ref: '#/components/schemas/ContactMatchKey'
+          description: Optional field used to match every entry to an existing contact. Every entry must include this field when set. When omitted, each entry is matched against all identifiers it supplies. No match creates a contact, one match updates it, and identifiers that match multiple contacts return an error naming each contact.
+        data_mode:
+          type: string
+          enum:
+          - merge
+          - replace
+          default: merge
+          description: 'How a supplied `data` object is applied to an existing contact. The default `merge` mode adds the supplied keys to the contact''s stored custom values. A key with a `null` value deletes that key. The `replace` mode overwrites the whole stored `data` map with the supplied map. In both modes a contact that omits `data` keeps its stored values unchanged, so an import that touches one attribute never wipes the others.
+
+            '
+      example:
+        contacts:
+        - email: alice@acme.com
+          first_name: Alice
+          last_name: Anderson
+        - email: bob@acme.com
+          first_name: Bob
+          last_name: Baker
+        audience_ids:
+        - adn_01krdgeqcxet5s7t44vh8rt9mg
+    ContactPropertyCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - key
+      - type
+      properties:
+        key:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: ^[a-z][a-z0-9_]*$
+          description: The property key, used as the key in contact data and as the attribute in the `bird.contact.<key>` broadcast template variable. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
+        type:
+          $ref: '#/components/schemas/ContactPropertyType'
+        fallback_value:
+          maxLength: 500
+          description: Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to `500` characters), or `null` for no fallback; a value of another type returns a validation error.
+      example:
+        key: plan
+        type: string
+        fallback_value: free
+    AudienceRef:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      description: A compact reference to an audience, carrying its ID and display name.
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/AudienceID'
+          description: ID of the referenced audience.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The audience's display name.
+    ContactMatchKey:
+      type: string
+      enum:
+      - email
+      - phone_number
+      - external_id
+      description: A contact identifier a batch entry can be matched on.
+    ContactPropertyUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        fallback_value:
+          maxLength: 500
+          description: Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to `500` characters); a value of another type returns a validation error. Set to `null` to remove the fallback.
+      example:
+        fallback_value: free
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   parameters:
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
     IncludeTotal:
       name: include_total
       in: query
@@ -1332,114 +1440,6 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-  headers:
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

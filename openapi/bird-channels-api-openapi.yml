@@ -80,6 +80,17 @@ paths:
                 $ref: '#/components/schemas/Channel'
 components:
   schemas:
+    PresignedUpload:
+      type: object
+      properties:
+        mediaUrl:
+          type: string
+        uploadUrl:
+          type: string
+        uploadMethod:
+          type: string
+        uploadFormData:
+          type: object
     ChannelList:
       type: object
       properties:
@@ -102,17 +113,6 @@ components:
           type: string
         connectorId:
           type: string
-    PresignedUpload:
-      type: object
-      properties:
-        mediaUrl:
-          type: string
-        uploadUrl:
-          type: string
-        uploadMethod:
-          type: string
-        uploadFormData:
-          type: object
     CreatePresignedUpload:
       type: object
       required:
@@ -121,18 +121,18 @@ components:
         contentType:
           type: string
   parameters:
-    WorkspaceId:
-      name: workspaceId
-      in: path
-      required: true
-      description: Bird workspace identifier.
-      schema:
-        type: string
     ChannelId:
       name: channelId
       in: path
       required: true
       description: Channel identifier within the workspace.
+      schema:
+        type: string
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
       schema:
         type: string
   securitySchemes:

@@ -305,40 +305,62 @@ paths:
       - n8n
       - sdk
 components:
-  parameters:
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
   schemas:
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ContactID:
+      type: string
+      minLength: 1
+      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
+      example: con_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    PreferenceCoverage:
+      type: string
+      minLength: 1
+      description: How much traffic the statement covers. `non_transactional` covers marketing and other non-essential messages while transactional messages such as receipts and verification codes keep flowing; `all` covers every message including transactional ones.
+      enum:
+      - all
+      - non_transactional
+      example: non_transactional
     ErrorBody:
       type: object
       additionalProperties: false
@@ -419,232 +441,6 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    PreferenceCreate:
-      description: 'Records one preference statement for a handle. Writing is an upsert by key (channel, handle, sender scope, and topic), and statements are causally ordered: a statement dated older than the key''s current one is refused and returned with `applied: false` rather than applied out of order.
-
-        '
-      allOf:
-      - type: object
-        required:
-        - handle
-        properties:
-          handle:
-            type: string
-            minLength: 1
-            maxLength: 320
-            description: 'Who the statement is about: an email address on the email channel, a phone number in E.164 format on SMS and WhatsApp.'
-            example: '+15550001234'
-      - $ref: '#/components/schemas/PreferenceStatement'
-    PreferenceStatement:
-      type: object
-      required:
-      - channel
-      - status
-      properties:
-        channel:
-          $ref: '#/components/schemas/PreferenceChannel'
-        status:
-          $ref: '#/components/schemas/PreferenceStatus'
-        coverage:
-          allOf:
-          - $ref: '#/components/schemas/PreferenceCoverage'
-          default: non_transactional
-          description: How much traffic the statement covers. Defaults to `non_transactional`, which keeps transactional messages such as receipts and verification codes flowing.
-        sender_scope:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: Limit the statement to one sender instead of the whole channel. On SMS this is the originator; on WhatsApp it identifies the business account. Not supported on email, where preferences are always channel-wide.
-          example: '+15557654321'
-        source:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: 'Free-form note on where the statement came from: a form name, an import batch, a campaign. Stored verbatim and returned on the preference.'
-          example: signup-form-v2
-        consented_at:
-          type: string
-          format: date-time
-          description: 'When the person consented, on a `granted` statement. Required evidence when granting over a stored opt-out: the grant applies only if this is later than the opt-out it reverses. May not be in the future.'
-    ContactID:
-      type: string
-      minLength: 1
-      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
-      example: con_01krdgeqcxet5s7t44vh8rt9mg
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    Timestamps:
-      type: object
-      required:
-      - created_at
-      - updated_at
-      properties:
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-20T09:14:52Z'
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-25T16:42:01Z'
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    PreferenceCoverage:
-      type: string
-      minLength: 1
-      description: How much traffic the statement covers. `non_transactional` covers marketing and other non-essential messages while transactional messages such as receipts and verification codes keep flowing; `all` covers every message including transactional ones.
-      enum:
-      - all
-      - non_transactional
-      example: non_transactional
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    PreferenceChannel:
-      type: string
-      minLength: 1
-      description: 'The channel a preference statement applies to. A preference addresses one channel: the handle that identifies the person differs per channel, so opting out of one channel says nothing about the others. New channels can be added over time, so a value outside this list can be returned.'
-      x-extensible-enum:
-      - email
-      - sms
-      - whatsapp
-      example: sms
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    PreferenceList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of preferences, most recently created first.
-            items:
-              $ref: '#/components/schemas/Preference'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    PreferenceWriteResult:
-      type: object
-      additionalProperties: false
-      description: 'The outcome of one preference write or delete. `applied: true` means the request took effect: either it changed the record, or an identical statement already had. `applied: false` means it was refused as older than the key''s current statement; `preference` then carries the statement that survived, and `transition_id` identifies the refusal on the key''s record.
-
-        '
-      required:
-      - applied
-      - transition_id
-      - preference
-      properties:
-        applied:
-          type: boolean
-          readOnly: true
-          description: Whether the request took effect. False only when it was refused as out of order; the surviving, newer statement is returned in `preference`.
-        transition_id:
-          oneOf:
-          - $ref: '#/components/schemas/PreferenceTransitionID'
-          - type: 'null'
-          readOnly: true
-          description: Identifies this write on the key's record, for applied and refused requests alike. Null when the write was a repeat of the current statement and recorded nothing new.
-        preference:
-          oneOf:
-          - $ref: '#/components/schemas/Preference'
-          - type: 'null'
-          readOnly: true
-          description: The key's surviving statement. Null after an applied delete, when the key is back to having no record.
-    PreferenceTransitionID:
-      type: string
-      minLength: 1
-      pattern: ^prt_[0-9a-hjkmnp-tv-z]{26}$
-      example: prt_01krdgeqcxet5s7t44vh8rt9mg
-    PreferenceID:
-      type: string
-      minLength: 1
-      pattern: ^prf_[0-9a-hjkmnp-tv-z]{26}$
-      example: prf_01krdgeqcxet5s7t44vh8rt9mg
     Preference:
       description: 'One person''s current stated preference for one channel: whether they have consented to or opted out of receiving messages at a handle, and how much traffic the statement covers. A key holds one current statement (a newer statement replaces it, an older one is refused), and the full history behind the current state is kept internally. `sender_scope` and `topic_id` are part of the key: a preference with both null applies channel-wide.
 
@@ -743,6 +539,140 @@ components:
       - user
       - import
       example: api_key
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    PreferenceWriteResult:
+      type: object
+      additionalProperties: false
+      description: 'The outcome of one preference write or delete. `applied: true` means the request took effect: either it changed the record, or an identical statement already had. `applied: false` means it was refused as older than the key''s current statement; `preference` then carries the statement that survived, and `transition_id` identifies the refusal on the key''s record.
+
+        '
+      required:
+      - applied
+      - transition_id
+      - preference
+      properties:
+        applied:
+          type: boolean
+          readOnly: true
+          description: Whether the request took effect. False only when it was refused as out of order; the surviving, newer statement is returned in `preference`.
+        transition_id:
+          oneOf:
+          - $ref: '#/components/schemas/PreferenceTransitionID'
+          - type: 'null'
+          readOnly: true
+          description: Identifies this write on the key's record, for applied and refused requests alike. Null when the write was a repeat of the current statement and recorded nothing new.
+        preference:
+          oneOf:
+          - $ref: '#/components/schemas/Preference'
+          - type: 'null'
+          readOnly: true
+          description: The key's surviving statement. Null after an applied delete, when the key is back to having no record.
+    PreferenceID:
+      type: string
+      minLength: 1
+      pattern: ^prf_[0-9a-hjkmnp-tv-z]{26}$
+      example: prf_01krdgeqcxet5s7t44vh8rt9mg
+    PreferenceStatement:
+      type: object
+      required:
+      - channel
+      - status
+      properties:
+        channel:
+          $ref: '#/components/schemas/PreferenceChannel'
+        status:
+          $ref: '#/components/schemas/PreferenceStatus'
+        coverage:
+          allOf:
+          - $ref: '#/components/schemas/PreferenceCoverage'
+          default: non_transactional
+          description: How much traffic the statement covers. Defaults to `non_transactional`, which keeps transactional messages such as receipts and verification codes flowing.
+        sender_scope:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Limit the statement to one sender instead of the whole channel. On SMS this is the originator; on WhatsApp it identifies the business account. Not supported on email, where preferences are always channel-wide.
+          example: '+15557654321'
+        source:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 'Free-form note on where the statement came from: a form name, an import batch, a campaign. Stored verbatim and returned on the preference.'
+          example: signup-form-v2
+        consented_at:
+          type: string
+          format: date-time
+          description: 'When the person consented, on a `granted` statement. Required evidence when granting over a stored opt-out: the grant applies only if this is later than the opt-out it reverses. May not be in the future.'
+    PreferenceTransitionID:
+      type: string
+      minLength: 1
+      pattern: ^prt_[0-9a-hjkmnp-tv-z]{26}$
+      example: prt_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
     PreferenceStatus:
       type: string
       minLength: 1
@@ -751,69 +681,43 @@ components:
       - granted
       - revoked
       example: revoked
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+    PreferenceChannel:
+      type: string
+      minLength: 1
+      description: 'The channel a preference statement applies to. A preference addresses one channel: the handle that identifies the person differs per channel, so opting out of one channel says nothing about the others. New channels can be added over time, so a value outside this list can be returned.'
+      x-extensible-enum:
+      - email
+      - sms
+      - whatsapp
+      example: sms
+    PreferenceCreate:
+      description: 'Records one preference statement for a handle. Writing is an upsert by key (channel, handle, sender scope, and topic), and statements are causally ordered: a statement dated older than the key''s current one is refused and returned with `applied: false` rather than applied out of order.
 
         '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+      allOf:
+      - type: object
+        required:
+        - handle
+        properties:
+          handle:
+            type: string
+            minLength: 1
+            maxLength: 320
+            description: 'Who the statement is about: an email address on the email channel, a phone number in E.164 format on SMS and WhatsApp.'
+            example: '+15550001234'
+      - $ref: '#/components/schemas/PreferenceStatement'
+    PreferenceList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of preferences, most recently created first.
+            items:
+              $ref: '#/components/schemas/Preference'
+      - $ref: '#/components/schemas/_ListEnvelope'
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -843,6 +747,102 @@ components:
       schema:
         type: string
       example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
   securitySchemes:
     BearerAuth:
       type: http

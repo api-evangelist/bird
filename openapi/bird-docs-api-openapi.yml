@@ -147,6 +147,80 @@ paths:
       - mcp
       - n8n
 components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   schemas:
     DocsSearchResult:
       type: object
@@ -209,59 +283,23 @@ components:
           type: number
           readOnly: true
           description: Relevance score. Higher is more relevant; results are ordered by descending score.
-    DocsPage:
+    ErrorDetail:
       type: object
       additionalProperties: false
       required:
-      - slug
-      - locale
-      - url
-      - markdown
+      - param
+      - message
       properties:
-        slug:
+        param:
           type: string
           minLength: 1
-          readOnly: true
-          description: Slug of the page, echoing the requested slug.
-        locale:
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
           type: string
           minLength: 1
-          readOnly: true
-          description: Documentation locale the page was drawn from.
-        url:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: Absolute URL of the page, suitable to cite as the source of an answer.
-        markdown:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The page's full content as Markdown.
-    DocsSearchResponse:
-      type: object
-      additionalProperties: false
-      required:
-      - query
-      - locale
-      - results
-      properties:
-        query:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The search query that produced these results.
-        locale:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The documentation locale the results were drawn from.
-        results:
-          type: array
-          readOnly: true
-          description: Matching documentation sections, ordered by descending relevance.
-          items:
-            $ref: '#/components/schemas/DocsSearchResult'
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -342,23 +380,67 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    ErrorDetail:
+    DocsSearchResponse:
       type: object
       additionalProperties: false
       required:
-      - param
-      - message
+      - query
+      - locale
+      - results
       properties:
-        param:
+        query:
           type: string
           minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
+          readOnly: true
+          description: The search query that produced these results.
+        locale:
           type: string
           minLength: 1
-          description: What is wrong with this field.
+          readOnly: true
+          description: The documentation locale the results were drawn from.
+        results:
+          type: array
+          readOnly: true
+          description: Matching documentation sections, ordered by descending relevance.
+          items:
+            $ref: '#/components/schemas/DocsSearchResult'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    DocsPage:
+      type: object
+      additionalProperties: false
+      required:
+      - slug
+      - locale
+      - url
+      - markdown
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Slug of the page, echoing the requested slug.
+        locale:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Documentation locale the page was drawn from.
+        url:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Absolute URL of the page, suitable to cite as the source of an answer.
+        markdown:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The page's full content as Markdown.
     NextAction:
       type: object
       additionalProperties: false
@@ -399,88 +481,6 @@ components:
           description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
 
             '
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-  headers:
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-  responses:
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

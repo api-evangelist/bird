@@ -186,6 +186,25 @@ components:
           type: string
           format: date-time
           description: The date and time of the next renewal.
+    PurchasedNumberList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchasedNumber'
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of purchased numbers.
+        offset:
+          type: integer
+          description: The offset applied.
+        limit:
+          type: integer
+          description: The limit applied.
     NumberPurchase:
       type: object
       required:
@@ -207,25 +226,6 @@ components:
           - 1
           - 12
           default: 1
-    PurchasedNumberList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/PurchasedNumber'
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of purchased numbers.
-        offset:
-          type: integer
-          description: The offset applied.
-        limit:
-          type: integer
-          description: The limit applied.
   parameters:
     numberParam:
       name: number

@@ -243,26 +243,53 @@ paths:
       - n8n
       - sdk
 components:
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   schemas:
-    VerificationCheckRequest:
+    ErrorDetail:
       type: object
       additionalProperties: false
       required:
-      - to
-      - code
+      - param
+      - message
       properties:
-        to:
-          $ref: '#/components/schemas/VerificationTo'
-        code:
+        param:
           type: string
-          minLength: 4
-          maxLength: 12
-          description: 'The passcode the recipient received. Passcodes are numeric; submit the digits exactly as delivered. An incorrect value is a normal `200` outcome with `success: false`. It does not return an error.'
-          example: '123456'
-      example:
-        to:
-          phone_number: '+15551234567'
-        code: '123456'
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -362,17 +389,6 @@ components:
           minLength: 1
           description: The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).
           example: '+15551234567'
-    LanguageTag:
-      type: string
-      minLength: 2
-      maxLength: 35
-      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
-      example: pt-BR
-    VerificationID:
-      type: string
-      minLength: 1
-      pattern: ^vrf_[0-9a-hjkmnp-tv-z]{26}$
-      example: vrf_01krdgeqcxet5s7t44vh8rt9mg
     VerificationCheckResult:
       type: object
       additionalProperties: false
@@ -415,6 +431,72 @@ components:
           minimum: 0
           readOnly: true
           description: The number of check attempts left while the verification is still pending, or `null` once it has reached a final state.
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    VerificationTerminalReason:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - attempts_exhausted
+      - ttl_elapsed
+      - undeliverable
+      description: 'Why a verification session reached its final state without succeeding: `attempts_exhausted` (too many incorrect passcodes), `ttl_elapsed` (the time window elapsed before a correct passcode), or `undeliverable` (no planned channel could deliver a passcode, so the recipient never had one to submit). Open enum: new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error.'
     VerificationNextChannelRequest:
       type: object
       additionalProperties: false
@@ -426,6 +508,81 @@ components:
       example:
         to:
           phone_number: '+15551234567'
+    VerificationChannelEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - channel
+      properties:
+        channel:
+          $ref: '#/components/schemas/VerificationChannel'
+    VerificationID:
+      type: string
+      minLength: 1
+      pattern: ^vrf_[0-9a-hjkmnp-tv-z]{26}$
+      example: vrf_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    VerificationChannel:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - email
+      - sms
+      - whatsapp
+      - telegram
+      - voice
+      description: 'The channel a passcode is delivered over. Open enum: new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.'
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+    VerificationCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - to
+      properties:
+        to:
+          $ref: '#/components/schemas/VerificationTo'
+        options:
+          $ref: '#/components/schemas/VerificationOptions'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Optional key/value pairs to attach to the verification, for example a correlation id. Returned on the verification.
+      example:
+        to:
+          phone_number: '+15551234567'
+        metadata:
+          correlation_id: signup-7f3a
+    VerificationCheckRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - to
+      - code
+      properties:
+        to:
+          $ref: '#/components/schemas/VerificationTo'
+        code:
+          type: string
+          minLength: 4
+          maxLength: 12
+          description: 'The passcode the recipient received. Passcodes are numeric; submit the digits exactly as delivered. An incorrect value is a normal `200` outcome with `success: false`. It does not return an error.'
+          example: '123456'
+      example:
+        to:
+          phone_number: '+15551234567'
+        code: '123456'
     Verification:
       allOf:
       - type: object
@@ -500,116 +657,6 @@ components:
             readOnly: true
             description: When the verification was completed, or `null` if it is not yet verified.
       - $ref: '#/components/schemas/Timestamps'
-    Timestamps:
-      type: object
-      required:
-      - created_at
-      - updated_at
-      properties:
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-20T09:14:52Z'
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-25T16:42:01Z'
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    VerificationChannelEntry:
-      type: object
-      additionalProperties: false
-      required:
-      - channel
-      properties:
-        channel:
-          $ref: '#/components/schemas/VerificationChannel'
-    VerificationCreateRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - to
-      properties:
-        to:
-          $ref: '#/components/schemas/VerificationTo'
-        options:
-          $ref: '#/components/schemas/VerificationOptions'
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Optional key/value pairs to attach to the verification, for example a correlation id. Returned on the verification.
-      example:
-        to:
-          phone_number: '+15551234567'
-        metadata:
-          correlation_id: signup-7f3a
     VerificationOptions:
       type: object
       additionalProperties: false
@@ -634,33 +681,9 @@ components:
 
 
             Supported: en, ar, bg, cs, da, de, el, es, fi, fr, he, hi, hr, hu, id, it, ja, ko, lt, lv, mk, mn, ms, nb-NO, nl, no, pl, pt, ro, ru, sk, sl, sr, sv, th, tr, uk, vi, zh, zh-TW. Every one of them is available on SMS and email. Mongolian (mn) is the one WhatsApp cannot carry, so a WhatsApp passcode falls back to English for it.'
-    VerificationTerminalReason:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - attempts_exhausted
-      - ttl_elapsed
-      - undeliverable
-      description: 'Why a verification session reached its final state without succeeding: `attempts_exhausted` (too many incorrect passcodes), `ttl_elapsed` (the time window elapsed before a correct passcode), or `undeliverable` (no planned channel could deliver a passcode, so the recipient never had one to submit). Open enum: new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error.'
-    VerificationChannel:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - email
-      - sms
-      - whatsapp
-      - telegram
-      - voice
-      description: 'The channel a passcode is delivered over. Open enum: new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.'
   responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    PaymentRequired:
-      description: Insufficient balance
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
@@ -678,8 +701,16 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
       content:
         application/json:
           schema:
@@ -695,16 +726,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
+    InternalError:
+      description: Internal server error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -715,50 +744,13 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
+    PaymentRequired:
+      description: Insufficient balance
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-  headers:
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
   parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
     XWorkspaceId:
       name: X-Workspace-Id
       in: header
@@ -767,6 +759,14 @@ components:
       schema:
         type: string
         pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
   securitySchemes:
     BearerAuth:
       type: http

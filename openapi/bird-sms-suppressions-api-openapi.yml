@@ -270,11 +270,60 @@ paths:
       - sdk
 components:
   schemas:
-    SMSMessageID:
-      type: string
-      minLength: 1
-      pattern: ^sms_[0-9a-hjkmnp-tv-z]{26}$
-      example: sms_01krdgeqcxet5s7t44vh8rt9mg
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    SMSSuppressionList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of suppressions, most recent opt-out first.
+            items:
+              $ref: '#/components/schemas/SMSSuppression'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -355,44 +404,6 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    SMSSuppressionReason:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - keyword_stop
-      - carrier_opted_out
-      - manual
-      description: 'Reason this sender cannot message the subscriber:
-
-
-        - `keyword_stop`: The subscriber sent a stop keyword. A start keyword clears it.
-
-        - `carrier_opted_out`: The carrier reported the opt-out.
-
-        - `manual`: Your workspace added the suppression through the API or dashboard.
-
-
-        This is an open enum. Accept unrecognized values.
-
-        '
-    SMSSuppressionReasonFilter:
-      type: string
-      enum:
-      - keyword_stop
-      - carrier_opted_out
-      - manual
-    SMSSuppressionList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of suppressions, most recent opt-out first.
-            items:
-              $ref: '#/components/schemas/SMSSuppression'
-      - $ref: '#/components/schemas/_ListEnvelope'
     SMSSuppressionOrigin:
       type: string
       minLength: 1
@@ -421,81 +432,6 @@ components:
         record.
 
         '
-    SMSSuppressionCreate:
-      type: object
-      additionalProperties: false
-      description: 'Stops one sender''s messages to one subscriber. Both ends are required, because a suppression covers a sender-and-subscriber pair rather than a subscriber alone.
-
-        '
-      required:
-      - destination
-      - originator
-      properties:
-        destination:
-          type: string
-          minLength: 2
-          maxLength: 20
-          description: The subscriber to stop messaging, in E.164 format.
-          example: '+15550001234'
-        originator:
-          type: string
-          minLength: 1
-          maxLength: 20
-          description: 'The sender to stop. Your other senders keep reaching this subscriber, so stopping every one of them means one call per sender.
-
-            '
-          example: '+15557654321'
-    SMSSuppressionCoverage:
-      type: string
-      minLength: 1
-      x-extensible-enum:
-      - all
-      - non_transactional
-      description: 'Message categories blocked for this sender and subscriber. `all` blocks every category, including authentication and transactional messages. `non_transactional` blocks marketing messages only. Responses currently use `all`. Treat unrecognized values as blocking every category.
-
-        '
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
     NextAction:
       type: object
       additionalProperties: false
@@ -561,6 +497,35 @@ components:
         record.
 
         '
+    SMSSuppressionCoverage:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - all
+      - non_transactional
+      description: 'Message categories blocked for this sender and subscriber. `all` blocks every category, including authentication and transactional messages. `non_transactional` blocks marketing messages only. Responses currently use `all`. Treat unrecognized values as blocking every category.
+
+        '
+    SMSSuppressionReason:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - keyword_stop
+      - carrier_opted_out
+      - manual
+      description: 'Reason this sender cannot message the subscriber:
+
+
+        - `keyword_stop`: The subscriber sent a stop keyword. A start keyword clears it.
+
+        - `carrier_opted_out`: The carrier reported the opt-out.
+
+        - `manual`: Your workspace added the suppression through the API or dashboard.
+
+
+        This is an open enum. Accept unrecognized values.
+
+        '
     Error:
       type: object
       additionalProperties: false
@@ -569,6 +534,41 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ErrorBody'
+    SMSSuppressionCreate:
+      type: object
+      additionalProperties: false
+      description: 'Stops one sender''s messages to one subscriber. Both ends are required, because a suppression covers a sender-and-subscriber pair rather than a subscriber alone.
+
+        '
+      required:
+      - destination
+      - originator
+      properties:
+        destination:
+          type: string
+          minLength: 2
+          maxLength: 20
+          description: The subscriber to stop messaging, in E.164 format.
+          example: '+15550001234'
+        originator:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: 'The sender to stop. Your other senders keep reaching this subscriber, so stopping every one of them means one call per sender.
+
+            '
+          example: '+15557654321'
+    SMSSuppressionID:
+      type: string
+      minLength: 1
+      pattern: ^ssu_[0-9a-hjkmnp-tv-z]{26}$
+      example: ssu_01krdgeqcxet5s7t44vh8rt9mg
+    SMSSuppressionReasonFilter:
+      type: string
+      enum:
+      - keyword_stop
+      - carrier_opted_out
+      - manual
     SMSSuppression:
       type: object
       additionalProperties: false
@@ -680,74 +680,11 @@ components:
           description: 'When we last recorded the subscriber opting out of this sender. Later than `created_at` when they texted a stop keyword again while already suppressed, which adds no new record but does earn another confirmation reply.
 
             '
-    SMSSuppressionID:
+    SMSMessageID:
       type: string
       minLength: 1
-      pattern: ^ssu_[0-9a-hjkmnp-tv-z]{26}$
-      example: ssu_01krdgeqcxet5s7t44vh8rt9mg
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+      pattern: ^sms_[0-9a-hjkmnp-tv-z]{26}$
+      example: sms_01krdgeqcxet5s7t44vh8rt9mg
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -777,7 +714,80 @@ components:
       schema:
         type: string
       example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   parameters:
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -800,16 +810,6 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
   securitySchemes:
     BearerAuth:
       type: http

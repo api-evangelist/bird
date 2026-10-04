@@ -126,21 +126,6 @@ paths:
         '404':
           description: HLR lookup not found
 components:
-  parameters:
-    phoneNumberParam:
-      name: phoneNumber
-      in: path
-      required: true
-      description: The phone number to look up in international format.
-      schema:
-        type: string
-    hlrIdParam:
-      name: id
-      in: path
-      required: true
-      description: The unique identifier of the HLR.
-      schema:
-        type: string
   schemas:
     Hlr:
       type: object
@@ -179,6 +164,18 @@ components:
           type: string
           format: date-time
           description: The date and time of the last status update.
+    HlrCreate:
+      type: object
+      required:
+      - msisdn
+      properties:
+        msisdn:
+          type: integer
+          format: int64
+          description: The phone number to perform the HLR query on in international format.
+        reference:
+          type: string
+          description: A client reference for tracking purposes.
     HlrLookup:
       type: object
       properties:
@@ -208,18 +205,21 @@ components:
           type: string
           format: date-time
           description: The date and time of the last status update.
-    HlrCreate:
-      type: object
-      required:
-      - msisdn
-      properties:
-        msisdn:
-          type: integer
-          format: int64
-          description: The phone number to perform the HLR query on in international format.
-        reference:
-          type: string
-          description: A client reference for tracking purposes.
+  parameters:
+    phoneNumberParam:
+      name: phoneNumber
+      in: path
+      required: true
+      description: The phone number to look up in international format.
+      schema:
+        type: string
+    hlrIdParam:
+      name: id
+      in: path
+      required: true
+      description: The unique identifier of the HLR.
+      schema:
+        type: string
   securitySchemes:
     accessKey:
       type: apiKey

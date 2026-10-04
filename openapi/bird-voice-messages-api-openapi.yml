@@ -96,6 +96,30 @@ paths:
         '404':
           description: Voice message not found
 components:
+  parameters:
+    voiceMessageIdParam:
+      name: id
+      in: path
+      required: true
+      description: The unique identifier of the voice message.
+      schema:
+        type: string
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      description: The number of items to skip before starting to collect the result set.
+      schema:
+        type: integer
+        default: 0
+    limitParam:
+      name: limit
+      in: query
+      required: false
+      description: The maximum number of items to return.
+      schema:
+        type: integer
+        default: 20
   schemas:
     VoiceMessageList:
       type: object
@@ -135,6 +159,76 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VoiceMessage'
+    VoiceMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the voice message.
+        href:
+          type: string
+          format: uri
+          description: The URL of the voice message resource.
+        body:
+          type: string
+          description: The text content of the voice message.
+        originator:
+          type: string
+          description: The caller ID displayed to the recipient.
+        reference:
+          type: string
+          description: The client reference for the voice message.
+        language:
+          type: string
+          description: The language used for text-to-speech.
+        voice:
+          type: string
+          description: The voice gender used for text-to-speech.
+        repeat:
+          type: integer
+          description: The number of times the message is repeated.
+        ifMachine:
+          type: string
+          description: The behavior when an answering machine is detected.
+        scheduledDatetime:
+          type: string
+          format: date-time
+          description: The scheduled date and time for the message.
+        createdDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the voice message was created.
+        recipients:
+          type: object
+          properties:
+            totalCount:
+              type: integer
+              description: The total number of recipients.
+            totalSentCount:
+              type: integer
+              description: The number of messages sent.
+            totalDeliveredCount:
+              type: integer
+              description: The number of messages delivered.
+            totalDeliveryFailedCount:
+              type: integer
+              description: The number of messages that failed delivery.
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  recipient:
+                    type: integer
+                    format: int64
+                    description: The recipient phone number.
+                  status:
+                    type: string
+                    description: The delivery status.
+                  statusDatetime:
+                    type: string
+                    format: date-time
+                    description: The date and time of the last status update.
     VoiceMessageCreate:
       type: object
       required:
@@ -228,100 +322,6 @@ components:
           type: string
           format: date-time
           description: The scheduled date and time for the voice message in RFC 3339 format.
-    VoiceMessage:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the voice message.
-        href:
-          type: string
-          format: uri
-          description: The URL of the voice message resource.
-        body:
-          type: string
-          description: The text content of the voice message.
-        originator:
-          type: string
-          description: The caller ID displayed to the recipient.
-        reference:
-          type: string
-          description: The client reference for the voice message.
-        language:
-          type: string
-          description: The language used for text-to-speech.
-        voice:
-          type: string
-          description: The voice gender used for text-to-speech.
-        repeat:
-          type: integer
-          description: The number of times the message is repeated.
-        ifMachine:
-          type: string
-          description: The behavior when an answering machine is detected.
-        scheduledDatetime:
-          type: string
-          format: date-time
-          description: The scheduled date and time for the message.
-        createdDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the voice message was created.
-        recipients:
-          type: object
-          properties:
-            totalCount:
-              type: integer
-              description: The total number of recipients.
-            totalSentCount:
-              type: integer
-              description: The number of messages sent.
-            totalDeliveredCount:
-              type: integer
-              description: The number of messages delivered.
-            totalDeliveryFailedCount:
-              type: integer
-              description: The number of messages that failed delivery.
-            items:
-              type: array
-              items:
-                type: object
-                properties:
-                  recipient:
-                    type: integer
-                    format: int64
-                    description: The recipient phone number.
-                  status:
-                    type: string
-                    description: The delivery status.
-                  statusDatetime:
-                    type: string
-                    format: date-time
-                    description: The date and time of the last status update.
-  parameters:
-    limitParam:
-      name: limit
-      in: query
-      required: false
-      description: The maximum number of items to return.
-      schema:
-        type: integer
-        default: 20
-    voiceMessageIdParam:
-      name: id
-      in: path
-      required: true
-      description: The unique identifier of the voice message.
-      schema:
-        type: string
-    offsetParam:
-      name: offset
-      in: query
-      required: false
-      description: The number of items to skip before starting to collect the result set.
-      schema:
-        type: integer
-        default: 0
   securitySchemes:
     accessKey:
       type: apiKey

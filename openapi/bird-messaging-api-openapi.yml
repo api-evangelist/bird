@@ -87,42 +87,22 @@ paths:
                 $ref: '#/components/schemas/MessageList'
 components:
   schemas:
-    MessageList:
+    CreateMessage:
       type: object
+      required:
+      - receiver
       properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Message'
-        nextPageToken:
-          type: string
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
-    MessageBody:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-          - text
-          - image
-          - file
-          - html
-        text:
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        template:
           type: object
-          properties:
-            text:
-              type: string
+          description: Template reference and variables (required when body is absent).
+        tags:
+          type: array
+          items:
+            type: string
     Message:
       type: object
       properties:
@@ -144,35 +124,55 @@ components:
         createdAt:
           type: string
           format: date-time
-    CreateMessage:
+    MessageBody:
       type: object
-      required:
-      - receiver
       properties:
-        receiver:
-          $ref: '#/components/schemas/Receiver'
-        body:
-          $ref: '#/components/schemas/MessageBody'
-        template:
+        type:
+          type: string
+          enum:
+          - text
+          - image
+          - file
+          - html
+        text:
           type: object
-          description: Template reference and variables (required when body is absent).
-        tags:
+          properties:
+            text:
+              type: string
+    MessageList:
+      type: object
+      properties:
+        results:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/Message'
+        nextPageToken:
+          type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
   parameters:
-    WorkspaceId:
-      name: workspaceId
-      in: path
-      required: true
-      description: Bird workspace identifier.
-      schema:
-        type: string
     ChannelId:
       name: channelId
       in: path
       required: true
       description: Channel identifier within the workspace.
+      schema:
+        type: string
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Bird workspace identifier.
       schema:
         type: string
   securitySchemes:

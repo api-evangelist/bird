@@ -68,14 +68,16 @@ paths:
       - sdk
 components:
   responses:
-    Forbidden:
-      description: Insufficient permissions
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -86,16 +88,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
+    NotFound:
+      description: Resource not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
+    Unauthorized:
+      description: Authentication required
       content:
         application/json:
           schema:
@@ -113,30 +113,37 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-  headers:
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
   schemas:
+    Workspace:
+      allOf:
+      - type: object
+        required:
+        - id
+        - organization_id
+        - name
+        - notification_emails
+        - created_at
+        - updated_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/WorkspaceID'
+          organization_id:
+            $ref: '#/components/schemas/OrganizationID'
+          name:
+            type: string
+            minLength: 1
+            example: Production
+          notification_emails:
+            $ref: '#/components/schemas/WorkspaceNotificationEmails'
+          logo_url:
+            type:
+            - string
+            - 'null'
+            format: uri
+            readOnly: true
+            description: HTTPS URL to the current workspace logo. `null` when unset.
+      - $ref: '#/components/schemas/Timestamps'
     WorkspaceNotificationEmails:
       type: object
       additionalProperties: false
@@ -149,6 +156,51 @@ components:
           example:
           - alerts@example.com
           description: Addresses for operational notifications about this workspace (sending domain authentication failures, webhook endpoint degradation). When empty, these notifications go to the organization owners. Maximum 10 addresses.
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    WorkspaceID:
+      type: string
+      minLength: 1
+      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+      example: ws_01krdgeqcxet5s7t44vh8rt9mg
+    OrganizationID:
+      type: string
+      minLength: 1
+      pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+      example: org_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -229,76 +281,14 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    OrganizationID:
-      type: string
-      minLength: 1
-      pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
-      example: org_01krdgeqcxet5s7t44vh8rt9mg
-    Workspace:
-      allOf:
-      - type: object
-        required:
-        - id
-        - organization_id
-        - name
-        - notification_emails
-        - created_at
-        - updated_at
-        properties:
-          id:
-            readOnly: true
-            $ref: '#/components/schemas/WorkspaceID'
-          organization_id:
-            $ref: '#/components/schemas/OrganizationID'
-          name:
-            type: string
-            minLength: 1
-            example: Production
-          notification_emails:
-            $ref: '#/components/schemas/WorkspaceNotificationEmails'
-          logo_url:
-            type:
-            - string
-            - 'null'
-            format: uri
-            readOnly: true
-            description: HTTPS URL to the current workspace logo. `null` when unset.
-      - $ref: '#/components/schemas/Timestamps'
-    Timestamps:
-      type: object
-      required:
-      - created_at
-      - updated_at
-      properties:
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-20T09:14:52Z'
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          example: '2026-05-25T16:42:01Z'
-    ErrorDetail:
+    Error:
       type: object
       additionalProperties: false
       required:
-      - param
-      - message
+      - error
       properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
+        error:
+          $ref: '#/components/schemas/ErrorBody'
     NextAction:
       type: object
       additionalProperties: false
@@ -339,19 +329,29 @@ components:
           description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
 
             '
-    WorkspaceID:
-      type: string
-      minLength: 1
-      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
-      example: ws_01krdgeqcxet5s7t44vh8rt9mg
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
+  headers:
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

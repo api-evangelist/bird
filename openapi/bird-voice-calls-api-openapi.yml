@@ -215,17 +215,84 @@ paths:
       - sdk
 components:
   schemas:
-    VoiceCallList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            items:
-              $ref: '#/components/schemas/VoiceCall'
-      - $ref: '#/components/schemas/_ListEnvelope'
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    VoiceCallRejectionReason:
+      type: string
+      minLength: 1
+      enum:
+      - source_not_allowed
+      - caller_id_not_verified
+      - routing_not_configured
+      - no_route_found
+      - destination_blocked
+      - destination_not_enabled
+      - insufficient_balance
+      - daily_spend_exceeded
+      - concurrent_calls_exceeded
+      - calls_per_second_exceeded
+      - call_not_permitted
+      - number_ownership_not_verified
+      x-enum-varnames:
+      - VoiceCallRejectionReasonSourceNotAllowed
+      - VoiceCallRejectionReasonCallerIDNotVerified
+      - VoiceCallRejectionReasonRoutingNotConfigured
+      - VoiceCallRejectionReasonNoRouteFound
+      - VoiceCallRejectionReasonDestinationBlocked
+      - VoiceCallRejectionReasonDestinationNotEnabled
+      - VoiceCallRejectionReasonInsufficientBalance
+      - VoiceCallRejectionReasonDailySpendExceeded
+      - VoiceCallRejectionReasonConcurrentCallsExceeded
+      - VoiceCallRejectionReasonCallsPerSecondExceeded
+      - VoiceCallRejectionReasonCallNotPermitted
+      - VoiceCallRejectionReasonNumberOwnershipNotVerified
+      description: "Why we rejected the call. Use `rejection_reason` to identify the cause;\n`sip_response_code` alone cannot distinguish these reasons.\n\nYou can resolve these issues:\n\n- `source_not_allowed`: The call came from an IP address that is not in the\n  trunk's allowed-address list. Add the address your PBX sends from.\n- `caller_id_not_verified`: The number in the `From` header is not a verified\n  caller ID for this workspace. Verify it or use a verified caller ID.\n- `number_ownership_not_verified`: The ownership documents for this purchased\n  number have not yet been accepted under its country's requirements. We\n  block outgoing and incoming calls on the number until verification is\n  complete. Blocked incoming calls never reach your PBX, and their route type\n  is `reject` regardless of the number's configuration. Open the number\n  under **Numbers** and complete its ownership requirements, then retry\n  the call.\n- `destination_not_enabled`: Calling to this destination country is disabled.\n  Enable it in your voice destination settings.\n- `insufficient_balance`: Your wallet balance was too low for the call.\n  Top up or enable automatic top-ups.\n- `daily_spend_exceeded`: The call would exceed your organization's daily\n  voice spend limit. Retry after the limit resets at the start of the next\n  UTC day.\n- `concurrent_calls_exceeded`: You already have as many calls in progress as\n  your account allows. Wait for one to end or ask support to raise the limit.\n- `calls_per_second_exceeded`: You placed calls faster than your account\n  allows. Reduce your dialing rate and retry.\n\nFor all other reasons, contact support and provide the call `id`:\n\n- `routing_not_configured`: This trunk has no dial plan, which can happen on\n  a new trunk.\n- `no_route_found`: A dial plan is attached, but no rule in it covers this\n  destination.\n- `destination_blocked`: The destination is blocked by our routing\n  configuration.\n- `call_not_permitted`: The call could not be priced for your account.\n"
+      example: destination_not_enabled
+    WorkspaceID:
+      type: string
+      minLength: 1
+      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+      example: ws_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -306,23 +373,6 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    VoiceCallInboundRouteTrunk:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - trunk_id
-      properties:
-        type:
-          allOf:
-          - $ref: '#/components/schemas/VoiceCallRouteType'
-          description: The call was delivered to one of your SIP trunks.
-        trunk_id:
-          allOf:
-          - $ref: '#/components/schemas/SIPTrunkID'
-          description: 'The SIP trunk the call was delivered to. Recorded as it was at the time, so it may name a trunk you have since changed or deleted.
-
-            '
     CurrencyCode:
       type: string
       minLength: 3
@@ -330,394 +380,17 @@ components:
       pattern: ^[A-Z]{3}$
       description: ISO 4217 three-letter currency code.
       example: EUR
-    VoiceCallCost:
-      type: object
-      additionalProperties: false
-      required:
-      - amount
-      - currency_code
-      - outbound_amount
-      - inbound_amount
-      - call_handling_amount
-      - recording_amount
-      - transcription_amount
-      description: 'What was charged for a call, split into the components that make it up.
-
-        '
-      properties:
-        amount:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'Total charged, as a decimal string: the sum of the components below. Net of tax, which applies to your wallet balance rather than to an individual charge.
-
-            '
-          example: '0.013000'
-        currency_code:
-          readOnly: true
-          $ref: '#/components/schemas/CurrencyCode'
-          description: ISO 4217 currency code. Every component is denominated in this currency.
-          example: USD
-        outbound_amount:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'What we charged to carry the call to the destination network, as a decimal string. `null` until this component is priced.
-
-            '
-          example: '0.013000'
-        inbound_amount:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'What we charged to receive the call from the originating network, as a decimal string. Only a call that arrived at your number can carry it. `null` until this component is priced.
-
-            '
-          example: null
-        call_handling_amount:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'What we charged for handling the call itself, as a decimal string. A call is charged for handling once, however many legs it has, so only one leg''s record carries it. `null` until this component is priced.
-
-            '
-          example: null
-        recording_amount:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'What we charged to record the call, as a decimal string, billed per second over the same billable time as the rest of the call. `null` until this component is priced.
-
-            '
-          example: null
-        transcription_amount:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'What we charged to transcribe the call''s audio, as a decimal string, billed per second of recorded audio rather than for the length of the call. A transcript is produced after the call ends, so this can appear after the rest of the cost. `null` until this component is priced.
-
-            '
-          example: null
-    VoiceSessionID:
-      type: string
-      minLength: 1
-      pattern: ^vcs_[0-9a-hjkmnp-tv-z]{26}$
-      example: vcs_01krdgeqcxet5s7t44vh8rt9mg
-    VoiceCallInboundRoute:
-      description: 'The routing choice recorded for an incoming call. A recorded route does not
-
-        guarantee that the call connected. Check `status` for the outcome and
-
-        `rejection_reason` for the cause when present.
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/VoiceCallInboundRouteReject'
-      - $ref: '#/components/schemas/VoiceCallInboundRouteTrunk'
-      - $ref: '#/components/schemas/VoiceCallInboundRouteForward'
-      discriminator:
-        propertyName: type
-        mapping:
-          reject: '#/components/schemas/VoiceCallInboundRouteReject'
-          trunk: '#/components/schemas/VoiceCallInboundRouteTrunk'
-          forward: '#/components/schemas/VoiceCallInboundRouteForward'
-    VoiceCallID:
-      type: string
-      minLength: 1
-      pattern: ^vcl_[0-9a-hjkmnp-tv-z]{26}$
-      example: vcl_01krdgeqcxet5s7t44vh8rt9mg
-    VoiceCallInboundRouteReject:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      properties:
-        type:
-          allOf:
-          - $ref: '#/components/schemas/VoiceCallRouteType'
-          description: 'The number turned the call away. This is where every number starts, so it covers a number nobody has configured as well as one set to reject.
-
-            '
-    WorkspaceID:
-      type: string
-      minLength: 1
-      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
-      example: ws_01krdgeqcxet5s7t44vh8rt9mg
-    Actor:
-      type: object
-      additionalProperties: false
-      required:
-      - id
-      - type
-      properties:
-        id:
-          type: string
-          minLength: 1
-          description: Actor identifier.
-          example: usr_01krdgeqcxet5s7t44vh8rt9mg
-        type:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - user
-          - api_key
-          - oauth_token
-          - system
-          - sso
-          - service_account
-          description: 'Who or what performed the action: `user` for a member''s own session, `oauth_token` for a token issued to a caller on a member''s behalf, `api_key` for a workspace API key, `system` for our own automation, `sso` for an organization''s SSO connection, and `service_account` for a workspace''s connected Integration acting with no member behind it. Open enum: new actor types may be added over time, so treat any unrecognized value as a future type rather than an error.'
-          example: user
-        display_name:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: 'The label the actor is shown under: typically a member''s name or email address, or the API key''s name. Null when it could not be resolved.
-
-            '
-    VoiceInboundForwardAs:
-      type: string
-      minLength: 1
-      enum:
-      - dialed_number
-      - calling_number
-      description: 'Which of a forwarded call''s two numbers it shows as the caller.
-
-
-        "dialed_number" is the number the caller dialled, which is one of yours.
-
-        Carriers treat it as fully yours, so it is the least likely to be altered or
-
-        screened. Whoever answers sees which of your numbers was called, not who called
-
-        it. It needs your workspace approved to place calls from numbers you bought from
-
-        us; where it is not, this value is refused and the call shows the calling
-
-        number.
-
-
-        "calling_number" is the caller''s own number, so the phone rings as though they
-
-        had dialled it directly and the call can be returned from the call log. Because
-
-        the number is not one you own, some carriers (most often in the US and parts of
-
-        Europe) mark such calls as unverified, replace the number, or screen them.
-
-        '
-      example: dialed_number
-    SIPTrunkID:
-      type: string
-      minLength: 1
-      pattern: ^spt_[0-9a-hjkmnp-tv-z]{26}$
-      example: spt_01krdgeqcxet5s7t44vh8rt9mg
-    VoiceCallStatus:
-      type: string
-      minLength: 1
-      enum:
-      - answered
-      - no_answer
-      - busy
-      - canceled
-      - failed
-      - rejected
-      - unknown
-      - ringing
-      - in_progress
-      description: "Call status.\n\nA call that has ended carries one of:\n\n- `answered` means it connected and the far end picked up.\n- `no_answer` means nobody picked up before the call timed out.\n- `rejected` means it was refused rather than attempted. Either we turned it\n  away before dialing a carrier, in which case `rejection_reason` names the\n  check it failed where there was one, or the far end declined it.\n- `failed` means it was attempted and did not work, and `sip_response_code`\n  is what came back.\n- `unknown` means the outcome could not be determined. Contact support with\n  the call `id` if you see one.\n\nAn active call carries `ringing` before it is picked up and `in_progress`\nafterward. The call list's `status` filter takes any mix of the two sets.\n\n`busy` and `canceled` are reserved for incoming calls delivered to your own\nnumbers: `busy` for a called party that rejected the call as busy, `canceled`\nfor a caller who hung up before it was picked up. Neither is emitted yet and\nboth outcomes are reported as `failed` today.\n"
-      example: answered
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    Tag:
-      type: object
-      additionalProperties: false
-      required:
-      - name
-      - value
-      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
-
-
-        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
-
-
-        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
-
-        '
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 32
-          pattern: ^[A-Za-z0-9_-]+$
-          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
-
-            '
-          example: category
-        value:
-          type: string
-          minLength: 1
-          maxLength: 64
-          pattern: ^[A-Za-z0-9_-]+$
-          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
-
-            '
-          example: welcome
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    VoiceCallRejectionReason:
-      type: string
-      minLength: 1
-      enum:
-      - source_not_allowed
-      - caller_id_not_verified
-      - routing_not_configured
-      - no_route_found
-      - destination_blocked
-      - destination_not_enabled
-      - insufficient_balance
-      - daily_spend_exceeded
-      - concurrent_calls_exceeded
-      - calls_per_second_exceeded
-      - call_not_permitted
-      - number_ownership_not_verified
-      x-enum-varnames:
-      - VoiceCallRejectionReasonSourceNotAllowed
-      - VoiceCallRejectionReasonCallerIDNotVerified
-      - VoiceCallRejectionReasonRoutingNotConfigured
-      - VoiceCallRejectionReasonNoRouteFound
-      - VoiceCallRejectionReasonDestinationBlocked
-      - VoiceCallRejectionReasonDestinationNotEnabled
-      - VoiceCallRejectionReasonInsufficientBalance
-      - VoiceCallRejectionReasonDailySpendExceeded
-      - VoiceCallRejectionReasonConcurrentCallsExceeded
-      - VoiceCallRejectionReasonCallsPerSecondExceeded
-      - VoiceCallRejectionReasonCallNotPermitted
-      - VoiceCallRejectionReasonNumberOwnershipNotVerified
-      description: "Why we rejected the call. Use `rejection_reason` to identify the cause;\n`sip_response_code` alone cannot distinguish these reasons.\n\nYou can resolve these issues:\n\n- `source_not_allowed`: The call came from an IP address that is not in the\n  trunk's allowed-address list. Add the address your PBX sends from.\n- `caller_id_not_verified`: The number in the `From` header is not a verified\n  caller ID for this workspace. Verify it or use a verified caller ID.\n- `number_ownership_not_verified`: The ownership documents for this purchased\n  number have not yet been accepted under its country's requirements. We\n  block outgoing and incoming calls on the number until verification is\n  complete. Blocked incoming calls never reach your PBX, and their route type\n  is `reject` regardless of the number's configuration. Open the number\n  under **Numbers** and complete its ownership requirements, then retry\n  the call.\n- `destination_not_enabled`: Calling to this destination country is disabled.\n  Enable it in your voice destination settings.\n- `insufficient_balance`: Your wallet balance was too low for the call.\n  Top up or enable automatic top-ups.\n- `daily_spend_exceeded`: The call would exceed your organization's daily\n  voice spend limit. Retry after the limit resets at the start of the next\n  UTC day.\n- `concurrent_calls_exceeded`: You already have as many calls in progress as\n  your account allows. Wait for one to end or ask support to raise the limit.\n- `calls_per_second_exceeded`: You placed calls faster than your account\n  allows. Reduce your dialing rate and retry.\n\nFor all other reasons, contact support and provide the call `id`:\n\n- `routing_not_configured`: This trunk has no dial plan, which can happen on\n  a new trunk.\n- `no_route_found`: A dial plan is attached, but no rule in it covers this\n  destination.\n- `destination_blocked`: The destination is blocked by our routing\n  configuration.\n- `call_not_permitted`: The call could not be priced for your account.\n"
-      example: destination_not_enabled
-    VoiceCallDirection:
-      type: string
-      minLength: 1
-      enum:
-      - inbound
-      - outbound
-      description: Whether the call originated from your PBX (outbound) or arrived from a remote party (inbound).
-      example: outbound
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    VoiceCallRouteType:
-      type: string
-      minLength: 1
-      enum:
-      - reject
-      - trunk
-      - forward
-      description: 'Which answer a number carries.
-
-
-        - `reject`: refuses the call. This is where every number starts.
-
-        - `trunk`: delivers the call to one of your SIP trunks.
-
-        - `forward`: places a call to one of your verified caller IDs and connects the two.
-
-
-        It selects the answer''s own shape, so a new way to answer a call arrives as a
-
-        new value alongside a new set of fields.
-
-        '
-      example: reject
+    VoiceCallList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/VoiceCall'
+      - $ref: '#/components/schemas/_ListEnvelope'
     VoiceCall:
       type: object
       additionalProperties: false
@@ -862,6 +535,219 @@ components:
         cost:
           $ref: '#/components/schemas/VoiceCallCost'
           description: What the call cost, net of tax, at full precision, split into the components that make it up. Absent until the call has been rated; unanswered or unpriced calls have no cost.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    VoiceCallDirection:
+      type: string
+      minLength: 1
+      enum:
+      - inbound
+      - outbound
+      description: Whether the call originated from your PBX (outbound) or arrived from a remote party (inbound).
+      example: outbound
+    VoiceCallStatus:
+      type: string
+      minLength: 1
+      enum:
+      - answered
+      - no_answer
+      - busy
+      - canceled
+      - failed
+      - rejected
+      - unknown
+      - ringing
+      - in_progress
+      description: "Call status.\n\nA call that has ended carries one of:\n\n- `answered` means it connected and the far end picked up.\n- `no_answer` means nobody picked up before the call timed out.\n- `rejected` means it was refused rather than attempted. Either we turned it\n  away before dialing a carrier, in which case `rejection_reason` names the\n  check it failed where there was one, or the far end declined it.\n- `failed` means it was attempted and did not work, and `sip_response_code`\n  is what came back.\n- `unknown` means the outcome could not be determined. Contact support with\n  the call `id` if you see one.\n\nAn active call carries `ringing` before it is picked up and `in_progress`\nafterward. The call list's `status` filter takes any mix of the two sets.\n\n`busy` and `canceled` are reserved for incoming calls delivered to your own\nnumbers: `busy` for a called party that rejected the call as busy, `canceled`\nfor a caller who hung up before it was picked up. Neither is emitted yet and\nboth outcomes are reported as `failed` today.\n"
+      example: answered
+    Actor:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Actor identifier.
+          example: usr_01krdgeqcxet5s7t44vh8rt9mg
+        type:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - user
+          - api_key
+          - oauth_token
+          - system
+          - sso
+          - service_account
+          description: 'Who or what performed the action: `user` for a member''s own session, `oauth_token` for a token issued to a caller on a member''s behalf, `api_key` for a workspace API key, `system` for our own automation, `sso` for an organization''s SSO connection, and `service_account` for a workspace''s connected Integration acting with no member behind it. Open enum: new actor types may be added over time, so treat any unrecognized value as a future type rather than an error.'
+          example: user
+        display_name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'The label the actor is shown under: typically a member''s name or email address, or the API key''s name. Null when it could not be resolved.
+
+            '
+    VoiceCallCost:
+      type: object
+      additionalProperties: false
+      required:
+      - amount
+      - currency_code
+      - outbound_amount
+      - inbound_amount
+      - call_handling_amount
+      - recording_amount
+      - transcription_amount
+      description: 'What was charged for a call, split into the components that make it up.
+
+        '
+      properties:
+        amount:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Total charged, as a decimal string: the sum of the components below. Net of tax, which applies to your wallet balance rather than to an individual charge.
+
+            '
+          example: '0.013000'
+        currency_code:
+          readOnly: true
+          $ref: '#/components/schemas/CurrencyCode'
+          description: ISO 4217 currency code. Every component is denominated in this currency.
+          example: USD
+        outbound_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged to carry the call to the destination network, as a decimal string. `null` until this component is priced.
+
+            '
+          example: '0.013000'
+        inbound_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged to receive the call from the originating network, as a decimal string. Only a call that arrived at your number can carry it. `null` until this component is priced.
+
+            '
+          example: null
+        call_handling_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged for handling the call itself, as a decimal string. A call is charged for handling once, however many legs it has, so only one leg''s record carries it. `null` until this component is priced.
+
+            '
+          example: null
+        recording_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged to record the call, as a decimal string, billed per second over the same billable time as the rest of the call. `null` until this component is priced.
+
+            '
+          example: null
+        transcription_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged to transcribe the call''s audio, as a decimal string, billed per second of recorded audio rather than for the length of the call. A transcript is produced after the call ends, so this can appear after the rest of the cost. `null` until this component is priced.
+
+            '
+          example: null
+    VoiceCallInboundRouteTrunk:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - trunk_id
+      properties:
+        type:
+          allOf:
+          - $ref: '#/components/schemas/VoiceCallRouteType'
+          description: The call was delivered to one of your SIP trunks.
+        trunk_id:
+          allOf:
+          - $ref: '#/components/schemas/SIPTrunkID'
+          description: 'The SIP trunk the call was delivered to. Recorded as it was at the time, so it may name a trunk you have since changed or deleted.
+
+            '
+    VoiceCallID:
+      type: string
+      minLength: 1
+      pattern: ^vcl_[0-9a-hjkmnp-tv-z]{26}$
+      example: vcl_01krdgeqcxet5s7t44vh8rt9mg
+    VoiceCallInboundRoute:
+      description: 'The routing choice recorded for an incoming call. A recorded route does not
+
+        guarantee that the call connected. Check `status` for the outcome and
+
+        `rejection_reason` for the cause when present.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/VoiceCallInboundRouteReject'
+      - $ref: '#/components/schemas/VoiceCallInboundRouteTrunk'
+      - $ref: '#/components/schemas/VoiceCallInboundRouteForward'
+      discriminator:
+        propertyName: type
+        mapping:
+          reject: '#/components/schemas/VoiceCallInboundRouteReject'
+          trunk: '#/components/schemas/VoiceCallInboundRouteTrunk'
+          forward: '#/components/schemas/VoiceCallInboundRouteForward'
+    SIPTrunkID:
+      type: string
+      minLength: 1
+      pattern: ^spt_[0-9a-hjkmnp-tv-z]{26}$
+      example: spt_01krdgeqcxet5s7t44vh8rt9mg
     VoiceMediaQuality:
       type: object
       additionalProperties: false
@@ -898,6 +784,115 @@ components:
           readOnly: true
           description: Round-trip time between the two ends, in milliseconds. It does not distort the audio. Above roughly 300 ms, the two parties start talking over each other.
           example: 42
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    VoiceCallInboundRouteReject:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          allOf:
+          - $ref: '#/components/schemas/VoiceCallRouteType'
+          description: 'The number turned the call away. This is where every number starts, so it covers a number nobody has configured as well as one set to reject.
+
+            '
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - value
+      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
+
+
+        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
+
+
+        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+
+            '
+          example: category
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+
+            '
+          example: welcome
+    VoiceInboundForwardAs:
+      type: string
+      minLength: 1
+      enum:
+      - dialed_number
+      - calling_number
+      description: 'Which of a forwarded call''s two numbers it shows as the caller.
+
+
+        "dialed_number" is the number the caller dialled, which is one of yours.
+
+        Carriers treat it as fully yours, so it is the least likely to be altered or
+
+        screened. Whoever answers sees which of your numbers was called, not who called
+
+        it. It needs your workspace approved to place calls from numbers you bought from
+
+        us; where it is not, this value is refused and the call shows the calling
+
+        number.
+
+
+        "calling_number" is the caller''s own number, so the phone rings as though they
+
+        had dialled it directly and the call can be returned from the call log. Because
+
+        the number is not one you own, some carriers (most often in the US and parts of
+
+        Europe) mark such calls as unverified, replace the number, or screen them.
+
+        '
+      example: dialed_number
+    VoiceCallRouteType:
+      type: string
+      minLength: 1
+      enum:
+      - reject
+      - trunk
+      - forward
+      description: 'Which answer a number carries.
+
+
+        - `reject`: refuses the call. This is where every number starts.
+
+        - `trunk`: delivers the call to one of your SIP trunks.
+
+        - `forward`: places a call to one of your verified caller IDs and connects the two.
+
+
+        It selects the answer''s own shape, so a new way to answer a call arrives as a
+
+        new value alongside a new set of fields.
+
+        '
+      example: reject
     VoiceCallInboundRouteForward:
       type: object
       additionalProperties: false
@@ -923,52 +918,11 @@ components:
           description: 'Which of the call''s two numbers the forwarded leg presented as its caller. The value that went on the wire, not the one the number is set to now.
 
             '
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+    VoiceSessionID:
+      type: string
+      minLength: 1
+      pattern: ^vcs_[0-9a-hjkmnp-tv-z]{26}$
+      example: vcs_01krdgeqcxet5s7t44vh8rt9mg
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -1004,6 +958,16 @@ components:
         type: array
         items:
           type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
     StartingAfter:
       name: starting_after
       in: query
@@ -1018,16 +982,52 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

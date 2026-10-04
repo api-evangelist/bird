@@ -1809,34 +1809,226 @@ paths:
       - mcp
       - sdk
 components:
+  parameters:
+    StatsTimezone:
+      name: timezone
+      in: query
+      required: false
+      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        example: Asia/Kathmandu
+    EmailStatsTemplateFilter:
+      name: template
+      in: query
+      required: false
+      description: 'Restricts the statistics to one template, identified by its ID (`emt_…`) or name. This parameter is mutually exclusive with other dimension filters.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 63
+        pattern: ^(emt_[0-9a-hjkmnp-tv-z]{26}|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$
+        example: welcome-email
   schemas:
-    EmailDeliveryLatencyStats:
+    EmailMailboxProviderRegionStatsPoint:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Latency percentiles (p50, p95, p99) in milliseconds for the messages in this breakdown row, for breakdowns whose dimension is known only from delivery onward (sending IP, mailbox provider).
-
-
-        - `delivery`: Time from handing the message off to the receiving mail server accepting it. Null when no deliveries occurred for this row in the period.
-
-        - `total`: End-to-end time from accepting the send to delivery. Null when no deliveries occurred for this row in the period.
-
-
-        These breakdowns have no `processing` latency family. A message''s row identifies which sending IP carried it or which mailbox provider received it. This becomes known only after the receiving mail server reports a delivery, bounce, deferral, or late bounce. The accept-to-processed phase ends before that attribution is known, preventing row-level processing latency. Use `GET /v1/email/stats/daily` for processing-latency percentiles across the whole workspace.
+      description: 'Delivery, engagement, and deliverability stats for messages grouped by a single mailbox provider and provider region pair over the requested period, for example `gmail` in `NA` or `microsoft` in `EU`. The provider region is the regional pod the receiving mail system reports for the recipient''s provider; pairing it with the provider disambiguates a region label that several providers share. Like the mailbox-provider breakdown, rows cover the delivery stage onward: the `accepted` and `processed` counts and the `processing` latency family are omitted (a provider region cannot be attributed before delivery).
 
         '
       required:
+      - mailbox_provider
+      - mailbox_provider_region
       - delivery
-      - total
+      - engagement
+      - latency
       properties:
+        mailbox_provider:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The recipient mailbox provider this row aggregates, as a lowercase classifier such as `gmail`, `yahoo`, `microsoft`, or `apple`.
+          example: gmail
+        mailbox_provider_region:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The provider region this row aggregates, as reported by the receiving mail system (for example `NA`, `EU`, `APAC`). The set is open and provider-specific.
+          example: NA
         delivery:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
-        total:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
-    EmailStatsByTemplateResponse:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailMailboxProviderDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket rate series for this provider region over the window. Present only when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/EmailStatsSeriesPoint'
+    EmailSendingIpDeliveryStats:
       type: object
       additionalProperties: false
-      description: Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      readOnly: true
+      description: 'Delivery counts and rates for messages attributed to a single sending IP. Per-IP results omit `accepted` and `processed` counts. The sending IP becomes known only after a message is delivered, bounced, deferred, or bounced late. Those earlier lifecycle states cannot be attributed to a specific IP. Spam complaints and out-of-band bounce notifications also lack per-IP attribution on this breakdown. The `complained` and `oob_bounces` fields therefore read 0. Their rates read 0 when the denominator is non-zero and null when it is zero. The `effective_delivered` field equals `delivered`, and `all_bounces` equals `bounced`.
+
+        '
+      required:
+      - delivered
+      - bounced
+      - complained
+      - deferred
+      - oob_bounces
+      - effective_delivered
+      - all_bounces
+      - oob_rate
+      - bounces
+      - delivery_rate
+      - bounce_rate
+      - complaint_rate
+      properties:
+        delivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients whose message the receiving mail server accepted.
+          example: 8290
+        bounced:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients whose delivery failed. This is approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined). The two are computed independently, so they can differ slightly.
+          example: 131
+        complained:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who reported the message as spam. Complaints are not attributed to a sending IP, so this reads 0 on this breakdown. Read complaint counts from the summary or time-series statistics instead.
+          example: 8
+        deferred:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients in transient delivery deferral that is still being retried.
+          example: 4
+        oob_bounces:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Out-of-band bounce events: failure notifications received after the receiving server had initially confirmed delivery. Not attributed to a sending IP on this breakdown, so this reads 0. Workspace-wide out-of-band counts are on the summary and time-series statistics.
+
+            '
+          example: 3
+        effective_delivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Recipients on this IP who remain delivered after all bounce signals resolve, computed as `delivered - oob_bounces`. Clamped to 0 when `oob_bounces` exceeds `delivered`.
+          example: 8287
+        all_bounces:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total recipients on this IP who did not receive the message, computed as `bounced + oob_bounces`.
+          example: 134
+        oob_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: Share of this IP's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
+          example: 0.00036
+        bounces:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailBounceStatsWithRates'
+        delivery_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of this IP''s delivery attempts that remained delivered after all bounce signals, computed as `effective_delivered / (delivered + bounced)`. Null when `delivered + bounced` is zero.
+
+            '
+          example: 0.9844
+        bounce_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of this IP''s delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
+
+            '
+          example: 0.0156
+        complaint_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Share of effectively delivered recipients on this IP who reported the message as spam, computed as `complained / effective_delivered`. Null when `effective_delivered` is zero.
+
+            '
+          example: 0.00096
+    EmailStatsSortMetric:
+      type: string
+      default: processed
+      description: 'Metric to rank breakdown rows by, applied descending. Shared by the breakdowns whose rows have the full delivery, engagement, and latency block: tags, sending domains, categories, recipient domains, templates, and broadcasts. Any count or rate can be used. A row whose rate is undefined, because its denominator was zero, sorts last. A bounce sub-type is nested under `bounces` in each row, so its sort name reflects that, for example `bounces.hard` and `bounces.hard_rate`. `oob_bounces` is distinct from `bounced`: it counts out-of-band bounces, failure notifications that arrive after delivery was already confirmed.
+
+        '
+      enum:
+      - processed
+      - delivered
+      - bounced
+      - complained
+      - deferred
+      - rejected
+      - oob_bounces
+      - bounces.hard
+      - bounces.soft
+      - bounces.admin
+      - bounces.block
+      - bounces.undetermined
+      - opens
+      - opens_non_prefetched
+      - unique_opens
+      - unique_opens_non_prefetched
+      - clicks
+      - unique_clicks
+      - unsubscribes
+      - delivery_rate
+      - bounce_rate
+      - complaint_rate
+      - open_rate
+      - click_rate
+      - unsubscribe_rate
+      - bounces.hard_rate
+      - bounces.soft_rate
+      - bounces.admin_rate
+      - bounces.block_rate
+      - bounces.undetermined_rate
+    EmailStatsByMailboxProviderRegionResponse:
+      type: object
+      additionalProperties: false
+      description: Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
       required:
       - period
       - data
@@ -1848,57 +2040,340 @@ components:
         data:
           type: array
           readOnly: true
-          description: Template breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no messages were sent with a template in the period.
+          description: Provider-region breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no deliveries occurred in the period.
           items:
-            $ref: '#/components/schemas/EmailTemplateStatsPoint'
+            $ref: '#/components/schemas/EmailMailboxProviderRegionStatsPoint'
         total:
           type: integer
           minimum: 0
           readOnly: true
-          description: 'Total number of distinct templates with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+          description: 'Total number of distinct mailbox provider and region pairs with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
 
             '
-          example: 42
-    EmailStatsPoint:
+          example: 31
+    EmailHealthSignal:
       type: object
       additionalProperties: false
       readOnly: true
-      description: 'Aggregate stats for one time bucket (a calendar day or hour, per the requested grain, in the requested `timezone` or UTC by default), bucketed by event time. Buckets with no activity are included with zero counts and null latency percentiles, so the series charts continuously without client-side gap handling.
+      description: The current value and verdict for a single sending-health metric over the window.
+      required:
+      - metric
+      - value
+      - limit
+      - status
+      properties:
+        metric:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Which rate this signal reports.
+          enum:
+          - delivery_rate
+          - open_rate
+          - bounce_rate
+          - complaint_rate
+          example: bounce_rate
+        value:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: The current rate over the window, as a fraction. Null when its denominator is zero.
+          example: 0.004
+        limit:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: The reference deliverability limit for this rate, as a fraction (for example `0.005` for a 0.5% bounce-rate limit). Null for metrics that have no limit, such as delivery rate and open rate. The verdict is classified using `thresholds`, which can differ from this reference limit.
+          example: 0.005
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'This metric''s individual verdict, ordered best to worst: `strong`, `healthy`, `watching`, `throttled`. `strong` applies only to `open_rate`, for an open rate well above typical. For the other rates, `healthy`, `watching`, and `throttled` indicate how close the rate is to a level that risks deliverability. The verdict follows the `thresholds` boundaries rather than the displayed reference `limit`. A signal whose `value` is null, because its denominator was zero in the window, is reported as `healthy`.
+
+            '
+          enum:
+          - strong
+          - healthy
+          - watching
+          - throttled
+          example: healthy
+        thresholds:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailHealthSignalThresholds'
+    IPPoolID:
+      type: string
+      minLength: 1
+      pattern: ^ipp_[0-9a-hjkmnp-tv-z]{26}$
+      example: ipp_01krdgeqcxet5s7t44vh8rt9mg
+    EmailMailboxProviderSortMetric:
+      type: string
+      default: delivered
+      description: 'Metric to rank rows by, applied descending. Shared by every breakdown whose attribution begins at delivery, so `processed`, `rejected`, and `oob_bounces` are not part of those rows and are not sortable. Any count or rate on the row can be used; rows whose rate is undefined (zero denominator) sort last. Bounce sub-types use their nested location in each row, for example `bounces.hard` and `bounces.hard_rate`.
+
+        '
+      enum:
+      - delivered
+      - bounced
+      - complained
+      - deferred
+      - bounces.hard
+      - bounces.soft
+      - bounces.admin
+      - bounces.block
+      - bounces.undetermined
+      - opens
+      - opens_non_prefetched
+      - unique_opens
+      - unique_opens_non_prefetched
+      - clicks
+      - unique_clicks
+      - unsubscribes
+      - delivery_rate
+      - bounce_rate
+      - complaint_rate
+      - open_rate
+      - click_rate
+      - unsubscribe_rate
+      - bounces.hard_rate
+      - bounces.soft_rate
+      - bounces.admin_rate
+      - bounces.block_rate
+      - bounces.undetermined_rate
+    EmailLatencyStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
+
+
+        - `processing`: Time from accepting the send to handing the message off for delivery. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
+
+        - `delivery`: Time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behavior. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+
+        - `total`: End-to-end time from accepting the send to delivery, and the number most worth watching against your own delivery targets. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+
+
+        Each family is reported independently. A family is omitted when no qualifying
+
+        event contributed a latency measurement in the bucket. This also applies when
+
+        the workspace has not recorded latency for that stage yet. The `processing`
+
+        family can therefore be present while `delivery` and `total` are absent. A
+
+        client must handle a missing family, and a null p50/p95/p99 within a present
+
+        family, by rendering a placeholder rather than assuming a number.
+
+        '
+      properties:
+        processing:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+        delivery:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+        total:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+    EmailLocationStatsPoint:
+      type: object
+      additionalProperties: false
+      description: 'Open and click counts for messages engaged with from a single location over the requested period. Location is resolved from open and click events only, so this breakdown reports engagement activity: opens, clicks, and the recipients behind them. It has no delivery counts and no open or click rates, because the receiving mail server reports delivery without a recipient location, preventing a per-location delivered denominator and rates. Each row always includes all three of `country`, `region`, and `city`; the levels below the requested `group_by` are null.
+
+        '
+      required:
+      - country
+      - region
+      - city
+      - engagement
+      properties:
+        country:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The country this row aggregates, as a two-letter country code (ISO 3166-1 alpha-2) resolved from the open or click event. Always present.
+          example: US
+        region:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The region (state or province) within the country. Populated when `group_by` is `region` or `city`; null at coarser groupings.
+          example: California
+        city:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The city within the region. Populated when `group_by` is `city`; null at coarser groupings.
+          example: San Francisco
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementCounts'
+    EmailHealth:
+      type: object
+      additionalProperties: false
+      description: 'The workspace''s current sending-health verdict over the requested window, plus reference deliverability limits and classification boundaries. Use it to render a health badge, the bounce-rate and complaint-rate limit labels, and the risk lines on deliverability charts without hard-coding any thresholds of your own.
+
+        '
+      required:
+      - period
+      - status
+      - signals
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the verdict was computed over, echoed back from the request.
+        status:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Overall sending-health verdict for the window, taken as the worst status among the bounce-rate, complaint-rate, and delivery-rate signals. The open-rate signal, which can be `strong`, is not part of this roll-up. The overall verdict is one of `healthy`, `watching`, or `throttled`. It is `healthy` when the other three signals are each healthy or better. It is `watching` when at least one is watching, and `throttled` when at least one is throttled. This verdict describes deliverability risk. It never pauses your sending on its own.
+
+            '
+          enum:
+          - healthy
+          - watching
+          - throttled
+          example: healthy
+        signals:
+          type: array
+          minItems: 4
+          readOnly: true
+          description: 'The per-rate signals include `delivery_rate`, `open_rate`, `bounce_rate`, and `complaint_rate`. Read a signal by matching on its `metric`. Each entry carries its current value, a reference deliverability limit (null where no limit applies), and its own verdict. Delivery rate, bounce rate, and complaint rate also carry the thresholds their verdict was classified against; open rate does not, because a high open rate is never a risk.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailHealthSignal'
+      example:
+        period:
+          data_as_of: null
+          from: '2026-05-25'
+          to: '2026-06-01'
+        status: watching
+        signals:
+        - metric: delivery_rate
+          value: 0.995
+          limit: null
+          status: healthy
+          thresholds:
+            direction: below
+            throttled: 0.984
+            watching: 0.99
+        - metric: open_rate
+          value: 0.20100503
+          limit: null
+          status: healthy
+        - metric: bounce_rate
+          value: 0.005
+          limit: 0.005
+          status: watching
+          thresholds:
+            direction: above
+            throttled: 0.006
+            watching: 0.004
+        - metric: complaint_rate
+          value: 0.00010050251
+          limit: 0.003
+          status: healthy
+          thresholds:
+            direction: above
+            throttled: 0.001
+            watching: 0.0006
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    EmailStatsSeriesPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'One point in a breakdown row''s trend series: the headline delivery and engagement rates for that row''s dimension value over a single day or hour. Returned only when `include_trend=true`. The bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.
 
         '
       required:
       - bucket
-      - sends_accepted
-      - delivery
-      - engagement
-      - latency
+      - delivered
+      - bounced
+      - delivery_rate
+      - bounce_rate
+      - complaint_rate
+      - open_rate
+      - click_rate
       properties:
         bucket:
           type: string
           minLength: 1
           readOnly: true
-          description: The day (YYYY-MM-DD, in the requested `timezone`) or hour this point covers, matching the period's grain. An hour bucket is an RFC 3339 UTC instant marking the start of the hour. It falls on a local hour boundary when `timezone` is set, which is on the UTC hour only for whole-hour offsets.
-          example: '2026-05-25'
-        sends_accepted:
+          description: The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.
+          example: '2026-05-12'
+        delivered:
           type: integer
           minimum: 0
           readOnly: true
-          description: 'Distinct email messages accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other metric in `delivery` and `engagement` is recipient-level or event-level.
-
-            '
-          example: 412
-        delivery:
+          description: Delivered recipients in this bucket.
+        bounced:
+          type: integer
+          minimum: 0
           readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
+          description: Bounced recipients in this bucket.
+        delivery_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
           readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
+          description: Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
+        bounce_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
           readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
+          description: Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
+        complaint_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Complaint rate for this bucket, as a fraction. Event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
+        open_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Open rate for this bucket, as a fraction. Event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
+        click_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Click rate for this bucket, as a fraction. Event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
     ErrorBody:
       type: object
       additionalProperties: false
@@ -1979,146 +2454,432 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    EmailMailboxProviderDeliveryStats:
+    EmailStatsByRecipientDomainResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Delivery counts and rates for messages attributed to a single recipient mailbox provider. Per-provider results do not include `accepted` or `processed` counts, because we only learn the recipient''s mailbox provider once the receiving mail server reports delivery, a bounce, a deferral, or a late bounce. Earlier lifecycle states (accepted, processed) cannot be attributed to a specific provider.
+      description: Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Recipient-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailRecipientDomainStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct recipient domains with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 412
+    EmailStatsByComplaintTypeResponse:
+      type: object
+      additionalProperties: false
+      description: Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Complaint-type breakdown rows, ranked by `complained` descending. Empty when no complaints occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailComplaintTypeStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct feedback types with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 4
+    EmailStatsSeriesPeriod:
+      type: object
+      additionalProperties: false
+      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
 
         '
       required:
-      - delivered
-      - bounced
-      - complained
-      - deferred
-      - bounces
-      - delivery_rate
-      - bounce_rate
-      - complaint_rate
+      - from
+      - to
+      - grain
       properties:
-        delivered:
-          type: integer
-          minimum: 0
+        from:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: Distinct recipients whose message the receiving mail server accepted.
-          example: 8290
-        bounced:
-          type: integer
-          minimum: 0
+          description: Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.
+          example: '2026-05-01'
+        to:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.
-          example: 131
-        complained:
-          type: integer
-          minimum: 0
+          description: Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
+          example: '2026-05-31'
+        grain:
+          $ref: '#/components/schemas/StatsGrain'
           readOnly: true
-          description: Distinct recipients who reported the message as spam.
-          example: 8
-        deferred:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients in transient delivery deferral that is still being retried.
-          example: 4
-        bounces:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailBounceStatsWithRates'
-        delivery_rate:
+        data_as_of:
           type:
-          - number
+          - string
           - 'null'
-          minimum: 0
-          maximum: 1
+          format: date-time
           readOnly: true
-          description: 'Share of attempted recipients on this mailbox provider that were delivered, computed as `delivered / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
+          description: 'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response reflects data from up to a few seconds ago. Use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
 
             '
-          example: 0.9844
-        bounce_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Share of attempted recipients on this mailbox provider that bounced, computed as `bounced / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
-
-            '
-          example: 0.0156
-        complaint_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Share of delivered recipients on this mailbox provider who reported the message as spam, computed as `complained / delivered`. Null when `delivered` is zero.
-
-            '
-          example: 0.00096
-    EmailHealthSignal:
+          example: '2026-05-25T14:03:10Z'
+    EmailHealthSignalThresholds:
       type: object
       additionalProperties: false
       readOnly: true
-      description: The current value and verdict for a single sending-health metric over the window.
+      description: 'The boundaries this signal''s status was judged against. Use them to classify your own slices, such as per-domain or per-tag rates, against the same bands. The `direction` field identifies the risky side of the boundaries: `above` means the status degrades as the value rises past a boundary, as with bounce and complaint rates, and `below` means it degrades as the value falls, as with delivery rate. The boundaries are exclusive, so a value exactly on one keeps the better status. Omitted for a metric with no risk boundaries, such as open rate.
+
+        '
       required:
-      - metric
-      - value
-      - limit
-      - status
+      - direction
+      - watching
+      - throttled
       properties:
-        metric:
+        direction:
           type: string
           minLength: 1
           readOnly: true
-          description: Which rate this signal reports.
+          description: Which side of the boundaries is at risk. `above` for higher-is-worse rates (bounce, complaint), `below` for lower-is-worse rates (delivery).
           enum:
-          - delivery_rate
-          - open_rate
-          - bounce_rate
-          - complaint_rate
-          example: bounce_rate
-        value:
-          type:
-          - number
-          - 'null'
+          - above
+          - below
+          x-enum-varnames:
+          - EmailHealthSignalThresholdsDirectionAbove
+          - EmailHealthSignalThresholdsDirectionBelow
+          example: above
+        watching:
+          type: number
           minimum: 0
           maximum: 1
           readOnly: true
-          description: The current rate over the window, as a fraction. Null when its denominator is zero.
+          description: Crossing this boundary in the risk direction moves the signal to `watching`, as a fraction.
           example: 0.004
-        limit:
-          type:
-          - number
-          - 'null'
+        throttled:
+          type: number
           minimum: 0
           maximum: 1
           readOnly: true
-          description: The reference deliverability limit for this rate, as a fraction (for example `0.005` for a 0.5% bounce-rate limit). Null for metrics that have no limit, such as delivery rate and open rate. The verdict is classified using `thresholds`, which can differ from this reference limit.
-          example: 0.005
-        status:
+          description: Crossing this boundary in the risk direction moves the signal to `throttled`, as a fraction.
+          example: 0.006
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
           type: string
           minLength: 1
-          readOnly: true
-          description: 'This metric''s individual verdict, ordered best to worst: `strong`, `healthy`, `watching`, `throttled`. `strong` applies only to `open_rate`, for an open rate well above typical. For the other rates, `healthy`, `watching`, and `throttled` indicate how close the rate is to a level that risks deliverability. The verdict follows the `thresholds` boundaries rather than the displayed reference `limit`. A signal whose `value` is null, because its denominator was zero in the window, is reported as `healthy`.
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
 
             '
-          enum:
-          - strong
-          - healthy
-          - watching
-          - throttled
-          example: healthy
-        thresholds:
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EmailStatsByLocationResponse:
+      type: object
+      additionalProperties: false
+      description: Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
           readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailHealthSignalThresholds'
-    EmailBounceStatsWithRates:
+          description: Location breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a resolved location occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailLocationStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct locations at the requested `group_by` level with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 86
+    EmailStatsByCategoryResponse:
+      type: object
+      additionalProperties: false
+      description: Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Category breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no sends occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailCategoryStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct categories with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 2
+    EmailStatsComparisonDelta:
       type: object
       additionalProperties: false
       readOnly: true
-      description: 'Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.
+      description: 'The change in each headline metric from the preceding period to the requested one. A `*_pct_change` field is a signed relative change in a count, computed as `(current - previous) / previous`, so `0.5` means 50% higher and `-0.2` means 20% lower. It is null when the previous period''s count was zero because a relative change cannot be computed. A `*_rate_pp` field is the signed difference between the two periods'' rate values. Each value is expressed as a fraction. A value of `0.012` means the rate rose by 1.2 percentage points. A value of `-0.003` means it fell by 0.3 points. The field is null when either period''s rate is undefined, because its denominator was zero. `delivery_rate_pp` and `bounce_rate_pp` range from `-1` to `1`, because the rates behind them cannot exceed 1. The engagement deltas have no fixed bound, because events are counted when they arrive rather than when the message was sent, which can push their rate above 1.
+
+        '
+      required:
+      - sends_accepted_pct_change
+      - delivered_pct_change
+      - bounced_pct_change
+      - complained_pct_change
+      - opened_pct_change
+      - delivery_rate_pp
+      - open_rate_pp
+      - click_rate_pp
+      - bounce_rate_pp
+      - complaint_rate_pp
+      - unsubscribe_rate_pp
+      properties:
+        sends_accepted_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in accepted messages (the `sends_accepted` count) versus the previous period, as a signed fraction. Null when the previous period accepted none.
+          example: 0.508
+        delivered_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in effectively delivered recipients (`delivery.effective_delivered`, the delivery-rate numerator) versus the previous period, as a signed fraction. Null when the previous period effectively delivered none.
+          example: 0.122
+        bounced_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in total bounces including out-of-band (`delivery.all_bounces`, the bounce-rate numerator) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: -0.031
+        complained_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in spam complaints (`delivery.complained`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: 0.018
+        opened_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in unique non-prefetched opens (`engagement.unique_opens_non_prefetched`, the same count the open rate uses) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: -0.046
+        delivery_rate_pp:
+          type:
+          - number
+          - 'null'
+          minimum: -1
+          maximum: 1
+          readOnly: true
+          description: Signed difference between this period's and the previous period's delivery rate, both fractions in [0,1] (multiply by 100 for percentage points). Null when either period's delivery rate is undefined.
+          example: 0.004
+        open_rate_pp:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Signed difference between this period's and the previous period's open rate, both fractions (multiply by 100 for percentage points). Null when either period's open rate is undefined.
+          example: 0.005
+        click_rate_pp:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Signed difference between this period's and the previous period's click rate, both fractions (multiply by 100 for percentage points). Null when either period's click rate is undefined.
+          example: 0.002
+        bounce_rate_pp:
+          type:
+          - number
+          - 'null'
+          minimum: -1
+          maximum: 1
+          readOnly: true
+          description: Signed difference between this period's and the previous period's bounce rate, both fractions in [0,1] (multiply by 100 for percentage points). Null when either period's bounce rate is undefined.
+          example: -0.0008
+        complaint_rate_pp:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Signed difference between this period's and the previous period's complaint rate, both fractions (multiply by 100 for percentage points). Null when either period's complaint rate is undefined.
+          example: 0.0001
+        unsubscribe_rate_pp:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Signed difference between this period's and the previous period's unsubscribe rate, both fractions (multiply by 100 for percentage points). Null when either period's unsubscribe rate is undefined.
+          example: -0.0001
+    EmailStatsBySendingDomainResponse:
+      type: object
+      additionalProperties: false
+      description: Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Sending-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailSendingDomainStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct sending domains with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 12
+    StatsGrain:
+      type: string
+      minLength: 1
+      enum:
+      - day
+      - hour
+      readOnly: true
+      description: The bucket grain of the series, either `day` or `hour`.
+      example: day
+    EmailTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^emt_[0-9a-hjkmnp-tv-z]{26}$
+      example: emt_01krdgeqcxet5s7t44vh8rt9mg
+    EmailStatsByBroadcastResponse:
+      type: object
+      additionalProperties: false
+      description: Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Broadcast breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no broadcast messages were active in the period.
+          items:
+            $ref: '#/components/schemas/EmailBroadcastStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct broadcasts with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 57
+    EmailSendingDomainStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery, engagement, and latency stats for messages sent from a single sending domain over the requested period.
+      required:
+      - sending_domain
+      - delivery
+      - engagement
+      - latency
+      properties:
+        sending_domain:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The sending domain (the portion of the `From` address after the `@`), normalized to lowercase.
+          example: mail.acme.com
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket rate series for this sending domain over the window. Present only when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/EmailStatsSeriesPoint'
+    EmailBounceStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Breakdown of `bounced` by failure type. Each field counts distinct bounced recipients of that type in this row''s scope; the five types approximately partition `bounced`.
 
         '
       required:
@@ -2127,97 +2888,183 @@ components:
       - admin
       - block
       - undetermined
-      - hard_rate
-      - soft_rate
-      - admin_rate
-      - block_rate
-      - undetermined_rate
       properties:
         hard:
           type: integer
           minimum: 0
           readOnly: true
-          description: Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).
-          example: 12410
+          description: 'Distinct recipients with a permanent delivery failure (invalid address or non-existent domain). The address is automatically added to the suppression list.
+
+            '
+          example: 42
         soft:
           type: integer
           minimum: 0
           readOnly: true
-          description: Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).
-          example: 14290
+          description: 'Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable). Delivery was retried.
+
+            '
+          example: 48
         admin:
           type: integer
           minimum: 0
           readOnly: true
-          description: Distinct recipients refused by a policy at the receiving end, such as relaying denied or a blocklisted domain.
-          example: 410
+          description: 'Distinct recipients refused by a policy at the receiving end, such as relaying denied or a blocklisted domain. Fix these by changing your content or sender configuration. Cleaning the recipient list does not usually help.
+
+            '
+          example: 4
         block:
           type: integer
           minimum: 0
           readOnly: true
-          description: Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.
-          example: 920
+          description: 'Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons (mail block, spam block, spam content). Triage usually focuses on IP reputation and sending volume.
+
+            '
+          example: 6
         undetermined:
           type: integer
           minimum: 0
           readOnly: true
-          description: Distinct recipients bounced where the receiving server's response did not allow precise classification.
-          example: 80
-        hard_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.
+          description: 'Distinct recipients bounced where the receiving server''s response did not allow precise classification.
 
             '
-          example: 0.454
-        soft_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
+          example: 1
+    EmailRecipientDomainStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery, engagement, and latency stats for messages sent to a single recipient mailbox domain over the requested period.
+      required:
+      - recipient_domain
+      - delivery
+      - engagement
+      - latency
+      properties:
+        recipient_domain:
+          type: string
+          minLength: 1
           readOnly: true
-          description: 'Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.
+          description: The recipient mailbox domain this row aggregates (the part of the recipient address after the `@`), normalized to lowercase.
+          example: gmail.com
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket rate series for this recipient domain over the window. Present only when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/EmailStatsSeriesPoint'
+    EmailStatsByClientResponse:
+      type: object
+      additionalProperties: false
+      description: Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Client breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a detected client occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailClientStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct values of the requested `group_by` facet with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
 
             '
-          example: 0.523
-        admin_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
+          example: 9
+    EmailDeliveryLatencyStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Latency percentiles (p50, p95, p99) in milliseconds for the messages in this breakdown row, for breakdowns whose dimension is known only from delivery onward (sending IP, mailbox provider).
+
+
+        - `delivery`: Time from handing the message off to the receiving mail server accepting it. Null when no deliveries occurred for this row in the period.
+
+        - `total`: End-to-end time from accepting the send to delivery. Null when no deliveries occurred for this row in the period.
+
+
+        These breakdowns have no `processing` latency family. A message''s row identifies which sending IP carried it or which mailbox provider received it. This becomes known only after the receiving mail server reports a delivery, bounce, deferral, or late bounce. The accept-to-processed phase ends before that attribution is known, preventing row-level processing latency. Use `GET /v1/email/stats/daily` for processing-latency percentiles across the whole workspace.
+
+        '
+      required:
+      - delivery
+      - total
+      properties:
+        delivery:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+        total:
+          $ref: '#/components/schemas/EmailLatencyQuantiles'
+    EmailBounceCodeStatsPoint:
+      type: object
+      additionalProperties: false
+      description: 'Bounce counts for a single SMTP status code over the requested period, with the per-type breakdown. This is a deliverability-debugging view keyed on what the receiving mail server returned, so it only reports the failure side: bounced recipients, and their `hard`, `soft`, `admin`, `block`, and `undetermined` split. It has no delivered, open, or rate fields.
+
+        '
+      required:
+      - smtp_error_code
+      - bounced
+      - bounces
+      properties:
+        smtp_error_code:
+          type: string
+          minLength: 1
           readOnly: true
-          description: 'Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.
+          description: The SMTP error code the receiving mail server returned for these bounces, as reported by that server (for example `5.1.1` for an unknown recipient, `4.2.2` for a full mailbox). The form varies by server, and the set of codes is open.
+          example: 5.1.1
+        bounced:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients whose delivery failed with this SMTP status code, approximately equal to the sum of the five `bounces.*` sub-counts. The two are computed independently, so they can differ slightly because of approximation.
+          example: 1240
+        bounces:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailBounceStats'
+    EmailStatsByMailboxProviderResponse:
+      type: object
+      additionalProperties: false
+      description: Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Mailbox-provider breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no eligible activity occurred in the period.
+          items:
+            $ref: '#/components/schemas/EmailMailboxProviderStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct mailbox providers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
 
             '
-          example: 0.015
-        block_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.
-
-            '
-          example: 0.0337
-        undetermined_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.
-
-            '
-          example: 0.0029
+          example: 14
     EmailBroadcastStatsPoint:
       type: object
       additionalProperties: false
@@ -2247,453 +3094,6 @@ components:
           readOnly: true
           allOf:
           - $ref: '#/components/schemas/EmailLatencyStats'
-    EmailEngagementCounts:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Open and click counts for a breakdown row whose dimension is resolved from engagement events only. `opens`, `opens_non_prefetched`, and `clicks` count each event. The same recipient opening or clicking more than once counts each time. The `unique_*` fields count distinct recipients instead, so a recipient who opened five times only counts once there. Rates and unsubscribe counts are not included here. A per-dimension delivered count is unavailable as a rate''s denominator, and an unsubscribe event has none of the information this breakdown is grouped by, so it cannot be placed on a row.
-
-        '
-      required:
-      - opens
-      - opens_non_prefetched
-      - unique_opens
-      - unique_opens_non_prefetched
-      - clicks
-      - unique_clicks
-      properties:
-        opens:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).
-
-            '
-          example: 5420
-        opens_non_prefetched:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens`, with prefetched opens removed.
-
-            '
-          example: 3210
-        unique_opens:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.
-          example: 3640
-        unique_opens_non_prefetched:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features.
-          example: 2480
-        clicks:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct click events, counting repeat clicks from the same recipient.
-          example: 924
-        unique_clicks:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients who clicked at least once.
-          example: 621
-    EmailStatsBySendingIpResponse:
-      type: object
-      additionalProperties: false
-      description: Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Sending-IP breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no per-IP-attributable activity (delivery, bounce, deferral, or late bounce) occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailSendingIpStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct sending IP addresses with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 6
-    EmailClientStatsPoint:
-      type: object
-      additionalProperties: false
-      description: 'Engagement counts for messages opened or clicked from a single email client, operating system, or device type over the requested period. The reading environment is resolved from open and click events only, so this breakdown reports engagement activity: opens, clicks, and the recipients behind them. It has no delivery counts and no open or click rates, because the receiving mail server reports delivery without a client or device, preventing a per-client delivered denominator and rates. Exactly one of `email_client`, `os`, and `device_type` is populated, selected by the request''s `group_by`. The other two are null. Inbox-privacy prefetching also affects the detected client. As with open counts, `opens_non_prefetched` excludes opens auto-fetched by an inbox privacy feature. It includes opens caused by a person opening the message.
-
-        '
-      required:
-      - email_client
-      - os
-      - device_type
-      - engagement
-      properties:
-        email_client:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: The mail client this row aggregates (for example `Gmail`, `Apple Mail`, `Outlook`). Populated only when `group_by=email_client`. Null otherwise.
-          example: Apple Mail
-        os:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: The operating system this row aggregates (for example `iOS`, `Android`, `Windows`, `macOS`). Populated only when `group_by=os`. Null otherwise.
-          example: iOS
-        device_type:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: The device type this row aggregates (for example `mobile`, `desktop`, `tablet`). Populated only when `group_by=device_type`. Null otherwise.
-          example: mobile
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementCounts'
-    EmailEngagementStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences). The `unique_*` fields count distinct recipients. `unsubscribes` counts distinct unsubscribe events. An event counts in the time bucket when it occurs, even if the message was sent in an earlier bucket. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.
-
-        '
-      required:
-      - opens
-      - opens_non_prefetched
-      - unique_opens
-      - unique_opens_non_prefetched
-      - clicks
-      - unique_clicks
-      - unsubscribes
-      - open_rate
-      - click_rate
-      - unsubscribe_rate
-      properties:
-        opens:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).
-
-            '
-          example: 5420
-        opens_non_prefetched:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.
-
-            '
-          example: 3210
-        unique_opens:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.
-          example: 3640
-        unique_opens_non_prefetched:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.
-
-            '
-          example: 2480
-        clicks:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct click events, counting repeat clicks from the same recipient.
-          example: 924
-        unique_clicks:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients who clicked at least once.
-          example: 621
-        unsubscribes:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.
-          example: 12
-        open_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
-
-            '
-          example: 0.1683
-        click_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
-
-            '
-          example: 0.0422
-        unsubscribe_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.
-
-            '
-          example: 0.0009
-    EmailBounceCodeStatsPoint:
-      type: object
-      additionalProperties: false
-      description: 'Bounce counts for a single SMTP status code over the requested period, with the per-type breakdown. This is a deliverability-debugging view keyed on what the receiving mail server returned, so it only reports the failure side: bounced recipients, and their `hard`, `soft`, `admin`, `block`, and `undetermined` split. It has no delivered, open, or rate fields.
-
-        '
-      required:
-      - smtp_error_code
-      - bounced
-      - bounces
-      properties:
-        smtp_error_code:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The SMTP error code the receiving mail server returned for these bounces, as reported by that server (for example `5.1.1` for an unknown recipient, `4.2.2` for a full mailbox). The form varies by server, and the set of codes is open.
-          example: 5.1.1
-        bounced:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients whose delivery failed with this SMTP status code, approximately equal to the sum of the five `bounces.*` sub-counts. The two are computed independently, so they can differ slightly because of approximation.
-          example: 1240
-        bounces:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailBounceStats'
-    EmailStatsByLocationResponse:
-      type: object
-      additionalProperties: false
-      description: Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Location breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a resolved location occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailLocationStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct locations at the requested `group_by` level with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 86
-    EmailLocationStatsPoint:
-      type: object
-      additionalProperties: false
-      description: 'Open and click counts for messages engaged with from a single location over the requested period. Location is resolved from open and click events only, so this breakdown reports engagement activity: opens, clicks, and the recipients behind them. It has no delivery counts and no open or click rates, because the receiving mail server reports delivery without a recipient location, preventing a per-location delivered denominator and rates. Each row always includes all three of `country`, `region`, and `city`; the levels below the requested `group_by` are null.
-
-        '
-      required:
-      - country
-      - region
-      - city
-      - engagement
-      properties:
-        country:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The country this row aggregates, as a two-letter country code (ISO 3166-1 alpha-2) resolved from the open or click event. Always present.
-          example: US
-        region:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: The region (state or province) within the country. Populated when `group_by` is `region` or `city`; null at coarser groupings.
-          example: California
-        city:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: The city within the region. Populated when `group_by` is `city`; null at coarser groupings.
-          example: San Francisco
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementCounts'
-    EmailStatsSortMetric:
-      type: string
-      default: processed
-      description: 'Metric to rank breakdown rows by, applied descending. Shared by the breakdowns whose rows have the full delivery, engagement, and latency block: tags, sending domains, categories, recipient domains, templates, and broadcasts. Any count or rate can be used. A row whose rate is undefined, because its denominator was zero, sorts last. A bounce sub-type is nested under `bounces` in each row, so its sort name reflects that, for example `bounces.hard` and `bounces.hard_rate`. `oob_bounces` is distinct from `bounced`: it counts out-of-band bounces, failure notifications that arrive after delivery was already confirmed.
-
-        '
-      enum:
-      - processed
-      - delivered
-      - bounced
-      - complained
-      - deferred
-      - rejected
-      - oob_bounces
-      - bounces.hard
-      - bounces.soft
-      - bounces.admin
-      - bounces.block
-      - bounces.undetermined
-      - opens
-      - opens_non_prefetched
-      - unique_opens
-      - unique_opens_non_prefetched
-      - clicks
-      - unique_clicks
-      - unsubscribes
-      - delivery_rate
-      - bounce_rate
-      - complaint_rate
-      - open_rate
-      - click_rate
-      - unsubscribe_rate
-      - bounces.hard_rate
-      - bounces.soft_rate
-      - bounces.admin_rate
-      - bounces.block_rate
-      - bounces.undetermined_rate
-    EmailHealth:
-      type: object
-      additionalProperties: false
-      description: 'The workspace''s current sending-health verdict over the requested window, plus reference deliverability limits and classification boundaries. Use it to render a health badge, the bounce-rate and complaint-rate limit labels, and the risk lines on deliverability charts without hard-coding any thresholds of your own.
-
-        '
-      required:
-      - period
-      - status
-      - signals
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the verdict was computed over, echoed back from the request.
-        status:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'Overall sending-health verdict for the window, taken as the worst status among the bounce-rate, complaint-rate, and delivery-rate signals. The open-rate signal, which can be `strong`, is not part of this roll-up. The overall verdict is one of `healthy`, `watching`, or `throttled`. It is `healthy` when the other three signals are each healthy or better. It is `watching` when at least one is watching, and `throttled` when at least one is throttled. This verdict describes deliverability risk. It never pauses your sending on its own.
-
-            '
-          enum:
-          - healthy
-          - watching
-          - throttled
-          example: healthy
-        signals:
-          type: array
-          minItems: 4
-          readOnly: true
-          description: 'The per-rate signals include `delivery_rate`, `open_rate`, `bounce_rate`, and `complaint_rate`. Read a signal by matching on its `metric`. Each entry carries its current value, a reference deliverability limit (null where no limit applies), and its own verdict. Delivery rate, bounce rate, and complaint rate also carry the thresholds their verdict was classified against; open rate does not, because a high open rate is never a risk.
-
-            '
-          items:
-            $ref: '#/components/schemas/EmailHealthSignal'
-      example:
-        period:
-          data_as_of: null
-          from: '2026-05-25'
-          to: '2026-06-01'
-        status: watching
-        signals:
-        - metric: delivery_rate
-          value: 0.995
-          limit: null
-          status: healthy
-          thresholds:
-            direction: below
-            throttled: 0.984
-            watching: 0.99
-        - metric: open_rate
-          value: 0.20100503
-          limit: null
-          status: healthy
-        - metric: bounce_rate
-          value: 0.005
-          limit: 0.005
-          status: watching
-          thresholds:
-            direction: above
-            throttled: 0.006
-            watching: 0.004
-        - metric: complaint_rate
-          value: 0.00010050251
-          limit: 0.003
-          status: healthy
-          thresholds:
-            direction: above
-            throttled: 0.001
-            watching: 0.0006
-    EmailTagStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery and engagement stats for a single tag name-and-value pair over the requested period.
-      required:
-      - tag
-      - delivery
-      - engagement
-      - latency
-      properties:
-        tag:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: 'The tag this row aggregates, formatted as `name:value` from the tag set at send time (for example `campaign:welcome-series`). Each distinct name-and-value pair is its own row.
-
-            '
-          example: campaign:welcome-series
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket rate series for this tag over the window. Present only when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/EmailStatsSeriesPoint'
     EmailStatsByBounceCodeResponse:
       type: object
       additionalProperties: false
@@ -2720,121 +3120,34 @@ components:
 
             '
           example: 17
-    EmailStatsByBroadcastResponse:
+    EmailStatsPoint:
       type: object
       additionalProperties: false
-      description: Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Broadcast breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no broadcast messages were active in the period.
-          items:
-            $ref: '#/components/schemas/EmailBroadcastStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct broadcasts with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 57
-    IPPoolID:
-      type: string
-      minLength: 1
-      pattern: ^ipp_[0-9a-hjkmnp-tv-z]{26}$
-      example: ipp_01krdgeqcxet5s7t44vh8rt9mg
-    EmailMailboxProviderStatsPoint:
-      type: object
-      additionalProperties: false
-      description: 'Delivery, engagement, and deliverability stats for messages grouped by a single recipient mailbox provider (`gmail`, `microsoft`, `yahoo`, `apple`, ...) over the requested period. We learn a recipient''s mailbox provider from the receiving mail server. Per-provider rows therefore cover the delivery stage onward. They omit the `accepted` and `processed` counts and the `processing` latency family. These fields are absent rather than null. Engagement (opens and clicks, and their rates) is included because those events happen after delivery, once the mailbox provider is already known.
+      readOnly: true
+      description: 'Aggregate stats for one time bucket (a calendar day or hour, per the requested grain, in the requested `timezone` or UTC by default), bucketed by event time. Buckets with no activity are included with zero counts and null latency percentiles, so the series charts continuously without client-side gap handling.
 
         '
       required:
-      - mailbox_provider
+      - bucket
+      - sends_accepted
       - delivery
       - engagement
       - latency
       properties:
-        mailbox_provider:
+        bucket:
           type: string
           minLength: 1
           readOnly: true
-          description: The recipient mailbox provider this row aggregates, as a lowercase classifier such as `gmail`, `yahoo`, `microsoft`, or `apple`. New classifiers may be added over time.
-          example: gmail
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailMailboxProviderDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket rate series for this mailbox provider over the window. Present only when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/EmailStatsSeriesPoint'
-    EmailTemplateID:
-      type: string
-      minLength: 1
-      pattern: ^emt_[0-9a-hjkmnp-tv-z]{26}$
-      example: emt_01krdgeqcxet5s7t44vh8rt9mg
-    EmailStatsTagsResponse:
-      type: object
-      additionalProperties: false
-      description: Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Tag breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no tagged sends occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailTagStatsPoint'
-        total:
+          description: The day (YYYY-MM-DD, in the requested `timezone`) or hour this point covers, matching the period's grain. An hour bucket is an RFC 3339 UTC instant marking the start of the hour. It falls on a local hour boundary when `timezone` is set, which is on the UTC hour only for whole-hour offsets.
+          example: '2026-05-25'
+        sends_accepted:
           type: integer
           minimum: 0
           readOnly: true
-          description: 'Total number of distinct tags (name and value pairs) with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+          description: 'Distinct email messages accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other metric in `delivery` and `engagement` is recipient-level or event-level.
 
             '
-          example: 173
-    EmailTemplateStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Delivery, engagement, and latency numbers for every message sent with one template over the requested period.
-      required:
-      - template_id
-      - delivery
-      - engagement
-      - latency
-      properties:
-        template_id:
-          allOf:
-          - $ref: '#/components/schemas/EmailTemplateID'
-          readOnly: true
-          description: 'The template this row is about, using the same `id` the email template endpoints return. Only messages sent with a template appear in this breakdown at all. If the template was deleted after it was used to send, this row still appears, keyed by that same `id`.
-
-            '
+          example: 412
         delivery:
           readOnly: true
           allOf:
@@ -2847,14 +3160,19 @@ components:
           readOnly: true
           allOf:
           - $ref: '#/components/schemas/EmailLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: 'A short series of this template''s delivery and engagement rates, one point per time bucket over the window. Only present when you set `include_trend=true` on the request.
+    EmailEngagementSortMetric:
+      type: string
+      default: unique_opens
+      description: 'Metric to rank rows by, applied descending. Shared by the engagement-only breakdowns (locations, email clients), which report open and click counts but no rates because delivery events provide no per-dimension denominator.
 
-            '
-          items:
-            $ref: '#/components/schemas/EmailStatsSeriesPoint'
+        '
+      enum:
+      - opens
+      - opens_non_prefetched
+      - unique_opens
+      - unique_opens_non_prefetched
+      - clicks
+      - unique_clicks
     EmailDeliveryStats:
       type: object
       additionalProperties: false
@@ -3006,183 +3324,10 @@ components:
 
             '
           example: 0.0002
-    EmailStatsComparisonDelta:
+    EmailStatsBySendingIpResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'The change in each headline metric from the preceding period to the requested one. A `*_pct_change` field is a signed relative change in a count, computed as `(current - previous) / previous`, so `0.5` means 50% higher and `-0.2` means 20% lower. It is null when the previous period''s count was zero because a relative change cannot be computed. A `*_rate_pp` field is the signed difference between the two periods'' rate values. Each value is expressed as a fraction. A value of `0.012` means the rate rose by 1.2 percentage points. A value of `-0.003` means it fell by 0.3 points. The field is null when either period''s rate is undefined, because its denominator was zero. `delivery_rate_pp` and `bounce_rate_pp` range from `-1` to `1`, because the rates behind them cannot exceed 1. The engagement deltas have no fixed bound, because events are counted when they arrive rather than when the message was sent, which can push their rate above 1.
-
-        '
-      required:
-      - sends_accepted_pct_change
-      - delivered_pct_change
-      - bounced_pct_change
-      - complained_pct_change
-      - opened_pct_change
-      - delivery_rate_pp
-      - open_rate_pp
-      - click_rate_pp
-      - bounce_rate_pp
-      - complaint_rate_pp
-      - unsubscribe_rate_pp
-      properties:
-        sends_accepted_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in accepted messages (the `sends_accepted` count) versus the previous period, as a signed fraction. Null when the previous period accepted none.
-          example: 0.508
-        delivered_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in effectively delivered recipients (`delivery.effective_delivered`, the delivery-rate numerator) versus the previous period, as a signed fraction. Null when the previous period effectively delivered none.
-          example: 0.122
-        bounced_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in total bounces including out-of-band (`delivery.all_bounces`, the bounce-rate numerator) versus the previous period, as a signed fraction. Null when the previous period had none.
-          example: -0.031
-        complained_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in spam complaints (`delivery.complained`) versus the previous period, as a signed fraction. Null when the previous period had none.
-          example: 0.018
-        opened_pct_change:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Relative change in unique non-prefetched opens (`engagement.unique_opens_non_prefetched`, the same count the open rate uses) versus the previous period, as a signed fraction. Null when the previous period had none.
-          example: -0.046
-        delivery_rate_pp:
-          type:
-          - number
-          - 'null'
-          minimum: -1
-          maximum: 1
-          readOnly: true
-          description: Signed difference between this period's and the previous period's delivery rate, both fractions in [0,1] (multiply by 100 for percentage points). Null when either period's delivery rate is undefined.
-          example: 0.004
-        open_rate_pp:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Signed difference between this period's and the previous period's open rate, both fractions (multiply by 100 for percentage points). Null when either period's open rate is undefined.
-          example: 0.005
-        click_rate_pp:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Signed difference between this period's and the previous period's click rate, both fractions (multiply by 100 for percentage points). Null when either period's click rate is undefined.
-          example: 0.002
-        bounce_rate_pp:
-          type:
-          - number
-          - 'null'
-          minimum: -1
-          maximum: 1
-          readOnly: true
-          description: Signed difference between this period's and the previous period's bounce rate, both fractions in [0,1] (multiply by 100 for percentage points). Null when either period's bounce rate is undefined.
-          example: -0.0008
-        complaint_rate_pp:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Signed difference between this period's and the previous period's complaint rate, both fractions (multiply by 100 for percentage points). Null when either period's complaint rate is undefined.
-          example: 0.0001
-        unsubscribe_rate_pp:
-          type:
-          - number
-          - 'null'
-          readOnly: true
-          description: Signed difference between this period's and the previous period's unsubscribe rate, both fractions (multiply by 100 for percentage points). Null when either period's unsubscribe rate is undefined.
-          example: -0.0001
-    EmailStatsSummaryPeriod:
-      type: object
-      additionalProperties: false
-      description: 'The window this response was actually computed against. The summary serves two window grains: calendar days (bounds are YYYY-MM-DD) and hours (bounds are RFC 3339 instants). The grain of `from` and `to` mirrors the grain of the request''s bounds. Days and hour boundaries follow the requested `timezone` (UTC when omitted).
-
-        '
-      required:
-      - from
-      - to
-      properties:
-        from:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive start of the window the response covers. A calendar day (YYYY-MM-DD, in the requested `timezone`) for day windows. For hour windows, an RFC 3339 UTC instant marking the start of the first hour, which falls on a local hour boundary when `timezone` is set.
-          example: '2026-05-01'
-        to:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive end of the window the response covers. A calendar day (YYYY-MM-DD, in the requested `timezone`) for day windows. For hour windows, an RFC 3339 UTC instant marking the start of the last hour, which falls on a local hour boundary when `timezone` is set.
-          example: '2026-05-25'
-        data_as_of:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response reflects data from up to a few seconds ago. Use this field to label data freshness (for example "as of 14:03") rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
-
-            '
-          example: '2026-05-25T14:03:10Z'
-    EmailStatsSeriesPeriod:
-      type: object
-      additionalProperties: false
-      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
-
-        '
-      required:
-      - from
-      - to
-      - grain
-      properties:
-        from:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.
-          example: '2026-05-01'
-        to:
-          type: string
-          minLength: 1
-          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
-          readOnly: true
-          description: Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain. On the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
-          example: '2026-05-31'
-        grain:
-          $ref: '#/components/schemas/StatsGrain'
-          readOnly: true
-        data_as_of:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: 'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response reflects data from up to a few seconds ago. Use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
-
-            '
-          example: '2026-05-25T14:03:10Z'
-    EmailStatsByRecipientDomainResponse:
-      type: object
-      additionalProperties: false
-      description: Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      description: Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
       required:
       - period
       - data
@@ -3194,201 +3339,53 @@ components:
         data:
           type: array
           readOnly: true
-          description: Recipient-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.
+          description: Sending-IP breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no per-IP-attributable activity (delivery, bounce, deferral, or late bounce) occurred in the period.
           items:
-            $ref: '#/components/schemas/EmailRecipientDomainStatsPoint'
+            $ref: '#/components/schemas/EmailSendingIpStatsPoint'
         total:
           type: integer
           minimum: 0
           readOnly: true
-          description: 'Total number of distinct recipient domains with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 412
-    EmailStatsByMailboxProviderRegionResponse:
-      type: object
-      additionalProperties: false
-      description: Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Provider-region breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no deliveries occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailMailboxProviderRegionStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct mailbox provider and region pairs with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 31
-    EmailStatsSeriesPoint:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'One point in a breakdown row''s trend series: the headline delivery and engagement rates for that row''s dimension value over a single day or hour. Returned only when `include_trend=true`. The bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.
-
-        '
-      required:
-      - bucket
-      - delivered
-      - bounced
-      - delivery_rate
-      - bounce_rate
-      - complaint_rate
-      - open_rate
-      - click_rate
-      properties:
-        bucket:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.
-          example: '2026-05-12'
-        delivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Delivered recipients in this bucket.
-        bounced:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Bounced recipients in this bucket.
-        delivery_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
-        bounce_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
-        complaint_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: Complaint rate for this bucket, as a fraction. Event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
-        open_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: Open rate for this bucket, as a fraction. Event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
-        click_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: Click rate for this bucket, as a fraction. Event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
-    EmailBounceStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Breakdown of `bounced` by failure type. Each field counts distinct bounced recipients of that type in this row''s scope; the five types approximately partition `bounced`.
-
-        '
-      required:
-      - hard
-      - soft
-      - admin
-      - block
-      - undetermined
-      properties:
-        hard:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct recipients with a permanent delivery failure (invalid address or non-existent domain). The address is automatically added to the suppression list.
-
-            '
-          example: 42
-        soft:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable). Delivery was retried.
-
-            '
-          example: 48
-        admin:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct recipients refused by a policy at the receiving end, such as relaying denied or a blocklisted domain. Fix these by changing your content or sender configuration. Cleaning the recipient list does not usually help.
-
-            '
-          example: 4
-        block:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons (mail block, spam block, spam content). Triage usually focuses on IP reputation and sending volume.
+          description: 'Total number of distinct sending IP addresses with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
 
             '
           example: 6
-        undetermined:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Distinct recipients bounced where the receiving server''s response did not allow precise classification.
-
-            '
-          example: 1
-    EmailLatencyStats:
+    EmailMailboxProviderStatsPoint:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
-
-
-        - `processing`: Time from accepting the send to handing the message off for delivery. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
-
-        - `delivery`: Time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behavior. Measured per delivered recipient; null when no deliveries occurred in the bucket.
-
-        - `total`: End-to-end time from accepting the send to delivery, and the number most worth watching against your own delivery targets. Measured per delivered recipient; null when no deliveries occurred in the bucket.
-
-
-        Each family is reported independently. A family is omitted when no qualifying
-
-        event contributed a latency measurement in the bucket. This also applies when
-
-        the workspace has not recorded latency for that stage yet. The `processing`
-
-        family can therefore be present while `delivery` and `total` are absent. A
-
-        client must handle a missing family, and a null p50/p95/p99 within a present
-
-        family, by rendering a placeholder rather than assuming a number.
+      description: 'Delivery, engagement, and deliverability stats for messages grouped by a single recipient mailbox provider (`gmail`, `microsoft`, `yahoo`, `apple`, ...) over the requested period. We learn a recipient''s mailbox provider from the receiving mail server. Per-provider rows therefore cover the delivery stage onward. They omit the `accepted` and `processed` counts and the `processing` latency family. These fields are absent rather than null. Engagement (opens and clicks, and their rates) is included because those events happen after delivery, once the mailbox provider is already known.
 
         '
+      required:
+      - mailbox_provider
+      - delivery
+      - engagement
+      - latency
       properties:
-        processing:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
+        mailbox_provider:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The recipient mailbox provider this row aggregates, as a lowercase classifier such as `gmail`, `yahoo`, `microsoft`, or `apple`. New classifiers may be added over time.
+          example: gmail
         delivery:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
-        total:
-          $ref: '#/components/schemas/EmailLatencyQuantiles'
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailMailboxProviderDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: Per-bucket rate series for this mailbox provider over the window. Present only when `include_trend=true`.
+          items:
+            $ref: '#/components/schemas/EmailStatsSeriesPoint'
     EmailLatencyQuantiles:
       type: object
       additionalProperties: false
@@ -3425,90 +3422,6 @@ components:
           readOnly: true
           description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
           example: 4920
-    EmailStatsByClientResponse:
-      type: object
-      additionalProperties: false
-      description: Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Client breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a detected client occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailClientStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct values of the requested `group_by` facet with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    EmailSendingDomainStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery, engagement, and latency stats for messages sent from a single sending domain over the requested period.
-      required:
-      - sending_domain
-      - delivery
-      - engagement
-      - latency
-      properties:
-        sending_domain:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The sending domain (the portion of the `From` address after the `@`), normalized to lowercase.
-          example: mail.acme.com
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket rate series for this sending domain over the window. Present only when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/EmailStatsSeriesPoint'
-    StatsTrendGrain:
-      type: string
-      enum:
-      - daily
-      - hourly
-      default: daily
-      description: Bucket grain for a stats trend series.
     EmailSendingIpStatsPoint:
       type: object
       additionalProperties: false
@@ -3548,6 +3461,492 @@ components:
           description: Per-bucket delivery-rate series for this IP over the window. Present only when `include_trend=true`. Engagement is not attributed to a sending IP, so each point's open and click rates read 0 in buckets with deliveries and null in buckets without.
           items:
             $ref: '#/components/schemas/EmailStatsSeriesPoint'
+    EmailClientStatsPoint:
+      type: object
+      additionalProperties: false
+      description: 'Engagement counts for messages opened or clicked from a single email client, operating system, or device type over the requested period. The reading environment is resolved from open and click events only, so this breakdown reports engagement activity: opens, clicks, and the recipients behind them. It has no delivery counts and no open or click rates, because the receiving mail server reports delivery without a client or device, preventing a per-client delivered denominator and rates. Exactly one of `email_client`, `os`, and `device_type` is populated, selected by the request''s `group_by`. The other two are null. Inbox-privacy prefetching also affects the detected client. As with open counts, `opens_non_prefetched` excludes opens auto-fetched by an inbox privacy feature. It includes opens caused by a person opening the message.
+
+        '
+      required:
+      - email_client
+      - os
+      - device_type
+      - engagement
+      properties:
+        email_client:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The mail client this row aggregates (for example `Gmail`, `Apple Mail`, `Outlook`). Populated only when `group_by=email_client`. Null otherwise.
+          example: Apple Mail
+        os:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The operating system this row aggregates (for example `iOS`, `Android`, `Windows`, `macOS`). Populated only when `group_by=os`. Null otherwise.
+          example: iOS
+        device_type:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: The device type this row aggregates (for example `mobile`, `desktop`, `tablet`). Populated only when `group_by=device_type`. Null otherwise.
+          example: mobile
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementCounts'
+    EmailEngagementStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences). The `unique_*` fields count distinct recipients. `unsubscribes` counts distinct unsubscribe events. An event counts in the time bucket when it occurs, even if the message was sent in an earlier bucket. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.
+
+        '
+      required:
+      - opens
+      - opens_non_prefetched
+      - unique_opens
+      - unique_opens_non_prefetched
+      - clicks
+      - unique_clicks
+      - unsubscribes
+      - open_rate
+      - click_rate
+      - unsubscribe_rate
+      properties:
+        opens:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).
+
+            '
+          example: 5420
+        opens_non_prefetched:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.
+
+            '
+          example: 3210
+        unique_opens:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.
+          example: 3640
+        unique_opens_non_prefetched:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.
+
+            '
+          example: 2480
+        clicks:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct click events, counting repeat clicks from the same recipient.
+          example: 924
+        unique_clicks:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who clicked at least once.
+          example: 621
+        unsubscribes:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.
+          example: 12
+        open_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
+
+            '
+          example: 0.1683
+        click_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
+
+            '
+          example: 0.0422
+        unsubscribe_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 'Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.
+
+            '
+          example: 0.0009
+    EmailStatsPeriod:
+      type: object
+      additionalProperties: false
+      description: 'The date range this response was actually computed against. Echoed back so clients can render the period without tracking it themselves and so cached responses can be keyed by what was queried.
+
+        '
+      required:
+      - from
+      - to
+      properties:
+        from:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: Inclusive start date the response covers (YYYY-MM-DD).
+          example: '2026-05-01'
+        to:
+          type: string
+          format: date
+          minLength: 1
+          readOnly: true
+          description: Inclusive end date the response covers (YYYY-MM-DD).
+          example: '2026-05-25'
+        data_as_of:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response reflects data from up to a few seconds ago. Use this field to label data freshness (for example "as of 14:03") rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
+
+            '
+          example: '2026-05-25T14:03:10Z'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EmailBounceStatsWithRates:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.
+
+        '
+      required:
+      - hard
+      - soft
+      - admin
+      - block
+      - undetermined
+      - hard_rate
+      - soft_rate
+      - admin_rate
+      - block_rate
+      - undetermined_rate
+      properties:
+        hard:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).
+          example: 12410
+        soft:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).
+          example: 14290
+        admin:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients refused by a policy at the receiving end, such as relaying denied or a blocklisted domain.
+          example: 410
+        block:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.
+          example: 920
+        undetermined:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients bounced where the receiving server's response did not allow precise classification.
+          example: 80
+        hard_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.
+
+            '
+          example: 0.454
+        soft_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.
+
+            '
+          example: 0.523
+        admin_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.
+
+            '
+          example: 0.015
+        block_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.
+
+            '
+          example: 0.0337
+        undetermined_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.
+
+            '
+          example: 0.0029
+    EmailStatsByTemplateResponse:
+      type: object
+      additionalProperties: false
+      description: Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - data
+      - total
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        data:
+          type: array
+          readOnly: true
+          description: Template breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no messages were sent with a template in the period.
+          items:
+            $ref: '#/components/schemas/EmailTemplateStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct templates with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 42
+    StatsTrendGrain:
+      type: string
+      enum:
+      - daily
+      - hourly
+      default: daily
+      description: Bucket grain for a stats trend series.
+    EmailEngagementCounts:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Open and click counts for a breakdown row whose dimension is resolved from engagement events only. `opens`, `opens_non_prefetched`, and `clicks` count each event. The same recipient opening or clicking more than once counts each time. The `unique_*` fields count distinct recipients instead, so a recipient who opened five times only counts once there. Rates and unsubscribe counts are not included here. A per-dimension delivered count is unavailable as a rate''s denominator, and an unsubscribe event has none of the information this breakdown is grouped by, so it cannot be placed on a row.
+
+        '
+      required:
+      - opens
+      - opens_non_prefetched
+      - unique_opens
+      - unique_opens_non_prefetched
+      - clicks
+      - unique_clicks
+      properties:
+        opens:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).
+
+            '
+          example: 5420
+        opens_non_prefetched:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens`, with prefetched opens removed.
+
+            '
+          example: 3210
+        unique_opens:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.
+          example: 3640
+        unique_opens_non_prefetched:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features.
+          example: 2480
+        clicks:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct click events, counting repeat clicks from the same recipient.
+          example: 924
+        unique_clicks:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who clicked at least once.
+          example: 621
+    EmailStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - sends_accepted
+      - delivery
+      - engagement
+      - latency
+      - delta
+      properties:
+        period:
+          $ref: '#/components/schemas/EmailStatsSummaryPeriod'
+          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.
+        sends_accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct email messages accepted in the preceding period, counted at the message level.
+          example: 8230
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        delta:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailStatsComparisonDelta'
+    EmailMailboxProviderDeliveryStats:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Delivery counts and rates for messages attributed to a single recipient mailbox provider. Per-provider results do not include `accepted` or `processed` counts, because we only learn the recipient''s mailbox provider once the receiving mail server reports delivery, a bounce, a deferral, or a late bounce. Earlier lifecycle states (accepted, processed) cannot be attributed to a specific provider.
+
+        '
+      required:
+      - delivered
+      - bounced
+      - complained
+      - deferred
+      - bounces
+      - delivery_rate
+      - bounce_rate
+      - complaint_rate
+      properties:
+        delivered:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients whose message the receiving mail server accepted.
+          example: 8290
+        bounced:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.
+          example: 131
+        complained:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients who reported the message as spam.
+          example: 8
+        deferred:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct recipients in transient delivery deferral that is still being retried.
+          example: 4
+        bounces:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailBounceStatsWithRates'
+        delivery_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of attempted recipients on this mailbox provider that were delivered, computed as `delivered / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
+
+            '
+          example: 0.9844
+        bounce_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of attempted recipients on this mailbox provider that bounced, computed as `bounced / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
+
+            '
+          example: 0.0156
+        complaint_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: 'Share of delivered recipients on this mailbox provider who reported the message as spam, computed as `complained / delivered`. Null when `delivered` is zero.
+
+            '
+          example: 0.00096
     EmailStatsSummary:
       type: object
       additionalProperties: false
@@ -3613,116 +4012,36 @@ components:
           readOnly: true
           allOf:
           - $ref: '#/components/schemas/EmailStatsComparison'
-    NextAction:
+    EmailStatsTagsResponse:
       type: object
       additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    EmailStatsComparison:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
-
-        '
-      required:
-      - period
-      - sends_accepted
-      - delivery
-      - engagement
-      - latency
-      - delta
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsSummaryPeriod'
-          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.
-        sends_accepted:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct email messages accepted in the preceding period, counted at the message level.
-          example: 8230
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
-        delta:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailStatsComparisonDelta'
-    EmailStatsResponse:
-      type: object
-      additionalProperties: false
-      description: 'Time-series stats payload. `period` echoes the range and bucket grain actually computed against. `data` is one row per bucket in chronological order.
-
-        '
+      description: Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
       required:
       - period
       - data
+      - total
       properties:
         period:
-          $ref: '#/components/schemas/EmailStatsSeriesPeriod'
+          $ref: '#/components/schemas/EmailStatsPeriod'
+          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
         data:
           type: array
           readOnly: true
-          description: One row per bucket (day or hour, per the grain) in the period, in chronological order. Buckets with no activity are included with zero counts.
+          description: Tag breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no tagged sends occurred in the period.
           items:
-            $ref: '#/components/schemas/EmailStatsPoint'
-    EmailStatsPeriod:
+            $ref: '#/components/schemas/EmailTagStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: 'Total number of distinct tags (name and value pairs) with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+
+            '
+          example: 173
+    EmailStatsSummaryPeriod:
       type: object
       additionalProperties: false
-      description: 'The date range this response was actually computed against. Echoed back so clients can render the period without tracking it themselves and so cached responses can be keyed by what was queried.
+      description: 'The window this response was actually computed against. The summary serves two window grains: calendar days (bounds are YYYY-MM-DD) and hours (bounds are RFC 3339 instants). The grain of `from` and `to` mirrors the grain of the request''s bounds. Days and hour boundaries follow the requested `timezone` (UTC when omitted).
 
         '
       required:
@@ -3731,17 +4050,17 @@ components:
       properties:
         from:
           type: string
-          format: date
           minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: Inclusive start date the response covers (YYYY-MM-DD).
+          description: Inclusive start of the window the response covers. A calendar day (YYYY-MM-DD, in the requested `timezone`) for day windows. For hour windows, an RFC 3339 UTC instant marking the start of the first hour, which falls on a local hour boundary when `timezone` is set.
           example: '2026-05-01'
         to:
           type: string
-          format: date
           minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
           readOnly: true
-          description: Inclusive end date the response covers (YYYY-MM-DD).
+          description: Inclusive end of the window the response covers. A calendar day (YYYY-MM-DD, in the requested `timezone`) for day windows. For hour windows, an RFC 3339 UTC instant marking the start of the last hour, which falls on a local hour boundary when `timezone` is set.
           example: '2026-05-25'
         data_as_of:
           type:
@@ -3787,292 +4106,6 @@ components:
           description: Per-bucket rate series for this category over the window. Present only when `include_trend=true`.
           items:
             $ref: '#/components/schemas/EmailStatsSeriesPoint'
-    EmailSendingIpDeliveryStats:
-      type: object
-      additionalProperties: false
-      readOnly: true
-      description: 'Delivery counts and rates for messages attributed to a single sending IP. Per-IP results omit `accepted` and `processed` counts. The sending IP becomes known only after a message is delivered, bounced, deferred, or bounced late. Those earlier lifecycle states cannot be attributed to a specific IP. Spam complaints and out-of-band bounce notifications also lack per-IP attribution on this breakdown. The `complained` and `oob_bounces` fields therefore read 0. Their rates read 0 when the denominator is non-zero and null when it is zero. The `effective_delivered` field equals `delivered`, and `all_bounces` equals `bounced`.
-
-        '
-      required:
-      - delivered
-      - bounced
-      - complained
-      - deferred
-      - oob_bounces
-      - effective_delivered
-      - all_bounces
-      - oob_rate
-      - bounces
-      - delivery_rate
-      - bounce_rate
-      - complaint_rate
-      properties:
-        delivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients whose message the receiving mail server accepted.
-          example: 8290
-        bounced:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients whose delivery failed. This is approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined). The two are computed independently, so they can differ slightly.
-          example: 131
-        complained:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients who reported the message as spam. Complaints are not attributed to a sending IP, so this reads 0 on this breakdown. Read complaint counts from the summary or time-series statistics instead.
-          example: 8
-        deferred:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Distinct recipients in transient delivery deferral that is still being retried.
-          example: 4
-        oob_bounces:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Out-of-band bounce events: failure notifications received after the receiving server had initially confirmed delivery. Not attributed to a sending IP on this breakdown, so this reads 0. Workspace-wide out-of-band counts are on the summary and time-series statistics.
-
-            '
-          example: 3
-        effective_delivered:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Recipients on this IP who remain delivered after all bounce signals resolve, computed as `delivered - oob_bounces`. Clamped to 0 when `oob_bounces` exceeds `delivered`.
-          example: 8287
-        all_bounces:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: Total recipients on this IP who did not receive the message, computed as `bounced + oob_bounces`.
-          example: 134
-        oob_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: Share of this IP's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
-          example: 0.00036
-        bounces:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailBounceStatsWithRates'
-        delivery_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Share of this IP''s delivery attempts that remained delivered after all bounce signals, computed as `effective_delivered / (delivered + bounced)`. Null when `delivered + bounced` is zero.
-
-            '
-          example: 0.9844
-        bounce_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: 'Share of this IP''s delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).
-
-            '
-          example: 0.0156
-        complaint_rate:
-          type:
-          - number
-          - 'null'
-          minimum: 0
-          readOnly: true
-          description: 'Share of effectively delivered recipients on this IP who reported the message as spam, computed as `complained / effective_delivered`. Null when `effective_delivered` is zero.
-
-            '
-          example: 0.00096
-    EmailMailboxProviderRegionStatsPoint:
-      type: object
-      additionalProperties: false
-      description: 'Delivery, engagement, and deliverability stats for messages grouped by a single mailbox provider and provider region pair over the requested period, for example `gmail` in `NA` or `microsoft` in `EU`. The provider region is the regional pod the receiving mail system reports for the recipient''s provider; pairing it with the provider disambiguates a region label that several providers share. Like the mailbox-provider breakdown, rows cover the delivery stage onward: the `accepted` and `processed` counts and the `processing` latency family are omitted (a provider region cannot be attributed before delivery).
-
-        '
-      required:
-      - mailbox_provider
-      - mailbox_provider_region
-      - delivery
-      - engagement
-      - latency
-      properties:
-        mailbox_provider:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The recipient mailbox provider this row aggregates, as a lowercase classifier such as `gmail`, `yahoo`, `microsoft`, or `apple`.
-          example: gmail
-        mailbox_provider_region:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The provider region this row aggregates, as reported by the receiving mail system (for example `NA`, `EU`, `APAC`). The set is open and provider-specific.
-          example: NA
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailMailboxProviderDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket rate series for this provider region over the window. Present only when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/EmailStatsSeriesPoint'
-    EmailStatsBySendingDomainResponse:
-      type: object
-      additionalProperties: false
-      description: Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Sending-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailSendingDomainStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct sending domains with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 12
-    EmailStatsByCategoryResponse:
-      type: object
-      additionalProperties: false
-      description: Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Category breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no sends occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailCategoryStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct categories with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 2
-    EmailEngagementSortMetric:
-      type: string
-      default: unique_opens
-      description: 'Metric to rank rows by, applied descending. Shared by the engagement-only breakdowns (locations, email clients), which report open and click counts but no rates because delivery events provide no per-dimension denominator.
-
-        '
-      enum:
-      - opens
-      - opens_non_prefetched
-      - unique_opens
-      - unique_opens_non_prefetched
-      - clicks
-      - unique_clicks
-    EmailMailboxProviderSortMetric:
-      type: string
-      default: delivered
-      description: 'Metric to rank rows by, applied descending. Shared by every breakdown whose attribution begins at delivery, so `processed`, `rejected`, and `oob_bounces` are not part of those rows and are not sortable. Any count or rate on the row can be used; rows whose rate is undefined (zero denominator) sort last. Bounce sub-types use their nested location in each row, for example `bounces.hard` and `bounces.hard_rate`.
-
-        '
-      enum:
-      - delivered
-      - bounced
-      - complained
-      - deferred
-      - bounces.hard
-      - bounces.soft
-      - bounces.admin
-      - bounces.block
-      - bounces.undetermined
-      - opens
-      - opens_non_prefetched
-      - unique_opens
-      - unique_opens_non_prefetched
-      - clicks
-      - unique_clicks
-      - unsubscribes
-      - delivery_rate
-      - bounce_rate
-      - complaint_rate
-      - open_rate
-      - click_rate
-      - unsubscribe_rate
-      - bounces.hard_rate
-      - bounces.soft_rate
-      - bounces.admin_rate
-      - bounces.block_rate
-      - bounces.undetermined_rate
-    EmailRecipientDomainStatsPoint:
-      type: object
-      additionalProperties: false
-      description: Aggregate delivery, engagement, and latency stats for messages sent to a single recipient mailbox domain over the requested period.
-      required:
-      - recipient_domain
-      - delivery
-      - engagement
-      - latency
-      properties:
-        recipient_domain:
-          type: string
-          minLength: 1
-          readOnly: true
-          description: The recipient mailbox domain this row aggregates (the part of the recipient address after the `@`), normalized to lowercase.
-          example: gmail.com
-        delivery:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailDeliveryStats'
-        engagement:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailEngagementStats'
-        latency:
-          readOnly: true
-          allOf:
-          - $ref: '#/components/schemas/EmailLatencyStats'
-        trend:
-          type: array
-          readOnly: true
-          description: Per-bucket rate series for this recipient domain over the window. Present only when `include_trend=true`.
-          items:
-            $ref: '#/components/schemas/EmailStatsSeriesPoint'
     EmailComplaintTypeStatsPoint:
       type: object
       additionalProperties: false
@@ -4095,187 +4128,97 @@ components:
           readOnly: true
           description: Distinct recipients who reported a message as spam with this complaint type at any point in the period.
           example: 47
-    StatsGrain:
-      type: string
-      minLength: 1
-      enum:
-      - day
-      - hour
-      readOnly: true
-      description: The bucket grain of the series, either `day` or `hour`.
-      example: day
-    EmailHealthSignalThresholds:
+    EmailStatsResponse:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'The boundaries this signal''s status was judged against. Use them to classify your own slices, such as per-domain or per-tag rates, against the same bands. The `direction` field identifies the risky side of the boundaries: `above` means the status degrades as the value rises past a boundary, as with bounce and complaint rates, and `below` means it degrades as the value falls, as with delivery rate. The boundaries are exclusive, so a value exactly on one keeps the better status. Omitted for a metric with no risk boundaries, such as open rate.
+      description: 'Time-series stats payload. `period` echoes the range and bucket grain actually computed against. `data` is one row per bucket in chronological order.
 
         '
       required:
-      - direction
-      - watching
-      - throttled
+      - period
+      - data
       properties:
-        direction:
+        period:
+          $ref: '#/components/schemas/EmailStatsSeriesPeriod'
+        data:
+          type: array
+          readOnly: true
+          description: One row per bucket (day or hour, per the grain) in the period, in chronological order. Buckets with no activity are included with zero counts.
+          items:
+            $ref: '#/components/schemas/EmailStatsPoint'
+    EmailTemplateStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Delivery, engagement, and latency numbers for every message sent with one template over the requested period.
+      required:
+      - template_id
+      - delivery
+      - engagement
+      - latency
+      properties:
+        template_id:
+          allOf:
+          - $ref: '#/components/schemas/EmailTemplateID'
+          readOnly: true
+          description: 'The template this row is about, using the same `id` the email template endpoints return. Only messages sent with a template appear in this breakdown at all. If the template was deleted after it was used to send, this row still appears, keyed by that same `id`.
+
+            '
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        trend:
+          type: array
+          readOnly: true
+          description: 'A short series of this template''s delivery and engagement rates, one point per time bucket over the window. Only present when you set `include_trend=true` on the request.
+
+            '
+          items:
+            $ref: '#/components/schemas/EmailStatsSeriesPoint'
+    EmailTagStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Aggregate delivery and engagement stats for a single tag name-and-value pair over the requested period.
+      required:
+      - tag
+      - delivery
+      - engagement
+      - latency
+      properties:
+        tag:
           type: string
           minLength: 1
           readOnly: true
-          description: Which side of the boundaries is at risk. `above` for higher-is-worse rates (bounce, complaint), `below` for lower-is-worse rates (delivery).
-          enum:
-          - above
-          - below
-          x-enum-varnames:
-          - EmailHealthSignalThresholdsDirectionAbove
-          - EmailHealthSignalThresholdsDirectionBelow
-          example: above
-        watching:
-          type: number
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: Crossing this boundary in the risk direction moves the signal to `watching`, as a fraction.
-          example: 0.004
-        throttled:
-          type: number
-          minimum: 0
-          maximum: 1
-          readOnly: true
-          description: Crossing this boundary in the risk direction moves the signal to `throttled`, as a fraction.
-          example: 0.006
-    EmailStatsByComplaintTypeResponse:
-      type: object
-      additionalProperties: false
-      description: Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
-          type: array
-          readOnly: true
-          description: Complaint-type breakdown rows, ranked by `complained` descending. Empty when no complaints occurred in the period.
-          items:
-            $ref: '#/components/schemas/EmailComplaintTypeStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct feedback types with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
+          description: 'The tag this row aggregates, formatted as `name:value` from the tag set at send time (for example `campaign:welcome-series`). Each distinct name-and-value pair is its own row.
 
             '
-          example: 4
-    EmailStatsByMailboxProviderResponse:
-      type: object
-      additionalProperties: false
-      description: Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
-      required:
-      - period
-      - data
-      - total
-      properties:
-        period:
-          $ref: '#/components/schemas/EmailStatsPeriod'
-          description: The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-        data:
+          example: campaign:welcome-series
+        delivery:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailDeliveryStats'
+        engagement:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailEngagementStats'
+        latency:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EmailLatencyStats'
+        trend:
           type: array
           readOnly: true
-          description: Mailbox-provider breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no eligible activity occurred in the period.
+          description: Per-bucket rate series for this tag over the window. Present only when `include_trend=true`.
           items:
-            $ref: '#/components/schemas/EmailMailboxProviderStatsPoint'
-        total:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: 'Total number of distinct mailbox providers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped. Raise `limit` (up to 200) or narrow the window to see more.
-
-            '
-          example: 14
-  parameters:
-    StatsTimezone:
-      name: timezone
-      in: query
-      required: false
-      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
-
-        '
-      schema:
-        type: string
-        minLength: 1
-        example: Asia/Kathmandu
-    EmailStatsTemplateFilter:
-      name: template
-      in: query
-      required: false
-      description: 'Restricts the statistics to one template, identified by its ID (`emt_…`) or name. This parameter is mutually exclusive with other dimension filters.
-
-        '
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 63
-        pattern: ^(emt_[0-9a-hjkmnp-tv-z]{26}|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$
-        example: welcome-email
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/EmailStatsSeriesPoint'
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -4299,6 +4242,63 @@ components:
       schema:
         type: string
       example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   securitySchemes:
     BearerAuth:
       type: http

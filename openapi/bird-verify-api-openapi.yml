@@ -106,14 +106,6 @@ paths:
         '422':
           description: Token is invalid or expired
 components:
-  parameters:
-    verifyIdParam:
-      name: id
-      in: path
-      required: true
-      description: The unique identifier of the verification.
-      schema:
-        type: string
   schemas:
     Verify:
       type: object
@@ -208,6 +200,14 @@ components:
         language:
           type: string
           description: The language for text-to-speech delivery.
+  parameters:
+    verifyIdParam:
+      name: id
+      in: path
+      required: true
+      description: The unique identifier of the verification.
+      schema:
+        type: string
   securitySchemes:
     accessKey:
       type: apiKey

@@ -74,17 +74,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    PredictLanguageResponse:
-      type: object
-      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
-
-        '
-      properties:
-        language:
-          $ref: '#/components/schemas/Language'
-          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
-
-            '
     PredictLanguageRequest:
       type: object
       description: A request for predicting the language from a phrase.
@@ -95,22 +84,6 @@ components:
           type: string
           example: Dit is iets in het Nederlands
           description: The phrase for which to predict the language.
-    Language:
-      type: object
-      description: Language that was detected from the given phrase.
-      properties:
-        iso6393Code:
-          type: string
-          example: nld
-          description: The ISO-639-3 code of the language.
-        name:
-          type: string
-          example: Dutch
-          description: The English name of the language.
-        languageCode:
-          type: string
-          example: NLD
-          description: The ISO639-3 language code enum value.
     LanguageList:
       type: object
       description: List of supported languages.
@@ -133,6 +106,17 @@ components:
           - iso6393Code: zho
             languageCode: ZHO
             name: Chinese
+    PredictLanguageResponse:
+      type: object
+      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
+
+        '
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
+
+            '
     Error:
       type: object
       properties:
@@ -145,6 +129,22 @@ components:
           items:
             type: object
             additionalProperties: true
+    Language:
+      type: object
+      description: Language that was detected from the given phrase.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
   securitySchemes:
     AccessKey:
       type: apiKey

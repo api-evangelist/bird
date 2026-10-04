@@ -401,89 +401,161 @@ paths:
       - sdk
 components:
   schemas:
-    TemplateOnMissingLanguage:
-      type: string
-      minLength: 1
-      enum:
-      - fallback
-      - fail
-      x-enum-varnames:
-      - TemplateOnMissingLanguageFallback
-      - TemplateOnMissingLanguageFail
-      description: 'What a send or a preview does when it asks for a language the template
-
-        cannot serve.
-
-
-        `fallback` serves the closest match instead. It tries a broader form of the
-
-        same language first, so a request for `pt-BR` can be served by a stocked
-
-        `pt`, and then the template''s default language. A send never fails because a
-
-        language is missing.
-
-
-        `fail` rejects the send rather than serving a different language, for content
-
-        where sending the wrong language is worse than not sending at all. It matches
-
-        the requested tag or a broader form of it and refuses a sibling variant, so
-
-        `pt-BR` is never served by `pt-PT`. A send that names no language still uses
-
-        the default language.
-
-
-        The default is per channel and stated on each channel''s own field, because
-
-        what a wrong-language send costs differs. Where every language is separately
-
-        reviewed and separately priced, falling back silently would send content the
-
-        recipient did not expect at a rate the sender did not choose.
-
-        '
-      example: fallback
-    SMSTemplateLanguageSummary:
+    _ListEnvelope:
       type: object
-      additionalProperties: false
-      description: One language of an SMS template version without its text.
       required:
-      - language
-      - revision
-      - content_hash
-      - updated_at
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
       properties:
-        language:
-          $ref: '#/components/schemas/LanguageTag'
-          readOnly: true
-          description: The language in canonical BCP-47 form.
-        revision:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: This language's revision counter.
-        content_hash:
-          readOnly: true
-          $ref: '#/components/schemas/SMSTemplateContentHash'
-        updated_at:
+        next_cursor:
           type:
           - string
           - 'null'
-          format: date-time
-          readOnly: true
-          description: When this language was last saved. Null for a built-in template.
-      example:
-        language: en
-        revision: 1
-        content_hash: sha256:3d948846f5f773fb7bed8ab81b57f3d0ff2cbff24cb549718f4d389f1ab0300a
-        updated_at: '2026-09-10T09:00:00Z'
-    SMSTemplateID:
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    SMSTemplateLanguageList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: The version's languages ordered by canonical tag, without text.
+          items:
+            $ref: '#/components/schemas/SMSTemplateLanguageSummary'
+    WorkspaceID:
       type: string
       minLength: 1
-      pattern: ^smt_[0-9a-hjkmnp-tv-z]{26}$
-      example: smt_01krdgeqcxet5s7t44vh8rt9mg
+      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+      example: ws_01krdgeqcxet5s7t44vh8rt9mg
+    TemplateScope:
+      type: string
+      minLength: 1
+      readOnly: true
+      enum:
+      - system
+      - workspace
+      description: 'Whether the template is one of our built-in templates (`system`) or one your workspace created (`workspace`).
+
+        '
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    SMSTemplateText:
+      type:
+      - string
+      minLength: 0
+      description: 'SMS template text, limited to 16 KiB of UTF-8 source. Blank text can be saved in a draft but cannot be published. Workspace templates support scalar variables, conditional text, and bounded filters. Loops, assignments, captures, partials, collections, and string-expanding filters are rejected.
+
+        '
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
     SMSTemplate:
       type: object
       additionalProperties: false
@@ -639,96 +711,284 @@ components:
           format: date-time
           readOnly: true
           description: When the template was last modified. Null for built-in templates.
-    ErrorBody:
+    SMSTemplateList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: One page of SMS templates.
+            items:
+              $ref: '#/components/schemas/SMSTemplateSummary'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    TemplateOnMissingLanguage:
+      type: string
+      minLength: 1
+      enum:
+      - fallback
+      - fail
+      x-enum-varnames:
+      - TemplateOnMissingLanguageFallback
+      - TemplateOnMissingLanguageFail
+      description: 'What a send or a preview does when it asks for a language the template
+
+        cannot serve.
+
+
+        `fallback` serves the closest match instead. It tries a broader form of the
+
+        same language first, so a request for `pt-BR` can be served by a stocked
+
+        `pt`, and then the template''s default language. A send never fails because a
+
+        language is missing.
+
+
+        `fail` rejects the send rather than serving a different language, for content
+
+        where sending the wrong language is worse than not sending at all. It matches
+
+        the requested tag or a broader form of it and refuses a sibling variant, so
+
+        `pt-BR` is never served by `pt-PT`. A send that names no language still uses
+
+        the default language.
+
+
+        The default is per channel and stated on each channel''s own field, because
+
+        what a wrong-language send costs differs. Where every language is separately
+
+        reviewed and separately priced, falling back silently would send content the
+
+        recipient did not expect at a rate the sender did not choose.
+
+        '
+      example: fallback
+    NextAction:
       type: object
       additionalProperties: false
       required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
+      - kind
+      - description
       properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    TemplateVariable:
+      type: object
+      additionalProperties: false
+      description: 'A single variable slot a template fills in from the values supplied when sending. The same shape on email, SMS and WhatsApp, so reading what a template needs works the same way whichever channel you are sending on.
+
+        '
+      required:
+      - key
+      - type
+      - required
+      - constraint
+      properties:
+        key:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The key this slot is filled by. On email and SMS it is the key you set in the send''s `parameters` object. On WhatsApp it is the `name` you repeat on the matching parameter inside `components`, or, for a template whose placeholders are positional, the position itself as `1`, `2` and so on.
+
+            '
         type:
           type: string
           minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+          readOnly: true
+          x-extensible-enum:
+          - code
+          - ttl
+          - count
+          - ref
+          - date
+          - date_time
+          - amount
+          - currency
+          - text
+          description: 'The value type this slot accepts. Built-in SMS templates use typed slots (`code`, `amount` and the rest), each of which rejects a value that does not match its `constraint`. Email, WhatsApp and workspace SMS templates use `text`. Workspace SMS parameters must be scalar values. Open enum: treat an unrecognized value as a future type rather than an error.
 
             '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+        required:
+          type: boolean
+          readOnly: true
+          description: 'Whether the send must supply this variable. Omitting a required value returns `422` on email, SMS, and WhatsApp sends.
 
             '
+        constraint:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: A plain-language description of what values this variable accepts.
+        sensitive:
+          type: boolean
+          readOnly: true
+          default: false
+          description: 'Whether this slot''s value is redacted from stored message content. A placeholder replaces the sensitive value in message history; transport queues can still carry the text needed for delivery.
+
+            '
+    SMSTemplateVersionSummary:
+      type: object
+      additionalProperties: false
+      description: One SMS template version without its text.
+      required:
+      - id
+      - template_id
+      - version_number
+      - status
+      - revision
+      - variables
+      - default_language
+      - available_languages
+      - created_at
+      - published_at
+      properties:
+        id:
+          readOnly: true
+          description: Template version ID.
+          $ref: '#/components/schemas/SMSTemplateVersionID'
+        template_id:
+          readOnly: true
+          description: The template this version belongs to.
+          $ref: '#/components/schemas/SMSTemplateID'
+        version_number:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          readOnly: true
+          description: Sequential publication number. Null for the draft; a built-in template reports 1.
+        status:
+          readOnly: true
+          $ref: '#/components/schemas/SMSTemplateVersionStatus'
+        revision:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: The version's revision counter.
+        variables:
+          type: array
+          readOnly: true
           items:
-            $ref: '#/components/schemas/NextAction'
-    TemplateScope:
+            $ref: '#/components/schemas/TemplateVariable'
+          description: Variables inferred from the version's text and shared by each language.
+        default_language:
+          $ref: '#/components/schemas/LanguageTag'
+          readOnly: true
+          description: The language this version treats as its default.
+        available_languages:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/LanguageTag'
+          description: Languages this version contains, without their text.
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the version was created. Null for a built-in template's synthetic version.
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the version was published. Null for the draft and for a built-in template's synthetic version.
+      example:
+        id: smv_01krdgeqcxet5s7t44vh8rt9mg
+        template_id: smt_01krdgeqcxet5s7t44vh8rt9mg
+        version_number: 1
+        status: published
+        revision: 1
+        variables:
+        - key: order_number
+          type: text
+          required: true
+          constraint: A string, number, or boolean.
+        default_language: en
+        created_at: '2026-09-10T09:00:00Z'
+        published_at: '2026-09-10T09:00:00Z'
+        available_languages:
+        - en
+    TemplateSlug:
       type: string
       minLength: 1
-      readOnly: true
-      enum:
-      - system
-      - workspace
-      description: 'Whether the template is one of our built-in templates (`system`) or one your workspace created (`workspace`).
+      maxLength: 63
+      pattern: ^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$
+      description: 'A template''s slug: what you send it by, for example `welcome-email`. Email and SMS slugs stay fixed after creation. WhatsApp slugs can change only before the first submission. A slug can contain lowercase letters, numbers, hyphens, and underscores, has to start and end with a letter or a number, and can be up to 63 characters long.
 
         '
+      example: welcome-email
+    SMSTemplateVersionLanguage:
+      type: object
+      additionalProperties: false
+      description: One language's content and revision metadata within a version.
+      required:
+      - text
+      - revision
+      - content_hash
+      - updated_at
+      properties:
+        text:
+          $ref: '#/components/schemas/SMSTemplateText'
+          readOnly: true
+          description: Stored template text, including its `{{ variable }}` placeholders.
+        revision:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: This language's revision counter.
+        content_hash:
+          readOnly: true
+          $ref: '#/components/schemas/SMSTemplateContentHash'
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When this language was last saved. Null for a built-in template.
+      example:
+        text: Your order {{ order_number }} is on its way.
+        revision: 1
+        content_hash: sha256:3d948846f5f773fb7bed8ab81b57f3d0ff2cbff24cb549718f4d389f1ab0300a
+        updated_at: '2026-09-10T09:00:00Z'
     TemplateStatus:
       type: string
       minLength: 1
@@ -772,59 +1032,6 @@ components:
 
         '
       example: active
-    LanguageTag:
-      type: string
-      minLength: 2
-      maxLength: 35
-      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
-      example: pt-BR
-    SMSTemplateSortField:
-      type: string
-      enum:
-      - created_at
-      default: created_at
-      description: Field to sort SMS templates and their versions by.
-    SMSTemplateVersionLanguage:
-      type: object
-      additionalProperties: false
-      description: One language's content and revision metadata within a version.
-      required:
-      - text
-      - revision
-      - content_hash
-      - updated_at
-      properties:
-        text:
-          $ref: '#/components/schemas/SMSTemplateText'
-          readOnly: true
-          description: Stored template text, including its `{{ variable }}` placeholders.
-        revision:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: This language's revision counter.
-        content_hash:
-          readOnly: true
-          $ref: '#/components/schemas/SMSTemplateContentHash'
-        updated_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: When this language was last saved. Null for a built-in template.
-      example:
-        text: Your order {{ order_number }} is on its way.
-        revision: 1
-        content_hash: sha256:3d948846f5f773fb7bed8ab81b57f3d0ff2cbff24cb549718f4d389f1ab0300a
-        updated_at: '2026-09-10T09:00:00Z'
-    SMSTemplateText:
-      type:
-      - string
-      minLength: 0
-      description: 'SMS template text, limited to 16 KiB of UTF-8 source. Blank text can be saved in a draft but cannot be published. Workspace templates support scalar variables, conditional text, and bounded filters. Loops, assignments, captures, partials, collections, and string-expanding filters are rejected.
-
-        '
     SMSTemplateLanguageState:
       type: object
       additionalProperties: false
@@ -841,6 +1048,62 @@ components:
           description: 'Whether the draft has an unpublished change for this language. When true beside `live`, sends keep using the older published text until submit.
 
             '
+    SMSTemplateLanguage:
+      type: object
+      additionalProperties: false
+      description: One language's full SMS template text and revision metadata.
+      required:
+      - language
+      - text
+      - revision
+      - content_hash
+      - updated_at
+      properties:
+        language:
+          $ref: '#/components/schemas/LanguageTag'
+          readOnly: true
+          description: The language in canonical BCP-47 form.
+        text:
+          $ref: '#/components/schemas/SMSTemplateText'
+          readOnly: true
+          description: Stored template text, including its `{{ variable }}` placeholders.
+        revision:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: This language's revision counter, used for concurrent-edit checks on draft writes.
+        content_hash:
+          readOnly: true
+          $ref: '#/components/schemas/SMSTemplateContentHash'
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When this language was last saved. Null for a built-in template.
+      example:
+        language: en
+        text: Your order {{ order_number }} is on its way.
+        revision: 1
+        content_hash: sha256:3d948846f5f773fb7bed8ab81b57f3d0ff2cbff24cb549718f4d389f1ab0300a
+        updated_at: '2026-09-10T09:00:00Z'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    SMSTemplateContentHash:
+      type: string
+      minLength: 1
+      readOnly: true
+      description: 'A fingerprint of SMS template text, prefixed with its algorithm. Compare it within this API version to identify the exact source without transferring it.
+
+        '
+      example: sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
     SMSTemplateSummary:
       type: object
       additionalProperties: false
@@ -955,65 +1218,68 @@ components:
           format: date-time
           readOnly: true
           description: When the template was last modified. Null for built-in templates.
-    TemplateVariable:
+    SMSTemplateSortField:
+      type: string
+      enum:
+      - created_at
+      default: created_at
+      description: Field to sort SMS templates and their versions by.
+    SMSTemplateLanguageSummary:
       type: object
       additionalProperties: false
-      description: 'A single variable slot a template fills in from the values supplied when sending. The same shape on email, SMS and WhatsApp, so reading what a template needs works the same way whichever channel you are sending on.
-
-        '
+      description: One language of an SMS template version without its text.
       required:
-      - key
-      - type
-      - required
-      - constraint
+      - language
+      - revision
+      - content_hash
+      - updated_at
       properties:
-        key:
-          type: string
-          minLength: 1
+        language:
+          $ref: '#/components/schemas/LanguageTag'
           readOnly: true
-          description: 'The key this slot is filled by. On email and SMS it is the key you set in the send''s `parameters` object. On WhatsApp it is the `name` you repeat on the matching parameter inside `components`, or, for a template whose placeholders are positional, the position itself as `1`, `2` and so on.
-
-            '
-        type:
-          type: string
-          minLength: 1
+          description: The language in canonical BCP-47 form.
+        revision:
+          type: integer
+          minimum: 0
           readOnly: true
-          x-extensible-enum:
-          - code
-          - ttl
-          - count
-          - ref
-          - date
-          - date_time
-          - amount
-          - currency
-          - text
-          description: 'The value type this slot accepts. Built-in SMS templates use typed slots (`code`, `amount` and the rest), each of which rejects a value that does not match its `constraint`. Email, WhatsApp and workspace SMS templates use `text`. Workspace SMS parameters must be scalar values. Open enum: treat an unrecognized value as a future type rather than an error.
-
-            '
-        required:
-          type: boolean
+          description: This language's revision counter.
+        content_hash:
           readOnly: true
-          description: 'Whether the send must supply this variable. Omitting a required value returns `422` on email, SMS, and WhatsApp sends.
-
-            '
-        constraint:
-          type: string
-          minLength: 1
+          $ref: '#/components/schemas/SMSTemplateContentHash'
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
           readOnly: true
-          description: A plain-language description of what values this variable accepts.
-        sensitive:
-          type: boolean
-          readOnly: true
-          default: false
-          description: 'Whether this slot''s value is redacted from stored message content. A placeholder replaces the sensitive value in message history; transport queues can still carry the text needed for delivery.
-
-            '
-    WorkspaceID:
+          description: When this language was last saved. Null for a built-in template.
+      example:
+        language: en
+        revision: 1
+        content_hash: sha256:3d948846f5f773fb7bed8ab81b57f3d0ff2cbff24cb549718f4d389f1ab0300a
+        updated_at: '2026-09-10T09:00:00Z'
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+    SMSTemplateVersionStatus:
       type: string
       minLength: 1
-      pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
-      example: ws_01krdgeqcxet5s7t44vh8rt9mg
+      readOnly: true
+      enum:
+      - draft
+      - published
+      description: 'Whether the version is the editable draft or published. Published workspace versions are immutable and remain `published` after a later version goes live. A built-in template''s synthetic published version projects the current catalogue entry.
+
+        '
+      example: published
+    SMSTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^smt_[0-9a-hjkmnp-tv-z]{26}$
+      example: smt_01krdgeqcxet5s7t44vh8rt9mg
     SMSTemplateCategory:
       type: string
       minLength: 1
@@ -1024,212 +1290,12 @@ components:
       description: 'Why messages use this template. Use `authentication` for one-time codes, `marketing` for promotions, and `transactional` for service messages.
 
         '
-    SMSTemplateVersionList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: One page of the template's versions, newest first.
-            items:
-              $ref: '#/components/schemas/SMSTemplateVersionSummary'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    SMSTemplateVersionID:
+    SortOrder:
       type: string
-      minLength: 1
-      pattern: ^smv_[0-9a-hjkmnp-tv-z]{26}$
-      example: smv_01krdgeqcxet5s7t44vh8rt9mg
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
-    SMSTemplateVersionSummary:
-      type: object
-      additionalProperties: false
-      description: One SMS template version without its text.
-      required:
-      - id
-      - template_id
-      - version_number
-      - status
-      - revision
-      - variables
-      - default_language
-      - available_languages
-      - created_at
-      - published_at
-      properties:
-        id:
-          readOnly: true
-          description: Template version ID.
-          $ref: '#/components/schemas/SMSTemplateVersionID'
-        template_id:
-          readOnly: true
-          description: The template this version belongs to.
-          $ref: '#/components/schemas/SMSTemplateID'
-        version_number:
-          type:
-          - integer
-          - 'null'
-          minimum: 1
-          readOnly: true
-          description: Sequential publication number. Null for the draft; a built-in template reports 1.
-        status:
-          readOnly: true
-          $ref: '#/components/schemas/SMSTemplateVersionStatus'
-        revision:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: The version's revision counter.
-        variables:
-          type: array
-          readOnly: true
-          items:
-            $ref: '#/components/schemas/TemplateVariable'
-          description: Variables inferred from the version's text and shared by each language.
-        default_language:
-          $ref: '#/components/schemas/LanguageTag'
-          readOnly: true
-          description: The language this version treats as its default.
-        available_languages:
-          type: array
-          readOnly: true
-          items:
-            $ref: '#/components/schemas/LanguageTag'
-          description: Languages this version contains, without their text.
-        created_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: When the version was created. Null for a built-in template's synthetic version.
-        published_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: When the version was published. Null for the draft and for a built-in template's synthetic version.
-      example:
-        id: smv_01krdgeqcxet5s7t44vh8rt9mg
-        template_id: smt_01krdgeqcxet5s7t44vh8rt9mg
-        version_number: 1
-        status: published
-        revision: 1
-        variables:
-        - key: order_number
-          type: text
-          required: true
-          constraint: A string, number, or boolean.
-        default_language: en
-        created_at: '2026-09-10T09:00:00Z'
-        published_at: '2026-09-10T09:00:00Z'
-        available_languages:
-        - en
-    NextAction:
-      type: object
-      additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
-
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    TemplateLanguageStatus:
-      type: string
-      minLength: 1
-      readOnly: true
-      x-extensible-enum:
-      - draft
-      - live
-      - superseded
-      description: 'Status of one template language on channels without third-party review.
-
-
-        - `draft`: it has never been published.
-
-        - `live`: it is available to sends.
-
-        - `superseded`: a later version replaced it.
-
-
-        Treat an unknown value as not sendable.
-
-        '
-      example: live
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
     SMSTemplateVersion:
       type: object
       additionalProperties: false
@@ -1329,40 +1395,34 @@ components:
         default_language: en
         created_at: '2026-09-10T09:00:00Z'
         published_at: '2026-09-10T09:00:00Z'
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    SMSTemplateContentHash:
+    SMSTemplateVersionID:
+      type: string
+      minLength: 1
+      pattern: ^smv_[0-9a-hjkmnp-tv-z]{26}$
+      example: smv_01krdgeqcxet5s7t44vh8rt9mg
+    TemplateLanguageStatus:
       type: string
       minLength: 1
       readOnly: true
-      description: 'A fingerprint of SMS template text, prefixed with its algorithm. Compare it within this API version to identify the exact source without transferring it.
+      x-extensible-enum:
+      - draft
+      - live
+      - superseded
+      description: 'Status of one template language on channels without third-party review.
+
+
+        - `draft`: it has never been published.
+
+        - `live`: it is available to sends.
+
+        - `superseded`: a later version replaced it.
+
+
+        Treat an unknown value as not sendable.
 
         '
-      example: sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
-    SMSTemplateLanguageList:
-      type: object
-      additionalProperties: false
-      required:
-      - data
-      properties:
-        data:
-          type: array
-          description: The version's languages ordered by canonical tag, without text.
-          items:
-            $ref: '#/components/schemas/SMSTemplateLanguageSummary'
-    SortOrder:
-      type: string
-      enum:
-      - asc
-      - desc
-      description: Sort direction, ascending or descending.
-    SMSTemplateList:
+      example: live
+    SMSTemplateVersionList:
       allOf:
       - type: object
         required:
@@ -1370,116 +1430,10 @@ components:
         properties:
           data:
             type: array
-            description: One page of SMS templates.
+            description: One page of the template's versions, newest first.
             items:
-              $ref: '#/components/schemas/SMSTemplateSummary'
+              $ref: '#/components/schemas/SMSTemplateVersionSummary'
       - $ref: '#/components/schemas/_ListEnvelope'
-    SMSTemplateVersionStatus:
-      type: string
-      minLength: 1
-      readOnly: true
-      enum:
-      - draft
-      - published
-      description: 'Whether the version is the editable draft or published. Published workspace versions are immutable and remain `published` after a later version goes live. A built-in template''s synthetic published version projects the current catalogue entry.
-
-        '
-      example: published
-    TemplateSlug:
-      type: string
-      minLength: 1
-      maxLength: 63
-      pattern: ^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$
-      description: 'A template''s slug: what you send it by, for example `welcome-email`. Email and SMS slugs stay fixed after creation. WhatsApp slugs can change only before the first submission. A slug can contain lowercase letters, numbers, hyphens, and underscores, has to start and end with a letter or a number, and can be up to 63 characters long.
-
-        '
-      example: welcome-email
-    SMSTemplateLanguage:
-      type: object
-      additionalProperties: false
-      description: One language's full SMS template text and revision metadata.
-      required:
-      - language
-      - text
-      - revision
-      - content_hash
-      - updated_at
-      properties:
-        language:
-          $ref: '#/components/schemas/LanguageTag'
-          readOnly: true
-          description: The language in canonical BCP-47 form.
-        text:
-          $ref: '#/components/schemas/SMSTemplateText'
-          readOnly: true
-          description: Stored template text, including its `{{ variable }}` placeholders.
-        revision:
-          type: integer
-          minimum: 0
-          readOnly: true
-          description: This language's revision counter, used for concurrent-edit checks on draft writes.
-        content_hash:
-          readOnly: true
-          $ref: '#/components/schemas/SMSTemplateContentHash'
-        updated_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          readOnly: true
-          description: When this language was last saved. Null for a built-in template.
-      example:
-        language: en
-        text: Your order {{ order_number }} is on its way.
-        revision: 1
-        content_hash: sha256:3d948846f5f773fb7bed8ab81b57f3d0ff2cbff24cb549718f4d389f1ab0300a
-        updated_at: '2026-09-10T09:00:00Z'
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   headers:
     RetryAfter:
       description: 'Number of seconds to wait before retrying the request.
@@ -1503,21 +1457,53 @@ components:
       schema:
         type: string
       example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   parameters:
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
     PaginationLimit:
       name: limit
       in: query
@@ -1538,6 +1524,20 @@ components:
       schema:
         $ref: '#/components/schemas/SortOrder'
         default: desc
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
   securitySchemes:
     BearerAuth:
       type: http

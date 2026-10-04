@@ -1072,30 +1072,104 @@ paths:
       - sdk
 components:
   schemas:
-    EmailThreadHighlights:
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    EmailThreadMessageSource:
       type: object
       additionalProperties: false
-      readOnly: true
-      description: 'Matched search fragments for a thread, one array per field the query matched, with the matched terms wrapped in `**`. A field is present only when the query matched it, so the keys that are present tell you which fields produced the hit. Returned only on thread search results.
+      description: 'Link to the message''s entry in the received-message or sent-message log, which has delivery analytics such as per-recipient events. Log entries expire 30 days after the message occurred.
+
+        '
+      required:
+      - resource
+      - available_until
+      properties:
+        resource:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: API path of the log entry for this message.
+          example: /v1/email/inbound-messages/rem_01krdgeqcxet5s7t44vh8rt9mg
+        available_until:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the log entry (and the message's body and raw MIME) expires.
+    EmailLabelsUpdate:
+      type: object
+      additionalProperties: false
+      description: 'Label changes to apply. Labels in `add` are applied and labels in `remove` are taken off; other labels are left untouched. Adding a label that is already present, or removing one that is not, has no effect. System labels express state changes. On a conversation, adding `spam` files it as spam. Adding `archive` files it away without deleting it. Adding `inbox`, or removing `spam`, `blocked`, or `archive`, returns it to the inbox. Removing `unread` marks all retained received messages as read in one call. On a message, adding or removing `unread` flips read state. Adding or removing `trash` moves it to or out of the trash. The API rejects changes that contradict this model. A request cannot add more than one placement label. It cannot add `blocked`, because blocking a sender is a receive-rule decision. Removing `inbox` requires adding a destination. A conversation cannot add `trash` or `unread`; removing `unread` is the mark-all-read shortcut, and `trash` uses the `DELETE` verb. A message cannot use placement labels; move its conversation instead. A sent message cannot use `unread`. Custom labels are 1-64 characters with no commas, control characters, or leading or trailing whitespace. System label names and a small reserved set (`all`, `archived`, `deleted`, `draft`, `drafts`, `flagged`, `important`, `junk`, `muted`, `none`, `outbox`, `pinned`, `read`, `scheduled`, `snoozed`, `starred`) cannot be used as custom labels, in any casing. A conversation or message has at most 20 labels, system labels included.
 
         '
       properties:
-        subject:
+        add:
           type: array
           items:
             type: string
             minLength: 1
-          description: Matched fragments from the conversation's subject.
+            maxLength: 64
+            pattern: ^[^,\s](?:[^,]*[^,\s])?$
+          maxItems: 20
+          description: Labels to apply.
           example:
-          - 'Re: your **order** **4821**'
-        text:
+          - urgent
+        remove:
           type: array
           items:
             type: string
             minLength: 1
-          description: Matched fragments from a message's body text.
+            maxLength: 64
+            pattern: ^[^,\s](?:[^,]*[^,\s])?$
+          maxItems: 20
+          description: Labels to take off.
           example:
-          - confirming your **order** **4821** shipped
+          - pending
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    ContactID:
+      type: string
+      minLength: 1
+      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
+      example: con_01krdgeqcxet5s7t44vh8rt9mg
     ErrorBody:
       type: object
       additionalProperties: false
@@ -1176,156 +1250,52 @@ components:
             '
           items:
             $ref: '#/components/schemas/NextAction'
-    EmailLabelsUpdate:
+    EmailThreadMessageReplyRequest:
       type: object
       additionalProperties: false
-      description: 'Label changes to apply. Labels in `add` are applied and labels in `remove` are taken off; other labels are left untouched. Adding a label that is already present, or removing one that is not, has no effect. System labels express state changes. On a conversation, adding `spam` files it as spam. Adding `archive` files it away without deleting it. Adding `inbox`, or removing `spam`, `blocked`, or `archive`, returns it to the inbox. Removing `unread` marks all retained received messages as read in one call. On a message, adding or removing `unread` flips read state. Adding or removing `trash` moves it to or out of the trash. The API rejects changes that contradict this model. A request cannot add more than one placement label. It cannot add `blocked`, because blocking a sender is a receive-rule decision. Removing `inbox` requires adding a destination. A conversation cannot add `trash` or `unread`; removing `unread` is the mark-all-read shortcut, and `trash` uses the `DELETE` verb. A message cannot use placement labels; move its conversation instead. A sent message cannot use `unread`. Custom labels are 1-64 characters with no commas, control characters, or leading or trailing whitespace. System label names and a small reserved set (`all`, `archived`, `deleted`, `draft`, `drafts`, `flagged`, `important`, `junk`, `muted`, `none`, `outbox`, `pinned`, `read`, `scheduled`, `snoozed`, `starred`) cannot be used as custom labels, in any casing. A conversation or message has at most 20 labels, system labels included.
+      description: 'A reply to a conversation message. Recipients are derived from the message being replied to: its Reply-To address when present, otherwise its From address. Set `reply_all` to also include the original To and Cc recipients (minus the mailbox''s own address). The subject and threading headers are set automatically. At least one of `html` or `text` must be provided.
 
         '
       properties:
-        add:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 64
-            pattern: ^[^,\s](?:[^,]*[^,\s])?$
-          maxItems: 20
-          description: Labels to apply.
-          example:
-          - urgent
-        remove:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 64
-            pattern: ^[^,\s](?:[^,]*[^,\s])?$
-          maxItems: 20
-          description: Labels to take off.
-          example:
-          - pending
-    EmailThread:
-      type: object
-      additionalProperties: false
-      description: 'A conversation in a mailbox. It groups every message in both directions, the mail the mailbox received and the replies it sent, and it holds the conversation''s read state, labels, and participant list. A message is retained until it is trashed or ages past the mailbox''s retention tier. Only retained messages count toward the totals below.
-
-        '
-      required:
-      - id
-      - mailbox_id
-      - channel
-      - contact_id
-      - subject
-      - participants
-      - message_count
-      - unread_count
-      - last_message_at
-      - last_direction
-      - labels
-      - created_at
-      - updated_at
-      properties:
-        id:
-          readOnly: true
-          $ref: '#/components/schemas/ThreadID'
-          description: Thread ID.
-        mailbox_id:
-          readOnly: true
-          $ref: '#/components/schemas/MailboxID'
-          description: Mailbox this conversation belongs to.
-        channel:
+        html:
           type: string
-          readOnly: true
-          minLength: 1
-          description: Channel this conversation lives on. Always `email`.
-          example: email
-        contact_id:
-          oneOf:
-          - $ref: '#/components/schemas/ContactID'
-          - type: 'null'
-          description: Contact linked to this conversation, or null when none is linked.
-        subject:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: Subject of the conversation, taken from its first message. Null when that message had no subject.
-          example: 'Re: Your order'
-        participants:
-          type: array
-          readOnly: true
-          items:
-            type: string
-            format: email
-          description: Addresses that appear on the retained messages in this conversation, including the mailbox's own address.
-        message_count:
-          type: integer
-          readOnly: true
-          minimum: 0
-          description: Number of retained messages in this conversation, both directions.
-        unread_count:
-          type: integer
-          readOnly: true
-          minimum: 0
-          description: Number of retained received messages that are still unread. Spam and blocked mail is not counted.
-        last_message_at:
+          maxLength: 524288
+          description: HTML body of the reply. At least one of html or text must be provided.
+        text:
           type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the most recent retained message in this conversation was received or sent.
-        last_direction:
-          type: string
-          enum:
-          - inbound
-          - outbound
-          minLength: 1
-          readOnly: true
-          description: 'Direction of the most recent message: `inbound` for a received message, `outbound` for a sent one.'
-        labels:
+          maxLength: 524288
+          description: Plain-text body of the reply. At least one of html or text must be provided.
+        reply_all:
+          type: boolean
+          default: false
+          description: Also send the reply to the original To and Cc recipients, minus the mailbox's own address.
+        tags:
           type: array
           items:
-            type: string
-            minLength: 1
-            maxLength: 64
+            $ref: '#/components/schemas/Tag'
           maxItems: 20
-          description: 'Labels on this conversation. Exactly one system placement label is always present, set by the message that started the conversation:
-
-
-            - `inbox`: The conversation is in the inbox.
-
-            - `archive`: The conversation was filed away and is done for now.
-
-            - `spam`: The conversation''s opening message is filed in Spam.
-
-            - `blocked`: The conversation''s opening message was rejected by the mailbox''s receive policy or rules.
-
-
-            Move a conversation by updating its labels. Add `spam` to file it as spam, add `archive` to clean it out of the inbox, and add `inbox`, or remove `spam`, `blocked`, or `archive`, to bring it back. An archived conversation returns to the inbox by itself when a new message arrives. Custom labels share the same list, and a conversation has at most 20 labels in total.
+          description: 'Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
 
             '
-          example:
-          - inbox
-          - urgent
-        created_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the thread was created.
-        updated_at:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the thread last changed.
-        highlights:
-          $ref: '#/components/schemas/EmailThreadHighlights'
-          readOnly: true
-          description: 'Matched search fragments, keyed by the field that matched. Returned only by thread search. Omitted when listing threads.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 'Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
 
             '
+        category:
+          $ref: '#/components/schemas/EmailMessageCategory'
+          default: transactional
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAttachment'
+          maxItems: 20
+          description: 'File attachments to include with the reply. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Keep total raw attachment content at or below 15 MB for reliable headroom. Attachment metadata stays on the message''s `attachment_manifest`, and the bytes are downloadable for the mailbox''s retention tier.
+
+            '
+      example:
+        text: Thanks, confirming we received your request.
     EmailThreadMessageList:
       allOf:
       - type: object
@@ -1337,12 +1307,28 @@ components:
             items:
               $ref: '#/components/schemas/EmailThreadMessage'
       - $ref: '#/components/schemas/_ListEnvelope'
-    MessageDirection:
-      type: string
-      enum:
-      - outbound
-      - inbound
-      description: Whether a message was sent from the workspace (`outbound`) or received by it (`inbound`).
+    EmailMailboxLabelList:
+      type: object
+      additionalProperties: false
+      description: The labels available in a mailbox.
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailMailboxLabel'
+    EmailThreadMessageAttachmentList:
+      type: object
+      additionalProperties: false
+      description: The attachments on a conversation message.
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailThreadMessageAttachment'
     EmailMailboxComposeRequest:
       type: object
       additionalProperties: false
@@ -1424,43 +1410,106 @@ components:
         - delivered@messagebird.dev
         subject: Your quote
         text: Hi, here is the quote you asked for.
-    EmailThreadMessageAttachment:
+    EmailMailboxLabel:
       type: object
       additionalProperties: false
-      description: 'Attachment metadata on a conversation message. Both the metadata and the attachment bytes stay available for the mailbox''s retention tier.
-
-        '
+      description: One label available in a mailbox.
       required:
-      - id
-      - filename
-      - content_type
-      - size
+      - name
+      - type
       properties:
-        id:
+        name:
           type: string
           readOnly: true
           minLength: 1
-          description: Attachment ID, used to download the attachment bytes.
-          example: rea_01krdgeqcxet5s7t44vh8rt9mg
-        filename:
-          type:
-          - string
-          - 'null'
+          maxLength: 64
+          description: The label name, as it appears on conversations and messages.
+          example: inbox
+        type:
+          type: string
           readOnly: true
-          description: Original filename, or null when the attachment had none.
-          example: invoice.pdf
-        content_type:
-          type:
-          - string
-          - 'null'
-          readOnly: true
-          description: MIME content type, or null when it could not be determined.
-          example: application/pdf
-        size:
-          type: integer
-          readOnly: true
-          minimum: 0
-          description: Attachment size in bytes.
+          minLength: 1
+          enum:
+          - system
+          - custom
+          description: '`system` labels are the built-in placements a message can be in:
+
+
+            - Inbox.
+
+            - Archive.
+
+            - Spam.
+
+            - Blocked.
+
+            - Sent.
+
+            - Trash.
+
+            - Unread.
+
+
+            `custom` labels are the workspace''s own tags.'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EmailMessageCategory:
+      type: string
+      minLength: 1
+      enum:
+      - marketing
+      - transactional
+      description: 'Content classification, which controls suppression policy:
+
+
+        - `marketing`: Blocks on all suppression reasons.
+
+        - `transactional`: Allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail.
+
+        '
+    ThreadID:
+      type: string
+      minLength: 1
+      pattern: ^thr_[0-9a-hjkmnp-tv-z]{26}$
+      example: thr_01krdgeqcxet5s7t44vh8rt9mg
     EmailThreadMessage:
       type: object
       additionalProperties: false
@@ -1714,33 +1763,6 @@ components:
           minLength: 1
           readOnly: true
           description: When the message was received or accepted for sending.
-    MailboxID:
-      type: string
-      minLength: 1
-      pattern: ^mbx_[0-9a-hjkmnp-tv-z]{26}$
-      example: mbx_01krdgeqcxet5s7t44vh8rt9mg
-    ContactID:
-      type: string
-      minLength: 1
-      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
-      example: con_01krdgeqcxet5s7t44vh8rt9mg
-    EmailThreadMessageUpdateRequest:
-      type: object
-      additionalProperties: false
-      description: Changes to apply to a conversation message. Omitted fields are left unchanged.
-      properties:
-        labels:
-          $ref: '#/components/schemas/EmailLabelsUpdate'
-        contact_id:
-          oneOf:
-          - $ref: '#/components/schemas/ContactID'
-          - type: 'null'
-          description: Contact to link this message to, or null to unlink the current contact.
-    ThreadID:
-      type: string
-      minLength: 1
-      pattern: ^thr_[0-9a-hjkmnp-tv-z]{26}$
-      example: thr_01krdgeqcxet5s7t44vh8rt9mg
     EmailThreadUpdateRequest:
       type: object
       additionalProperties: false
@@ -1753,84 +1775,6 @@ components:
           - $ref: '#/components/schemas/ContactID'
           - type: 'null'
           description: Contact to link this conversation to, or null to unlink the current contact.
-    EmailMessageCategory:
-      type: string
-      minLength: 1
-      enum:
-      - marketing
-      - transactional
-      description: 'Content classification, which controls suppression policy:
-
-
-        - `marketing`: Blocks on all suppression reasons.
-
-        - `transactional`: Allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail.
-
-        '
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    EmailThreadMessageSource:
-      type: object
-      additionalProperties: false
-      description: 'Link to the message''s entry in the received-message or sent-message log, which has delivery analytics such as per-recipient events. Log entries expire 30 days after the message occurred.
-
-        '
-      required:
-      - resource
-      - available_until
-      properties:
-        resource:
-          type: string
-          readOnly: true
-          minLength: 1
-          description: API path of the log entry for this message.
-          example: /v1/email/inbound-messages/rem_01krdgeqcxet5s7t44vh8rt9mg
-        available_until:
-          type: string
-          format: date-time
-          minLength: 1
-          readOnly: true
-          description: When the log entry (and the message's body and raw MIME) expires.
-    ErrorDetail:
-      type: object
-      additionalProperties: false
-      required:
-      - param
-      - message
-      properties:
-        param:
-          type: string
-          minLength: 1
-          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
-
-            '
-        message:
-          type: string
-          minLength: 1
-          description: What is wrong with this field.
     EmailAddressInput:
       description: 'A sender or recipient address. Accepts a plain email string (`jane@acme.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@acme.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request. Responses always return the object form.
 
@@ -1844,6 +1788,208 @@ components:
         description: Email address, optionally in RFC 5322 mailbox form with an embedded display name.
         example: Jane Doe <jane@acme.com>
       - $ref: '#/components/schemas/EmailAddress'
+    EmailThreadHighlights:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Matched search fragments for a thread, one array per field the query matched, with the matched terms wrapped in `**`. A field is present only when the query matched it, so the keys that are present tell you which fields produced the hit. Returned only on thread search results.
+
+        '
+      properties:
+        subject:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: Matched fragments from the conversation's subject.
+          example:
+          - 'Re: your **order** **4821**'
+        text:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: Matched fragments from a message's body text.
+          example:
+          - confirming your **order** **4821** shipped
+    EmailAddress:
+      type: object
+      additionalProperties: false
+      description: An email address with an optional display name.
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          description: Email address.
+          example: jane@acme.com
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^[^\r\n]+$
+          description: Display name shown alongside the address in mail clients.
+          example: Jane Doe
+    EmailThreadMessageUpdateRequest:
+      type: object
+      additionalProperties: false
+      description: Changes to apply to a conversation message. Omitted fields are left unchanged.
+      properties:
+        labels:
+          $ref: '#/components/schemas/EmailLabelsUpdate'
+        contact_id:
+          oneOf:
+          - $ref: '#/components/schemas/ContactID'
+          - type: 'null'
+          description: Contact to link this message to, or null to unlink the current contact.
+    MessageDirection:
+      type: string
+      enum:
+      - outbound
+      - inbound
+      description: Whether a message was sent from the workspace (`outbound`) or received by it (`inbound`).
+    EmailThreadList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/EmailThread'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EmailThread:
+      type: object
+      additionalProperties: false
+      description: 'A conversation in a mailbox. It groups every message in both directions, the mail the mailbox received and the replies it sent, and it holds the conversation''s read state, labels, and participant list. A message is retained until it is trashed or ages past the mailbox''s retention tier. Only retained messages count toward the totals below.
+
+        '
+      required:
+      - id
+      - mailbox_id
+      - channel
+      - contact_id
+      - subject
+      - participants
+      - message_count
+      - unread_count
+      - last_message_at
+      - last_direction
+      - labels
+      - created_at
+      - updated_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/ThreadID'
+          description: Thread ID.
+        mailbox_id:
+          readOnly: true
+          $ref: '#/components/schemas/MailboxID'
+          description: Mailbox this conversation belongs to.
+        channel:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: Channel this conversation lives on. Always `email`.
+          example: email
+        contact_id:
+          oneOf:
+          - $ref: '#/components/schemas/ContactID'
+          - type: 'null'
+          description: Contact linked to this conversation, or null when none is linked.
+        subject:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Subject of the conversation, taken from its first message. Null when that message had no subject.
+          example: 'Re: Your order'
+        participants:
+          type: array
+          readOnly: true
+          items:
+            type: string
+            format: email
+          description: Addresses that appear on the retained messages in this conversation, including the mailbox's own address.
+        message_count:
+          type: integer
+          readOnly: true
+          minimum: 0
+          description: Number of retained messages in this conversation, both directions.
+        unread_count:
+          type: integer
+          readOnly: true
+          minimum: 0
+          description: Number of retained received messages that are still unread. Spam and blocked mail is not counted.
+        last_message_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the most recent retained message in this conversation was received or sent.
+        last_direction:
+          type: string
+          enum:
+          - inbound
+          - outbound
+          minLength: 1
+          readOnly: true
+          description: 'Direction of the most recent message: `inbound` for a received message, `outbound` for a sent one.'
+        labels:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          maxItems: 20
+          description: 'Labels on this conversation. Exactly one system placement label is always present, set by the message that started the conversation:
+
+
+            - `inbox`: The conversation is in the inbox.
+
+            - `archive`: The conversation was filed away and is done for now.
+
+            - `spam`: The conversation''s opening message is filed in Spam.
+
+            - `blocked`: The conversation''s opening message was rejected by the mailbox''s receive policy or rules.
+
+
+            Move a conversation by updating its labels. Add `spam` to file it as spam, add `archive` to clean it out of the inbox, and add `inbox`, or remove `spam`, `blocked`, or `archive`, to bring it back. An archived conversation returns to the inbox by itself when a new message arrives. Custom labels share the same list, and a conversation has at most 20 labels in total.
+
+            '
+          example:
+          - inbox
+          - urgent
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the thread was created.
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the thread last changed.
+        highlights:
+          $ref: '#/components/schemas/EmailThreadHighlights'
+          readOnly: true
+          description: 'Matched search fragments, keyed by the field that matched. Returned only by thread search. Omitted when listing threads.
+
+            '
     Tag:
       type: object
       additionalProperties: false
@@ -1878,106 +2024,35 @@ components:
 
             '
           example: welcome
-    NextAction:
+    MailboxID:
+      type: string
+      minLength: 1
+      pattern: ^mbx_[0-9a-hjkmnp-tv-z]{26}$
+      example: mbx_01krdgeqcxet5s7t44vh8rt9mg
+    EmailThreadMessageRecipient:
       type: object
       additionalProperties: false
-      required:
-      - kind
-      - description
-      properties:
-        kind:
-          type: string
-          minLength: 1
-          x-extensible-enum:
-          - operation
-          - external
-          - wait
-          - terminal
-          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
-        description:
-          type: string
-          minLength: 1
-          description: A short, human-readable label for the step, suitable for display.
-        operation:
-          type: string
-          minLength: 1
-          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+      description: 'One recipient''s terminal delivery outcome on a sent conversation message, recorded once the outcome becomes known.
 
-            '
-        params:
-          type: object
-          additionalProperties:
-            type: string
-            minLength: 1
-          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
-
-            '
-        url:
-          type: string
-          format: uri
-          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
-
-            '
-    Error:
-      type: object
-      additionalProperties: false
+        '
       required:
-      - error
+      - address
+      - status
       properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-    EmailMailboxLabel:
-      type: object
-      additionalProperties: false
-      description: One label available in a mailbox.
-      required:
-      - name
-      - type
-      properties:
-        name:
+        address:
           type: string
+          format: email
           readOnly: true
           minLength: 1
-          maxLength: 64
-          description: The label name, as it appears on conversations and messages.
-          example: inbox
-        type:
+          description: Recipient address.
+        status:
           type: string
-          readOnly: true
-          minLength: 1
           enum:
-          - system
-          - custom
-          description: '`system` labels are the built-in placements a message can be in:
-
-
-            - Inbox.
-
-            - Archive.
-
-            - Spam.
-
-            - Blocked.
-
-            - Sent.
-
-            - Trash.
-
-            - Unread.
-
-
-            `custom` labels are the workspace''s own tags.'
-    EmailThreadMessageAttachmentList:
-      type: object
-      additionalProperties: false
-      description: The attachments on a conversation message.
-      required:
-      - data
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/EmailThreadMessageAttachment'
+          - delivered
+          - failed
+          minLength: 1
+          readOnly: true
+          description: 'Terminal outcome: `delivered`, or `failed` (bounce or provider rejection).'
     EmailThreadMessageBody:
       type: object
       additionalProperties: false
@@ -1998,6 +2073,43 @@ components:
           - string
           - 'null'
           description: The plain-text body of the message, or null when the message had no text part.
+    EmailThreadMessageAttachment:
+      type: object
+      additionalProperties: false
+      description: 'Attachment metadata on a conversation message. Both the metadata and the attachment bytes stay available for the mailbox''s retention tier.
+
+        '
+      required:
+      - id
+      - filename
+      - content_type
+      - size
+      properties:
+        id:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: Attachment ID, used to download the attachment bytes.
+          example: rea_01krdgeqcxet5s7t44vh8rt9mg
+        filename:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Original filename, or null when the attachment had none.
+          example: invoice.pdf
+        content_type:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: MIME content type, or null when it could not be determined.
+          example: application/pdf
+        size:
+          type: integer
+          readOnly: true
+          minimum: 0
+          description: Attachment size in bytes.
     EmailAttachment:
       type: object
       additionalProperties: false
@@ -2046,118 +2158,116 @@ components:
           pattern: ^[A-Za-z0-9._-]+$
           description: An RFC 2392 Content-ID for an inline file. Reference it from the HTML body with `<img src="cid:{content_id}"/>`. Omit it to send a downloadable attachment.
           example: invoice-logo
-    EmailThreadMessageRecipient:
-      type: object
-      additionalProperties: false
-      description: 'One recipient''s terminal delivery outcome on a sent conversation message, recorded once the outcome becomes known.
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
 
         '
-      required:
-      - address
-      - status
-      properties:
-        address:
-          type: string
-          format: email
-          readOnly: true
-          minLength: 1
-          description: Recipient address.
-        status:
-          type: string
-          enum:
-          - delivered
-          - failed
-          minLength: 1
-          readOnly: true
-          description: 'Terminal outcome: `delivered`, or `failed` (bounce or provider rejection).'
-    EmailMailboxLabelList:
-      type: object
-      additionalProperties: false
-      description: The labels available in a mailbox.
-      required:
-      - data
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/EmailMailboxLabel'
-    EmailThreadMessageReplyRequest:
-      type: object
-      additionalProperties: false
-      description: 'A reply to a conversation message. Recipients are derived from the message being replied to: its Reply-To address when present, otherwise its From address. Set `reply_all` to also include the original To and Cc recipients (minus the mailbox''s own address). The subject and threading headers are set automatically. At least one of `html` or `text` must be provided.
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
 
         '
-      properties:
-        html:
-          type: string
-          maxLength: 524288
-          description: HTML body of the reply. At least one of html or text must be provided.
-        text:
-          type: string
-          maxLength: 524288
-          description: Plain-text body of the reply. At least one of html or text must be provided.
-        reply_all:
-          type: boolean
-          default: false
-          description: Also send the reply to the original To and Cc recipients, minus the mailbox's own address.
-        tags:
-          type: array
-          items:
-            $ref: '#/components/schemas/Tag'
-          maxItems: 20
-          description: 'Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
 
-            '
-        metadata:
-          type: object
-          additionalProperties: true
-          description: 'Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
 
-            '
-        category:
-          $ref: '#/components/schemas/EmailMessageCategory'
-          default: transactional
-        attachments:
-          type: array
-          items:
-            $ref: '#/components/schemas/EmailAttachment'
-          maxItems: 20
-          description: 'File attachments to include with the reply. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Keep total raw attachment content at or below 15 MB for reliable headroom. Attachment metadata stays on the message''s `attachment_manifest`, and the bytes are downloadable for the mailbox''s retention tier.
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: The resource existed but is no longer available.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
 
-            '
-      example:
-        text: Thanks, confirming we received your request.
-    EmailThreadList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            items:
-              $ref: '#/components/schemas/EmailThread'
-      - $ref: '#/components/schemas/_ListEnvelope'
-    EmailAddress:
-      type: object
-      additionalProperties: false
-      description: An email address with an optional display name.
-      required:
-      - email
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 5
-          description: Email address.
-          example: jane@acme.com
-        name:
-          type: string
-          minLength: 1
-          maxLength: 256
-          pattern: ^[^\r\n]+$
-          description: Display name shown alongside the address in mail clients.
-          example: Jane Doe
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   parameters:
     PaginationLimit:
       name: limit
@@ -2191,116 +2301,6 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
-  responses:
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    PaymentRequired:
-      description: Insufficient balance
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    RateLimited:
-      description: Rate limit exceeded
-      headers:
-        RateLimit:
-          $ref: '#/components/headers/RateLimit'
-        RateLimit-Policy:
-          $ref: '#/components/headers/RateLimit-Policy'
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Gone:
-      description: The resource existed but is no longer available.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Resource conflict
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-  headers:
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
   securitySchemes:
     BearerAuth:
       type: http

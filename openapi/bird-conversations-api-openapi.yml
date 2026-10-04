@@ -217,6 +217,58 @@ paths:
       description: Production Server
 components:
   schemas:
+    CreateMessage:
+      type: object
+      required:
+      - receiver
+      properties:
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        template:
+          type: object
+          description: Template reference and variables (required when body is absent).
+        tags:
+          type: array
+          items:
+            type: string
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        direction:
+          type: string
+          enum:
+          - incoming
+          - outgoing
+        sender:
+          type: object
+        receiver:
+          $ref: '#/components/schemas/Receiver'
+        body:
+          $ref: '#/components/schemas/MessageBody'
+        createdAt:
+          type: string
+          format: date-time
+    MessageBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+          - image
+          - file
+          - html
+        text:
+          type: object
+          properties:
+            text:
+              type: string
     Conversation:
       type: object
       properties:
@@ -250,58 +302,77 @@ components:
                 type: string
               identifierKey:
                 type: string
-    MessageBody:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-          - text
-          - image
-          - file
-          - html
-        text:
-          type: object
-          properties:
-            text:
-              type: string
-    Message:
+    Contact:
       type: object
       properties:
         id:
           type: string
-        status:
+          description: The unique identifier of the contact.
+        href:
           type: string
-        direction:
+          format: uri
+          description: The URL of the contact resource.
+        msisdn:
           type: string
-          enum:
-          - incoming
-          - outgoing
-        sender:
+          description: The phone number of the contact.
+        displayName:
+          type: string
+          description: The display name of the contact.
+        firstName:
+          type: string
+          description: The first name of the contact.
+        lastName:
+          type: string
+          description: The last name of the contact.
+        customDetails:
           type: object
-        receiver:
-          $ref: '#/components/schemas/Receiver'
-        body:
-          $ref: '#/components/schemas/MessageBody'
-        createdAt:
+          description: Custom details associated with the contact.
+        createdDatetime:
           type: string
           format: date-time
-    CreateMessage:
+          description: The date and time when the contact was created.
+        updatedDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the contact was last updated.
+    ConversationMessageList:
       type: object
-      required:
-      - receiver
       properties:
-        receiver:
-          $ref: '#/components/schemas/Receiver'
-        body:
-          $ref: '#/components/schemas/MessageBody'
-        template:
-          type: object
-          description: Template reference and variables (required when body is absent).
-        tags:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied to the result set.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of messages.
+        items:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/ConversationMessage'
+    ConversationList:
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied to the result set.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of conversations.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation_2'
     Conversation_2:
       type: object
       properties:
@@ -372,25 +443,6 @@ components:
           type: string
           format: uri
           description: The URL to receive delivery status callbacks.
-    ConversationMessageList:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied to the result set.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of messages.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConversationMessage'
     ConversationUpdate:
       type: object
       properties:
@@ -435,76 +487,6 @@ components:
           type: string
           format: date-time
           description: The date and time when the channel was last updated.
-    ConversationList:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied to the result set.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of conversations.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Conversation_2'
-    ConversationMessage:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the message.
-        conversationId:
-          type: string
-          description: The conversation this message belongs to.
-        channelId:
-          type: string
-          description: The channel through which the message was sent or received.
-        platform:
-          type: string
-          description: The platform of the channel.
-        to:
-          type: string
-          description: The recipient identifier.
-        from:
-          type: string
-          description: The sender identifier.
-        direction:
-          type: string
-          description: The direction of the message.
-          enum:
-          - sent
-          - received
-        status:
-          type: string
-          description: The delivery status of the message.
-          enum:
-          - accepted
-          - pending
-          - sent
-          - delivered
-          - read
-          - failed
-          - deleted
-        type:
-          type: string
-          description: The type of message content.
-        content:
-          $ref: '#/components/schemas/MessageContent'
-        createdDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the message was created.
-        updatedDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the message was last updated.
     MessageContent:
       type: object
       description: The content of the message. The structure depends on the message type.
@@ -593,39 +575,57 @@ components:
                   default:
                     type: string
                     description: The default value for the parameter.
-    Contact:
+    ConversationMessage:
       type: object
       properties:
         id:
           type: string
-          description: The unique identifier of the contact.
-        href:
+          description: The unique identifier of the message.
+        conversationId:
           type: string
-          format: uri
-          description: The URL of the contact resource.
-        msisdn:
+          description: The conversation this message belongs to.
+        channelId:
           type: string
-          description: The phone number of the contact.
-        displayName:
+          description: The channel through which the message was sent or received.
+        platform:
           type: string
-          description: The display name of the contact.
-        firstName:
+          description: The platform of the channel.
+        to:
           type: string
-          description: The first name of the contact.
-        lastName:
+          description: The recipient identifier.
+        from:
           type: string
-          description: The last name of the contact.
-        customDetails:
-          type: object
-          description: Custom details associated with the contact.
+          description: The sender identifier.
+        direction:
+          type: string
+          description: The direction of the message.
+          enum:
+          - sent
+          - received
+        status:
+          type: string
+          description: The delivery status of the message.
+          enum:
+          - accepted
+          - pending
+          - sent
+          - delivered
+          - read
+          - failed
+          - deleted
+        type:
+          type: string
+          description: The type of message content.
+        content:
+          $ref: '#/components/schemas/MessageContent'
         createdDatetime:
           type: string
           format: date-time
-          description: The date and time when the contact was created.
+          description: The date and time when the message was created.
         updatedDatetime:
           type: string
           format: date-time
-          description: The date and time when the contact was last updated.
+          description: The date and time when the message was last updated.
   parameters:
     ConversationId:
       name: conversationId
@@ -640,14 +640,6 @@ components:
       description: Bird workspace identifier.
       schema:
         type: string
-    limitParam:
-      name: limit
-      in: query
-      required: false
-      description: The maximum number of items to return.
-      schema:
-        type: integer
-        default: 20
     conversationIdParam:
       name: conversationId
       in: path
@@ -663,6 +655,14 @@ components:
       schema:
         type: integer
         default: 0
+    limitParam:
+      name: limit
+      in: query
+      required: false
+      description: The maximum number of items to return.
+      schema:
+        type: integer
+        default: 20
   securitySchemes:
     AccessKey:
       type: apiKey
