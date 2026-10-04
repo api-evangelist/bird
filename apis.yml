@@ -312,6 +312,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Balances
+  tags_raw:
   - Balance
   properties:
   - type: OpenAPI
@@ -456,6 +458,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Docs
+  tags_raw:
   - docs
   properties:
   - type: OpenAPI
@@ -504,6 +508,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Domains
+  tags_raw:
   - domains
   properties:
   - type: OpenAPI
@@ -1017,6 +1023,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Email messages
+  tags_raw:
   - email-messages
   properties:
   - type: OpenAPI
@@ -1164,6 +1172,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Email Suppressions
+  tags_raw:
   - email-suppressions
   properties:
   - type: OpenAPI
@@ -1214,6 +1224,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Email Templates
+  tags_raw:
   - email-templates
   properties:
   - type: OpenAPI
@@ -1312,6 +1324,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Group
+  tags_raw:
   - Groups
   properties:
   - type: OpenAPI
@@ -1461,6 +1475,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Lookup
+  tags_raw:
   - lookup
   properties:
   - type: OpenAPI
@@ -1511,6 +1527,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Preferences
+  tags_raw:
   - preferences
   properties:
   - type: OpenAPI
@@ -1657,6 +1675,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Real-Time Events
+  tags_raw:
   - realtime-events
   properties:
   - type: OpenAPI
@@ -1705,6 +1725,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Recording
+  tags_raw:
   - Recordings
   properties:
   - type: OpenAPI
@@ -1954,6 +1976,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - SMS Templates
+  tags_raw:
   - sms-templates
   properties:
   - type: OpenAPI
@@ -2292,6 +2316,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Webhook
+  tags_raw:
   - webhooks
   properties:
   - type: OpenAPI
@@ -2492,6 +2518,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - WhatsApp Numbers
+  tags_raw:
   - whatsapp-numbers
   properties:
   - type: OpenAPI
@@ -2589,6 +2617,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - WhatsApp Templates
+  tags_raw:
   - whatsapp-templates
   properties:
   - type: OpenAPI
@@ -2637,6 +2667,8 @@ apis:
   humanURL: https://docs.bird.com/api
   baseURL: https://api.bird.com
   tags:
+  - Workspace
+  tags_raw:
   - workspaces
   properties:
   - type: OpenAPI
