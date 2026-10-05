@@ -3,6 +3,7 @@ provider: Bird
 generated_by: planning/capability-mapping/scripts/classify_capabilities.py
 model: claude-opus-5
 frame:
+- Software & Technology
 - Telecommunications
 min_confidence: 0.7
 capability_model:
@@ -11,8 +12,49 @@ capability_model:
   attribution: Turbo EA Capabilities by Vincent Verdet — Turbo EA, https://github.com/vincentmakes/turbo-ea-capabilities,
     CC BY 4.0
   notice: NOTICE
-edge_count: 2
+edge_count: 9
 edges:
+- tag: Webhooks
+  spec_file: bird-webhooks-api-openapi.yml
+  capability_id: BC-4270.80
+  capability_id_l1: BC-4270
+  capability_name: Webhook & Event Subscription Management
+  confidence: 0.85
+  evidence: '"Create a webhook endpoint", "Rotate webhook signing secret", "Replay failed deliveries",
+    "List delivery attempts"'
+  reason: Operations cover the full lifecycle of outbound event subscriptions plus delivery reliability
+    and event schemas (EventSMSFailedData, WebhookEventType), matching the frame's explicit webhook/event-subscription
+    capability.
+- tag: email-competitive
+  spec_file: bird-email-competitive-api-openapi.yml
+  capability_id: BC-400.30
+  capability_id_l1: BC-400
+  capability_name: Market Intelligence Management
+  confidence: 0.85
+  evidence: '"Add a competitor brand to the watchlist", "Get the campaigns a watched brand sent", "Get
+    send volume over time for watched brands"'
+  reason: The surface tracks competitor brands, their campaigns and send volumes — competitive intelligence
+    feeding marketing decisions.
+- tag: Verify
+  spec_file: bird-verify-api-openapi.yml
+  capability_id: BC-620.20
+  capability_id_l1: BC-620
+  capability_name: Identity & Access Management
+  confidence: 0.8
+  evidence: '"provides a simple way to implement two-factor authentication and phone number verification
+    ... generates and validates one-time passwords"'
+  reason: The operations issue and validate one-time passwords for sign-up and login flows, which is authentication
+    within identity and access management.
+- tag: email-contacts
+  spec_file: bird-email-contacts-api-openapi.yml
+  capability_id: BC-420.10
+  capability_id_l1: BC-420
+  capability_name: Customer Data Management
+  confidence: 0.8
+  evidence: '"Create a contact", "Create or update contacts in bulk", "Create a contact property", schema
+    "ContactMatchedOn"'
+  reason: Contact records with custom properties, bulk upsert and identifier-based matching constitute
+    customer master data management for the messaging platform.
 - tag: FAQ
   spec_file: bird-faq-api-openapi.yml
   capability_id: BC-430.40
@@ -36,3 +78,34 @@ edges:
   reason: Full CRUD over contact records in an omnichannel CRM workspace realises maintenance of the customer/contact
     master record. Slight ambiguity over whether these contacts are marketing audiences versus customer
     master data.
+- tag: Docs
+  spec_file: bird-docs-api-openapi.yml
+  capability_id: BC-4270.30
+  capability_id_l1: BC-4270
+  capability_name: Developer Portal Management
+  confidence: 0.75
+  evidence: '''Get documentation search results'' and ''Get a documentation page'' with schemas DocsSearchResult,
+    DocsPage'
+  reason: Serves the vendor's own developer documentation programmatically — documentation and onboarding
+    content for external developers integrating with the platform, i.e. Developer Portal Management.
+- tag: email-broadcasts
+  spec_file: bird-email-broadcasts-api-openapi.yml
+  capability_id: BC-400.60
+  capability_id_l1: BC-400
+  capability_name: Digital Marketing Management
+  confidence: 0.75
+  evidence: '"Create a broadcast", "Get a broadcast''s audience counts", "List a broadcast''s clicked
+    links", schema "EmailBroadcastTemplate"'
+  reason: Bulk email campaign creation, recipient targeting and engagement event/click analytics is email
+    marketing execution and measurement; whether it serves demand generation specifically is not stated,
+    so the digital-marketing sub-capability is used.
+- tag: email-audiences
+  spec_file: bird-email-audiences-api-openapi.yml
+  capability_id: BC-420.20
+  capability_id_l1: BC-420
+  capability_name: Customer Segmentation Management
+  confidence: 0.7
+  evidence: '"Create an audience", "Assign contacts to an audience", schema "AudienceMember"'
+  reason: Audiences are named groupings of contacts used to target sends, i.e. customer segment definition
+    and membership management; the alternative reading (pure customer data management) keeps confidence
+    moderate.
