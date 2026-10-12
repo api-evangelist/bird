@@ -1,0 +1,205 @@
+generated: '2026-10-12'
+method: searched
+source:
+- https://zapier.com/apps/bird/integrations
+- https://n8n.io/integrations/bird/
+checked:
+- https://composio.dev/toolkits/bird
+- https://monid.ai/tools/bird
+- https://n8n.io/integrations/bird/
+- https://zapier.com/apps/bird/integrations
+summary: null
+marketplace_apps:
+- marketplace: zapier
+  channel: ipaas-listing
+  app: bird
+  url: https://zapier.com/apps/bird/integrations
+  external_url: https://bird.com/
+  partner_tier: BETA
+  triggers:
+  - key: new_event
+    label: New Event
+  actions:
+  - key: check_verification
+    label: Check Verification Code
+  - key: send_email
+    label: Send Email
+  - key: send_sms
+    label: Send SMS
+  - key: send_whatsapp
+    label: Send WhatsApp Message
+  - key: start_verification
+    label: Start Verification
+  searches:
+  - key: find_call
+    label: Find Call
+  - key: find_calls
+    label: Find Calls
+  - key: find_domain
+    label: Find Sending Domain
+  - key: find_domains
+    label: Find Sending Domains
+  - key: find_domain_events
+    label: Find Sending Domain Events
+  - key: find_email_attachment
+    label: Find Email Attachment
+  - key: find_email_content
+    label: Find Email Content
+  - key: find_email_events
+    label: Find Email Events
+  - key: find_email_message
+    label: Find Email Message
+  - key: find_email_messages
+    label: Find Email Messages
+  - key: find_email_recipients
+    label: Find Email Recipients
+  - key: find_email_stats
+    label: Find Email Statistics
+  - key: find_inbound_address
+    label: Find Inbound Address
+  - key: find_inbound_addresses
+    label: Find Inbound Addresses
+  - key: find_inbound_email
+    label: Find Inbound Email
+  - key: find_inbound_emails
+    label: Find Inbound Emails
+  - key: find_inbound_email_attachment
+    label: Find Inbound Email Attachment Content
+  - key: find_inbound_email_attachments
+    label: Find Inbound Email Attachments
+  - key: find_inbound_email_body
+    label: Find Inbound Email Body
+  - key: find_inbound_email_raw
+    label: Find Inbound Email Raw Content
+  - key: find_inbound_route
+    label: Find Email Inbound Route
+  - key: find_inbound_routes
+    label: Find Email Inbound Routes
+  - key: find_sms_events
+    label: Find SMS Events
+  - key: find_sms_keyword_rule
+    label: Find SMS Keyword Rule
+  - key: find_sms_keyword_rules
+    label: Find SMS Keyword Rules
+  - key: find_sms_message
+    label: Find SMS Message
+  - key: find_sms_messages
+    label: Find SMS Messages
+  - key: find_sms_stats
+    label: Find SMS Statistics
+  - key: find_sms_suppression
+    label: Find SMS Suppression
+  - key: find_sms_suppressions
+    label: Find SMS Suppressions
+  - key: find_sms_template
+    label: Find SMS Template
+  - key: find_sms_templates
+    label: Find SMS Templates
+  - key: find_smtp_config
+    label: Find Email SMTP Config
+  - key: find_smtp_configs
+    label: Find Email SMTP Configs
+  - key: find_suppression
+    label: Find Email Suppression
+  - key: find_suppressions
+    label: Find Email Suppressions
+  - key: find_webhook
+    label: Find Webhook
+  - key: find_webhooks
+    label: Find Webhooks
+  - key: find_webhook_attempts
+    label: Find Webhook Delivery Attempts
+  - key: find_whatsapp_events
+    label: Find WhatsApp Events
+  - key: find_whatsapp_media
+    label: Find WhatsApp Media
+  - key: find_whatsapp_message
+    label: Find WhatsApp Message
+  - key: find_whatsapp_messages
+    label: Find WhatsApp Messages
+- marketplace: n8n
+  channel: open-source-node
+  app: bird
+  url: https://n8n.io/integrations/bird/
+  identity: title
+  pair_pages: 0
+  pairs: []
+edges:
+- partner_name: Shopify
+  partner: shopify
+  partner_match: domain
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/shopify
+  direction: third-party
+  category: eCommerce
+  partner_url: https://www.shopify.com/
+- partner_name: Facebook Lead Ads
+  partner: facebook-lead-ads
+  partner_match: name-exact
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/facebook-lead-ads
+  direction: third-party
+  category: Ads & Conversion
+  partner_url: https://www.facebook.com/business/ads/lead-ads
+- partner_name: Microsoft Outlook
+  partner: microsoft-outlook
+  partner_match: name-exact
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/microsoft-outlook
+  direction: third-party
+  category: Calendar
+  partner_url: https://outlook.live.com/
+- partner_name: Airtable
+  partner: airtable
+  partner_match: domain
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/airtable
+  direction: third-party
+  category: Databases
+  partner_url: https://airtable.com/
+- partner_name: ActiveCampaign
+  partner: activecampaign
+  partner_match: domain
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/activecampaign
+  direction: third-party
+  category: Marketing Automation
+  partner_url: https://www.activecampaign.com/?utm_source=unpaid_syndication_website&utm_medium=referral&utm_campaign=zapier_listing
+- partner_name: ServiceTitan
+  partner: servicetitan
+  partner_match: domain
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/servicetitan
+  direction: third-party
+  category: CRM (Customer Relationship Management)
+  partner_url: https://www.servicetitan.com/
+- partner_name: Wheels Car Rental System
+  partner: null
+  partner_match: null
+  partner_candidate: null
+  type: marketplace
+  marketplace: zapier
+  channel: ipaas-usage
+  evidence: https://zapier.com/apps/bird/integrations/wheels-car-rental-system-ca22173
+  direction: third-party
+  category: Sales & CRM
+  partner_url: https://wheelsys.com/
+templates: []
