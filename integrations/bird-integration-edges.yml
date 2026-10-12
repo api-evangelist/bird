@@ -202,4 +202,84 @@ edges:
   direction: third-party
   category: Sales & CRM
   partner_url: https://wheelsys.com/
+- partner_name: LINE
+  partner: line
+  partner_match: domain
+  type: contract
+  channel: contract-enum
+  relationship: messaging-channel
+  direction: provider-built
+  evidence: https://github.com/api-evangelist/bird/blob/main/openapi/bird-conversations-api-openapi.yml
+  contract_reference:
+    repo: bird
+    spec_file: bird-conversations-api-openapi.yml
+    value: line
+    property: schemas.Channel.platformId
+    matched_domain: line.me
+    detected_by: sweep-cpaas.py
+    detected: '2026-10-12'
+- partner_name: Messenger
+  partner: facebook
+  partner_match: domain
+  type: contract
+  channel: contract-enum
+  relationship: messaging-channel
+  direction: provider-built
+  evidence: https://github.com/api-evangelist/bird/blob/main/openapi/bird-conversations-api-openapi.yml
+  contract_reference:
+    repo: bird
+    spec_file: bird-conversations-api-openapi.yml
+    value: facebook
+    property: schemas.Channel.platformId
+    matched_domain: facebook.com
+    detected_by: sweep-cpaas.py
+    detected: '2026-10-12'
+- partner_name: Telegram
+  partner: telegram
+  partner_match: domain
+  type: contract
+  channel: contract-enum
+  relationship: messaging-channel
+  direction: provider-built
+  evidence: https://github.com/api-evangelist/bird/blob/main/openapi/bird-conversations-api-openapi.yml
+  contract_reference:
+    repo: bird
+    spec_file: bird-conversations-api-openapi.yml
+    value: telegram
+    property: schemas.Channel.platformId
+    matched_domain: telegram.org
+    detected_by: sweep-cpaas.py
+    detected: '2026-10-12'
+- partner_name: WeChat
+  partner: wechat
+  partner_match: domain
+  type: contract
+  channel: contract-enum
+  relationship: messaging-channel
+  direction: provider-built
+  evidence: https://github.com/api-evangelist/bird/blob/main/openapi/bird-conversations-api-openapi.yml
+  contract_reference:
+    repo: bird
+    spec_file: bird-conversations-api-openapi.yml
+    value: wechat
+    property: schemas.Channel.platformId
+    matched_domain: wechat.com
+    detected_by: sweep-cpaas.py
+    detected: '2026-10-12'
+- partner_name: WhatsApp
+  partner: whatsapp
+  partner_match: domain
+  type: contract
+  channel: contract-enum
+  relationship: messaging-channel
+  direction: provider-built
+  evidence: https://github.com/api-evangelist/bird/blob/main/openapi/bird-conversations-api-openapi.yml
+  contract_reference:
+    repo: bird
+    spec_file: bird-conversations-api-openapi.yml
+    value: whatsapp
+    property: schemas.Channel.platformId
+    matched_domain: whatsapp.com
+    detected_by: sweep-cpaas.py
+    detected: '2026-10-12'
 templates: []
