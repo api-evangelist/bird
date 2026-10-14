@@ -103,7 +103,7 @@
     matched_domain: line.me
     detected_by: sweep-cpaas.py
     detected: '2026-10-12'
-  status: pending-generation
+  status: not-a-workflow
   arazzo: null
 - slug: bird-messenger
   label: Messenger
@@ -122,7 +122,7 @@
     matched_domain: facebook.com
     detected_by: sweep-cpaas.py
     detected: '2026-10-12'
-  status: pending-generation
+  status: not-a-workflow
   arazzo: null
 - slug: bird-telegram
   label: Telegram
@@ -141,7 +141,7 @@
     matched_domain: telegram.org
     detected_by: sweep-cpaas.py
     detected: '2026-10-12'
-  status: pending-generation
+  status: not-a-workflow
   arazzo: null
 - slug: bird-wechat
   label: WeChat
@@ -160,7 +160,7 @@
     matched_domain: wechat.com
     detected_by: sweep-cpaas.py
     detected: '2026-10-12'
-  status: pending-generation
+  status: not-a-workflow
   arazzo: null
 - slug: bird-whatsapp
   label: WhatsApp
@@ -179,5 +179,17 @@
     matched_domain: whatsapp.com
     detected_by: sweep-cpaas.py
     detected: '2026-10-12'
-  status: pending-generation
+  status: not-a-workflow
+  arazzo: null
+- slug: bird-hightouch
+  label: Hightouch
+  partner: hightouch
+  partner_name: Hightouch
+  type: coverage
+  marketplace: coverage
+  channel: partner-built
+  evidence: https://hightouch.com/docs/destinations/bird
+  source: edge
+  relationship: connector-coverage
+  status: not-a-workflow
   arazzo: null

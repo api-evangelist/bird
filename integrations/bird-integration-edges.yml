@@ -5,6 +5,7 @@ source:
 - https://n8n.io/integrations/bird/
 checked:
 - https://composio.dev/toolkits/bird
+- https://hightouch.com/docs/destinations/bird
 - https://monid.ai/tools/bird
 - https://n8n.io/integrations/bird/
 - https://zapier.com/apps/bird/integrations
@@ -282,4 +283,29 @@ edges:
     matched_domain: whatsapp.com
     detected_by: sweep-cpaas.py
     detected: '2026-10-12'
+- partner_name: Hightouch
+  partner: hightouch
+  partner_match: aggregator
+  marketplace: coverage
+  channel: partner-built
+  direction: partner-built
+  type: coverage
+  relationship: connector-coverage
+  evidence: https://hightouch.com/docs/destinations/bird
+  coverage_role:
+  - destination
+  cdp_signals:
+    destination:
+      catalog_entries:
+      - bird
+      status: released
+      sync_types:
+      - Contacts
+      - Segments
+      sync_modes:
+      - add
+      - update
+      - upsert
+  detected_by: sweep-cdp.py
+  first_seen: '2026-10-14'
 templates: []
