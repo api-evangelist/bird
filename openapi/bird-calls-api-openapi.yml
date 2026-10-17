@@ -94,6 +94,30 @@ paths:
         '404':
           description: Call not found
 components:
+  parameters:
+    perPageParam:
+      name: perPage
+      in: query
+      required: false
+      description: The number of items per page.
+      schema:
+        type: integer
+        default: 10
+    callIdParam:
+      name: callId
+      in: path
+      required: true
+      description: The unique identifier of the call.
+      schema:
+        type: string
+    pageParam:
+      name: page
+      in: query
+      required: false
+      description: The page number for pagination.
+      schema:
+        type: integer
+        default: 1
   schemas:
     Pagination:
       type: object
@@ -110,6 +134,67 @@ components:
         perPage:
           type: integer
           description: The number of items per page.
+    VoiceWebhookCreate:
+      type: object
+      required:
+      - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The URL to receive webhook callbacks.
+        token:
+          type: string
+          description: A token for webhook signature validation.
+    CallResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
+    CallList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    CallCreate:
+      type: object
+      required:
+      - source
+      - destination
+      - callFlow
+      properties:
+        source:
+          type: string
+          description: The caller ID to display, must be a purchased MessageBird number.
+        destination:
+          type: string
+          description: The phone number or SIP URI to call.
+        callFlow:
+          $ref: '#/components/schemas/CallFlowCreate'
+        webhook:
+          $ref: '#/components/schemas/VoiceWebhookCreate'
+    CallFlowCreate:
+      type: object
+      required:
+      - steps
+      properties:
+        title:
+          type: string
+          description: A human-readable title for the call flow.
+        record:
+          type: boolean
+          description: Whether to record the entire call.
+        steps:
+          type: array
+          description: A sequence of steps that define the call flow behavior.
+          items:
+            $ref: '#/components/schemas/CallFlowStep'
     Call:
       type: object
       properties:
@@ -164,91 +249,6 @@ components:
         options:
           type: object
           description: Action-specific options for the step.
-    CallList:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Call'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
-    CallFlowCreate:
-      type: object
-      required:
-      - steps
-      properties:
-        title:
-          type: string
-          description: A human-readable title for the call flow.
-        record:
-          type: boolean
-          description: Whether to record the entire call.
-        steps:
-          type: array
-          description: A sequence of steps that define the call flow behavior.
-          items:
-            $ref: '#/components/schemas/CallFlowStep'
-    CallCreate:
-      type: object
-      required:
-      - source
-      - destination
-      - callFlow
-      properties:
-        source:
-          type: string
-          description: The caller ID to display, must be a purchased MessageBird number.
-        destination:
-          type: string
-          description: The phone number or SIP URI to call.
-        callFlow:
-          $ref: '#/components/schemas/CallFlowCreate'
-        webhook:
-          $ref: '#/components/schemas/VoiceWebhookCreate'
-    VoiceWebhookCreate:
-      type: object
-      required:
-      - url
-      properties:
-        url:
-          type: string
-          format: uri
-          description: The URL to receive webhook callbacks.
-        token:
-          type: string
-          description: A token for webhook signature validation.
-    CallResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Call'
-  parameters:
-    callIdParam:
-      name: callId
-      in: path
-      required: true
-      description: The unique identifier of the call.
-      schema:
-        type: string
-    perPageParam:
-      name: perPage
-      in: query
-      required: false
-      description: The number of items per page.
-      schema:
-        type: integer
-        default: 10
-    pageParam:
-      name: page
-      in: query
-      required: false
-      description: The page number for pagination.
-      schema:
-        type: integer
-        default: 1
   securitySchemes:
     accessKey:
       type: apiKey

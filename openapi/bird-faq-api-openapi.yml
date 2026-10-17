@@ -166,103 +166,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    ListDatasetsResponse:
-      type: object
-      description: A response containing the FAQ datasets that were queried.
-      properties:
-        datasets:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dataset'
-          description: The paginated collection of datasets.
-        limit:
-          type: integer
-          example: 20
-          description: The effective limit for the maximum number of datasets returned.
-        nextCursor:
-          type: string
-          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
-          description: The cursor to query the next paginated collection of results.
-    Answer:
-      type: object
-      description: An answer which corresponds to one or more example questions in the dataset.
-      properties:
-        text:
-          type: string
-          example: Messagebird was founded by Robert Vis in 2011.
-          description: The text containing the answer.
-        url:
-          type: string
-          example: https://messagebird.com/en/about
-          description: The URL with additional information for this answer.
-        title:
-          type: string
-          example: MessageBird Founder
-          description: The short title representing the answer.
-    LanguageList:
-      type: object
-      description: List of recognized languages.
-      properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Language'
-          description: The collection of languages.
-    PredictAnswerRequest:
-      type: object
-      description: A request for predicting an answer from a phrase and a dataset ID.
-      required:
-      - phrase
-      properties:
-        phrase:
-          type: string
-          example: Who founded MessageBird?
-          description: The phrase that might contain a question to be answered.
-    Language:
-      type: object
-      description: Language supported by the FAQ API.
-      properties:
-        iso6393Code:
-          type: string
-          example: nld
-          description: The ISO-639-3 code of the language.
-        name:
-          type: string
-          example: Dutch
-          description: The English name of the language.
-        languageCode:
-          type: string
-          example: NLD
-          description: The ISO639-3 language code enum value.
-    PredictAnswerResponse:
-      type: object
-      description: 'A response that contains the answer and its related metadata. If the FAQ API could not find a corresponding answer, the answer field will not be populated.
-
-        '
-      properties:
-        answer:
-          $ref: '#/components/schemas/Answer'
-          description: 'The answer that is predicted for the given phrase. Not populated if no matching answer was found.
-
-            '
-        answerPredicted:
-          type: boolean
-          example: false
-          description: 'Indicates if an answer was predicted. If false, the phrase could not be matched with an answer.
-
-            '
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
     Dataset:
       type: object
       description: A collection of answers with matching questions.
@@ -304,6 +207,103 @@ components:
           example: '2021-08-24T12:04:32Z'
           description: The timestamp of last model that completed training (ISO-8601).
           readOnly: true
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    Language:
+      type: object
+      description: Language supported by the FAQ API.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
+    ListDatasetsResponse:
+      type: object
+      description: A response containing the FAQ datasets that were queried.
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+          description: The paginated collection of datasets.
+        limit:
+          type: integer
+          example: 20
+          description: The effective limit for the maximum number of datasets returned.
+        nextCursor:
+          type: string
+          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
+          description: The cursor to query the next paginated collection of results.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    PredictAnswerResponse:
+      type: object
+      description: 'A response that contains the answer and its related metadata. If the FAQ API could not find a corresponding answer, the answer field will not be populated.
+
+        '
+      properties:
+        answer:
+          $ref: '#/components/schemas/Answer'
+          description: 'The answer that is predicted for the given phrase. Not populated if no matching answer was found.
+
+            '
+        answerPredicted:
+          type: boolean
+          example: false
+          description: 'Indicates if an answer was predicted. If false, the phrase could not be matched with an answer.
+
+            '
+    PredictAnswerRequest:
+      type: object
+      description: A request for predicting an answer from a phrase and a dataset ID.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: Who founded MessageBird?
+          description: The phrase that might contain a question to be answered.
+    Answer:
+      type: object
+      description: An answer which corresponds to one or more example questions in the dataset.
+      properties:
+        text:
+          type: string
+          example: Messagebird was founded by Robert Vis in 2011.
+          description: The text containing the answer.
+        url:
+          type: string
+          example: https://messagebird.com/en/about
+          description: The URL with additional information for this answer.
+        title:
+          type: string
+          example: MessageBird Founder
+          description: The short title representing the answer.
   securitySchemes:
     AccessKey:
       type: apiKey

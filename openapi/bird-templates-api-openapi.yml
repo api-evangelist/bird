@@ -97,25 +97,6 @@ paths:
           description: Template not found
 components:
   schemas:
-    TemplateList:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of templates.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Template'
     Template:
       type: object
       properties:
@@ -152,6 +133,25 @@ components:
           type: string
           format: date-time
           description: The date and time when the template was last updated.
+    TemplateList:
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of templates.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Template'
     TemplateComponent:
       type: object
       required:
@@ -236,14 +236,13 @@ components:
           items:
             $ref: '#/components/schemas/TemplateComponent'
   parameters:
-    offsetParam:
-      name: offset
-      in: query
-      required: false
-      description: The number of items to skip.
+    templateNameParam:
+      name: templateName
+      in: path
+      required: true
+      description: The name of the WhatsApp template.
       schema:
-        type: integer
-        default: 0
+        type: string
     limitParam:
       name: limit
       in: query
@@ -252,13 +251,14 @@ components:
       schema:
         type: integer
         default: 20
-    templateNameParam:
-      name: templateName
-      in: path
-      required: true
-      description: The name of the WhatsApp template.
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      description: The number of items to skip.
       schema:
-        type: string
+        type: integer
+        default: 0
   securitySchemes:
     accessKey:
       type: apiKey

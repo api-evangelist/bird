@@ -276,40 +276,11 @@ paths:
       - sdk
 components:
   schemas:
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    SuppressionScopeTypeFilter:
+    RecipientID:
       type: string
-      enum:
-      - workspace
-      - category
-      - audience
-      - topic
-      - contact
-      - domain
+      minLength: 1
+      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
+      example: er_01krdgeqcxet5s7t44vh8rt9mg
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -327,86 +298,14 @@ components:
           type: string
           minLength: 1
           description: What is wrong with this field.
-    ErrorBody:
+    Error:
       type: object
       additionalProperties: false
       required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
+      - error
       properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
-
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
-
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
+        error:
+          $ref: '#/components/schemas/ErrorBody'
     NextAction:
       type: object
       additionalProperties: false
@@ -447,43 +346,6 @@ components:
           description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
 
             '
-    RecipientID:
-      type: string
-      minLength: 1
-      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
-      example: er_01krdgeqcxet5s7t44vh8rt9mg
-    SuppressionID:
-      type: string
-      minLength: 1
-      pattern: ^sup_[0-9a-hjkmnp-tv-z]{26}$
-      example: sup_01krdgeqcxet5s7t44vh8rt9mg
-    SuppressionScopeType:
-      type: string
-      minLength: 1
-      enum:
-      - workspace
-      - category
-      - audience
-      - topic
-      - contact
-      - domain
-      description: 'How widely the email suppression applies. Responses use `workspace`. The values `category`, `audience`, `topic`, `contact`, and `domain` are reserved and have no records. The record''s `applies_to` field determines which message categories are blocked.
-
-        '
-    SuppressionCreate:
-      type: object
-      additionalProperties: false
-      required:
-      - email
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 5
-          description: 'The address to stop sending to. Normalized before storage and matching: lowercased and trimmed of surrounding whitespace.
-
-            '
-          example: user@example.com
     SuppressionScope:
       type: object
       additionalProperties: false
@@ -500,26 +362,50 @@ components:
 
             '
           example: ws_01krdgeqcxet5s7t44vh8rt9mg
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - error
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
     EmailID:
       type: string
       minLength: 1
       pattern: ^em_[0-9a-hjkmnp-tv-z]{26}$
       example: em_01krdgeqcxet5s7t44vh8rt9mg
-    SuppressionReasonFilter:
+    SuppressionList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of suppression records.
+            items:
+              $ref: '#/components/schemas/Suppression'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    SuppressionScopeType:
+      type: string
+      minLength: 1
+      enum:
+      - workspace
+      - category
+      - audience
+      - topic
+      - contact
+      - domain
+      description: 'How widely the email suppression applies. Responses use `workspace`. The values `category`, `audience`, `topic`, `contact`, and `domain` are reserved and have no records. The record''s `applies_to` field determines which message categories are blocked.
+
+        '
+    SuppressionScopeTypeFilter:
       type: string
       enum:
-      - hard_bounce
-      - complaint
-      - unsubscribe
-      - manual
+      - workspace
+      - category
+      - audience
+      - topic
+      - contact
+      - domain
+    SuppressionID:
+      type: string
+      minLength: 1
+      pattern: ^sup_[0-9a-hjkmnp-tv-z]{26}$
+      example: sup_01krdgeqcxet5s7t44vh8rt9mg
     Suppression:
       type: object
       additionalProperties: false
@@ -619,48 +505,147 @@ components:
           format: date-time
           readOnly: true
           description: When the address was suppressed.
-    SuppressionList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of suppression records.
-            items:
-              $ref: '#/components/schemas/Suppression'
-      - $ref: '#/components/schemas/_ListEnvelope'
-  headers:
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    SuppressionReasonFilter:
+      type: string
+      enum:
+      - hard_bounce
+      - complaint
+      - unsubscribe
+      - manual
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
 
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
 
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    SuppressionCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          description: 'The address to stop sending to. Normalized before storage and matching: lowercased and trimmed of surrounding whitespace.
 
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
+            '
+          example: user@example.com
   responses:
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Authentication required
       content:
@@ -680,16 +665,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unprocessable:
-      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
-
-        '
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -705,25 +682,26 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
     InternalError:
       description: Internal server error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Bad request
+    NotFound:
+      description: Resource not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
   parameters:
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
     PaginationLimit:
       name: limit
       in: query
@@ -742,13 +720,6 @@ components:
       schema:
         type: string
         maxLength: 255
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
     EndingBefore:
       name: ending_before
       in: query
@@ -756,6 +727,35 @@ components:
       description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
       schema:
         type: string
+  headers:
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
   securitySchemes:
     BearerAuth:
       type: http

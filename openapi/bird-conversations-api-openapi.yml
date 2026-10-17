@@ -233,6 +233,30 @@ components:
           type: array
           items:
             type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        channelId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
     Message:
       type: object
       properties:
@@ -269,18 +293,6 @@ components:
           properties:
             text:
               type: string
-    Conversation:
-      type: object
-      properties:
-        id:
-          type: string
-        status:
-          type: string
-        channelId:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
     CreateConversation:
       type: object
       properties:
@@ -290,70 +302,57 @@ components:
           type: array
           items:
             type: object
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
-    Contact:
+    ConversationMessage:
       type: object
       properties:
         id:
           type: string
-          description: The unique identifier of the contact.
-        href:
+          description: The unique identifier of the message.
+        conversationId:
           type: string
-          format: uri
-          description: The URL of the contact resource.
-        msisdn:
+          description: The conversation this message belongs to.
+        channelId:
           type: string
-          description: The phone number of the contact.
-        displayName:
+          description: The channel through which the message was sent or received.
+        platform:
           type: string
-          description: The display name of the contact.
-        firstName:
+          description: The platform of the channel.
+        to:
           type: string
-          description: The first name of the contact.
-        lastName:
+          description: The recipient identifier.
+        from:
           type: string
-          description: The last name of the contact.
-        customDetails:
-          type: object
-          description: Custom details associated with the contact.
+          description: The sender identifier.
+        direction:
+          type: string
+          description: The direction of the message.
+          enum:
+          - sent
+          - received
+        status:
+          type: string
+          description: The delivery status of the message.
+          enum:
+          - accepted
+          - pending
+          - sent
+          - delivered
+          - read
+          - failed
+          - deleted
+        type:
+          type: string
+          description: The type of message content.
+        content:
+          $ref: '#/components/schemas/MessageContent'
         createdDatetime:
           type: string
           format: date-time
-          description: The date and time when the contact was created.
+          description: The date and time when the message was created.
         updatedDatetime:
           type: string
           format: date-time
-          description: The date and time when the contact was last updated.
-    ConversationMessageList:
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: The offset of the result set.
-        limit:
-          type: integer
-          description: The limit applied to the result set.
-        count:
-          type: integer
-          description: The number of items returned.
-        totalCount:
-          type: integer
-          description: The total number of messages.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConversationMessage'
+          description: The date and time when the message was last updated.
     ConversationList:
       type: object
       properties:
@@ -412,6 +411,60 @@ components:
           description: The identifier of the last channel used in the conversation.
         messages:
           $ref: '#/components/schemas/ConversationMessageList'
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the channel.
+        name:
+          type: string
+          description: The name of the channel.
+        platformId:
+          type: string
+          description: The platform identifier for the channel.
+          enum:
+          - sms
+          - whatsapp
+          - facebook
+          - telegram
+          - line
+          - wechat
+          - email
+        status:
+          type: string
+          description: The status of the channel.
+          enum:
+          - active
+          - inactive
+          - pending
+        createdDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the channel was created.
+        updatedDatetime:
+          type: string
+          format: date-time
+          description: The date and time when the channel was last updated.
+    ConversationMessageList:
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: The offset of the result set.
+        limit:
+          type: integer
+          description: The limit applied to the result set.
+        count:
+          type: integer
+          description: The number of items returned.
+        totalCount:
+          type: integer
+          description: The total number of messages.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationMessage'
     ConversationStart:
       type: object
       required:
@@ -452,41 +505,6 @@ components:
           enum:
           - active
           - archived
-    Channel:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the channel.
-        name:
-          type: string
-          description: The name of the channel.
-        platformId:
-          type: string
-          description: The platform identifier for the channel.
-          enum:
-          - sms
-          - whatsapp
-          - facebook
-          - telegram
-          - line
-          - wechat
-          - email
-        status:
-          type: string
-          description: The status of the channel.
-          enum:
-          - active
-          - inactive
-          - pending
-        createdDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the channel was created.
-        updatedDatetime:
-          type: string
-          format: date-time
-          description: The date and time when the channel was last updated.
     MessageContent:
       type: object
       description: The content of the message. The structure depends on the message type.
@@ -575,57 +593,39 @@ components:
                   default:
                     type: string
                     description: The default value for the parameter.
-    ConversationMessage:
+    Contact:
       type: object
       properties:
         id:
           type: string
-          description: The unique identifier of the message.
-        conversationId:
+          description: The unique identifier of the contact.
+        href:
           type: string
-          description: The conversation this message belongs to.
-        channelId:
+          format: uri
+          description: The URL of the contact resource.
+        msisdn:
           type: string
-          description: The channel through which the message was sent or received.
-        platform:
+          description: The phone number of the contact.
+        displayName:
           type: string
-          description: The platform of the channel.
-        to:
+          description: The display name of the contact.
+        firstName:
           type: string
-          description: The recipient identifier.
-        from:
+          description: The first name of the contact.
+        lastName:
           type: string
-          description: The sender identifier.
-        direction:
-          type: string
-          description: The direction of the message.
-          enum:
-          - sent
-          - received
-        status:
-          type: string
-          description: The delivery status of the message.
-          enum:
-          - accepted
-          - pending
-          - sent
-          - delivered
-          - read
-          - failed
-          - deleted
-        type:
-          type: string
-          description: The type of message content.
-        content:
-          $ref: '#/components/schemas/MessageContent'
+          description: The last name of the contact.
+        customDetails:
+          type: object
+          description: Custom details associated with the contact.
         createdDatetime:
           type: string
           format: date-time
-          description: The date and time when the message was created.
+          description: The date and time when the contact was created.
         updatedDatetime:
           type: string
           format: date-time
-          description: The date and time when the message was last updated.
+          description: The date and time when the contact was last updated.
   parameters:
     ConversationId:
       name: conversationId
@@ -647,14 +647,6 @@ components:
       description: The unique identifier of the conversation.
       schema:
         type: string
-    offsetParam:
-      name: offset
-      in: query
-      required: false
-      description: The number of items to skip.
-      schema:
-        type: integer
-        default: 0
     limitParam:
       name: limit
       in: query
@@ -663,6 +655,14 @@ components:
       schema:
         type: integer
         default: 20
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      description: The number of items to skip.
+      schema:
+        type: integer
+        default: 0
   securitySchemes:
     AccessKey:
       type: apiKey

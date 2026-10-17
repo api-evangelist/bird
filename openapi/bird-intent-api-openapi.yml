@@ -169,84 +169,6 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    ListDatasetsResponse:
-      type: object
-      description: A response containing the Intent datasets that were queried.
-      properties:
-        datasets:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dataset'
-          description: The paginated collection of datasets.
-        limit:
-          type: integer
-          example: 20
-          description: The effective limit of the maximum number of datasets returned.
-        nextCursor:
-          type: string
-          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
-          description: The cursor to obtain the next paginated collection of datasets.
-    LanguageList:
-      type: object
-      description: List of recognized languages.
-      properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Language'
-          description: The collection of languages.
-    PredictIntentResponse:
-      type: object
-      description: A response for predicting an intent from a phrase and a dataset ID.
-      properties:
-        intent:
-          type: string
-          example: order
-          description: The intent that is predicted for the given phrase.
-        intentPredicted:
-          type: boolean
-          example: true
-          description: 'Boolean indicating an intent was predicted. If false the phrase could not be matched with an intent.
-
-            '
-    Language:
-      type: object
-      description: Language that was detected from the given phrase.
-      properties:
-        iso6393Code:
-          type: string
-          example: nld
-          description: The ISO-639-3 code of the language.
-        name:
-          type: string
-          example: Dutch
-          description: The English name of the language.
-        languageCode:
-          type: string
-          example: NLD
-          description: The ISO639-3 language code enum value.
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-    PredictIntentRequest:
-      type: object
-      description: A request for predicting an intent from a phrase and a dataset ID.
-      required:
-      - phrase
-      properties:
-        phrase:
-          type: string
-          example: I'd like to order something
-          description: The phrase that might contain an intent.
     Dataset:
       type: object
       description: 'A collection of phrases with the corresponding intents. There can be multiple matching phrases per intent.
@@ -300,6 +222,84 @@ components:
 
             '
           readOnly: true
+    LanguageList:
+      type: object
+      description: List of recognized languages.
+      properties:
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+          description: The collection of languages.
+    PredictIntentRequest:
+      type: object
+      description: A request for predicting an intent from a phrase and a dataset ID.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: I'd like to order something
+          description: The phrase that might contain an intent.
+    PredictIntentResponse:
+      type: object
+      description: A response for predicting an intent from a phrase and a dataset ID.
+      properties:
+        intent:
+          type: string
+          example: order
+          description: The intent that is predicted for the given phrase.
+        intentPredicted:
+          type: boolean
+          example: true
+          description: 'Boolean indicating an intent was predicted. If false the phrase could not be matched with an intent.
+
+            '
+    Language:
+      type: object
+      description: Language that was detected from the given phrase.
+      properties:
+        iso6393Code:
+          type: string
+          example: nld
+          description: The ISO-639-3 code of the language.
+        name:
+          type: string
+          example: Dutch
+          description: The English name of the language.
+        languageCode:
+          type: string
+          example: NLD
+          description: The ISO639-3 language code enum value.
+    ListDatasetsResponse:
+      type: object
+      description: A response containing the Intent datasets that were queried.
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+          description: The paginated collection of datasets.
+        limit:
+          type: integer
+          example: 20
+          description: The effective limit of the maximum number of datasets returned.
+        nextCursor:
+          type: string
+          example: VGhpcyBpcyBub3QgYSByZWFsIGN1cnNvcg==
+          description: The cursor to obtain the next paginated collection of datasets.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   securitySchemes:
     AccessKey:
       type: apiKey

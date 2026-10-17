@@ -80,12 +80,15 @@ components:
         perPage:
           type: integer
           description: The number of items per page.
-    TranscriptionCreate:
+    TranscriptionList:
       type: object
       properties:
-        language:
-          type: string
-          description: The language of the recording for transcription.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transcription'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     Transcription:
       type: object
       properties:
@@ -111,15 +114,6 @@ components:
           type: string
           format: date-time
           description: The date and time when the transcription was last updated.
-    TranscriptionList:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Transcription'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
     TranscriptionResponse:
       type: object
       properties:
@@ -127,6 +121,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transcription'
+    TranscriptionCreate:
+      type: object
+      properties:
+        language:
+          type: string
+          description: The language of the recording for transcription.
   parameters:
     recordingIdParam:
       name: recordingId
