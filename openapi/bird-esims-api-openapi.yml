@@ -1,0 +1,4912 @@
+openapi: 3.2.0
+info:
+  title: Bird Esims API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: esims
+  description: Prepaid travel eSIMs. Order, install, top up, and manage data connectivity for travelers.
+paths:
+  /v1/esim/orders:
+    post:
+      operationId: createEsimOrder
+      summary: Order a data package
+      description: 'Purchases a data package at the quoted price. Omit `esim_id` to create an eSIM, or provide it to add a compatible package to an existing eSIM. Use List compatible offers before ordering a top-up. After purchase, use Send install credentials to deliver installation details separately.
+
+
+        Inspect `status` even when the response is `201`: the order can be `completed` or `failed`. A `202` response means processing continues; use Get an order to follow the outcome. Failed orders receive an automatic credit for any charge; `refund_transaction_id` identifies the credit once issued.
+
+
+        An order awaiting funds stays in `charging`. For a one-time purchase, funding retries automatically; for an initial recurring purchase, retry the same create request with the same `Idempotency-Key` after adding funds. For one-time purchases, pass `offer_revision` and `expected_price` to reject changed terms with `409`. Recurring purchases accept their quote through `recurrence`. An incompatible top-up or shortened package validity returns `409`; use `acknowledge_shortened_validity` to accept the latter. After a `503` or a lost response, retry the same request with the same `Idempotency-Key`.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimOrderCreate'
+            example:
+              offer_id: eof_01krdgeqcxet5s7t44vh8rt9mg
+              display_name: Amsterdam trip, order 8812
+      responses:
+        '201':
+          description: The order finished within the request, either completed (esim_id and package_id are set) or failed (failure_code is set and the charge is credited back automatically; refund_transaction_id records the credit once it lands).
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimOrder'
+        '202':
+          description: The order was accepted and is completing asynchronously; poll it until completed or failed.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    get:
+      operationId: listEsimOrders
+      summary: List orders
+      description: Returns the workspace's orders as a cursor-paginated list, newest first. Filter by `status` to find in-flight or failed purchases, by `esim_id` for one eSIM's purchase history, or by `mode` to separate test purchases from real ones. Test orders are listed alongside real ones by default, each carrying its own `mode`.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/CreatedAfter'
+      - $ref: '#/components/parameters/CreatedBefore'
+      - name: status
+        in: query
+        required: false
+        description: Keep only orders whose `status` matches; repeat the parameter to match any of several.
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/EsimOrderStatus'
+      - name: esim_id
+        in: query
+        required: false
+        description: Keep only orders for this eSIM.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - name: mode
+        in: query
+        required: false
+        description: Keep only orders created in this mode. Without it, both live and test orders are returned.
+        schema:
+          $ref: '#/components/schemas/EsimMode'
+      - name: completed_after
+        in: query
+        required: false
+        description: Keep only orders completed at or after this timestamp. Combine it with `completed_before` to select a completion window, which is what the analytics spend and completion figures are counted by; `created_after` selects when an order was placed instead. Orders that never completed are excluded. Use an RFC 3339 timestamp with a timezone offset.
+        schema:
+          type: string
+          format: date-time
+          example: '2026-05-01T00:00:00Z'
+      - name: completed_before
+        in: query
+        required: false
+        description: Keep only orders completed before this timestamp. Combine it with `completed_after` to select a completion window. Orders that never completed are excluded. Use an RFC 3339 timestamp with a timezone offset.
+        schema:
+          type: string
+          format: date-time
+          example: '2026-06-01T00:00:00Z'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Paginated list of orders.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimOrderList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/orders/{order_id}:
+    get:
+      operationId: getEsimOrder
+      summary: Get an order
+      description: Returns one order. Poll until `status` is `completed` or `failed`; a completed order names the eSIM and package it produced.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        description: Order ID.
+        schema:
+          $ref: '#/components/schemas/EsimOrderID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/orders/{order_id}/cancel:
+    post:
+      operationId: cancelEsimOrder
+      summary: Cancel an unfunded order
+      description: 'Cancels an order waiting for funds in `charging`. A canceled unfunded order returns `status: failed` with `failure_code: canceled`. If a charge is confirmed after cancellation, it is credited back automatically.
+
+
+        For a one-time order, payment confirmed before cancellation returns `409`, and the purchase continues. For an initial recurring purchase, payment recovered during cancellation instead stops future renewal and returns the current order successfully. The paid package continues to delivery without an automatic refund. Inspect the returned order and its subscription to determine the outcome.
+
+
+        Orders already completed, failed, or past the funding stage cannot be canceled through this operation and return `409`.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: order_id
+        in: path
+        required: true
+        description: Order ID.
+        schema:
+          $ref: '#/components/schemas/EsimOrderID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: 'The order after cancellation. An unfunded order is failed with `failure_code: canceled`. For an initial recurring purchase whose payment was recovered, the paid order continues and future renewal is stopped.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/offers/{offer_id}/checkout:
+    parameters:
+    - name: offer_id
+      in: path
+      required: true
+      description: The offer.
+      schema:
+        $ref: '#/components/schemas/EsimOfferID'
+    get:
+      operationId: getEsimOfferCheckoutOptions
+      summary: Get eSIM checkout options
+      description: Returns published one-time terms and automatic renewal availability for a new eSIM, including tax-inclusive totals and current funding shortfalls. Automatic renewal includes its own price and cadence when an eligible mobile network is available. Availability and funding are checked again when purchasing; this read reserves no funds or package.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimCheckoutOptions'
+              example:
+                offer_id: eof_01krdgeqcxet5s7t44vh8rt9mg
+                one_time:
+                  offer_revision: 1
+                  price:
+                    amount: '1.00'
+                    currency_code: EUR
+                  funding:
+                    tax_amount:
+                      amount: '0.21'
+                      currency_code: EUR
+                    total:
+                      amount: '1.21'
+                      currency_code: EUR
+                    covered: true
+                    shortfall:
+                      amount: '0'
+                      currency_code: EUR
+                recurrence:
+                  available: true
+                  quote:
+                    delivery_mode: exact_period
+                    offer_revision: 1
+                    recurrence_revision: 2
+                    price:
+                      amount: '2.00'
+                      currency_code: EUR
+                    model: calendar_month
+                    interval_count: 1
+                    funding:
+                      tax_amount:
+                        amount: '0.42'
+                        currency_code: EUR
+                      total:
+                        amount: '2.42'
+                        currency_code: EUR
+                      covered: false
+                      shortfall:
+                        amount: '1.21'
+                        currency_code: EUR
+                  unavailable_reason: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/offers/{offer_id}/recurrence:
+    parameters:
+    - name: offer_id
+      in: path
+      required: true
+      description: The offer.
+      schema:
+        $ref: '#/components/schemas/EsimOfferID'
+    get:
+      operationId: getEsimOfferRecurrence
+      summary: Get recurring eSIM offer terms
+      description: Returns the published whole-package recurring price and calendar-month or fixed-day cadence. Enrollment additionally checks that the assigned eSIM mobile network supports these terms.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimRecurringOffer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/subscriptions:
+    post:
+      operationId: createEsimRecurringSubscription
+      summary: Create a recurring eSIM subscription
+      description: 'Starts a recurring package on an assigned eSIM and purchases the first period. Each accepted period is funded from your organization''s wallet. A changed price requires new acceptance; an unfunded renewal or confirmed delivery failure stops future renewal.
+
+
+        An `Idempotency-Key` is required. Reuse the same key and request to recover the enrollment, including after the original response is no longer retained. Reusing the key with different enrollment details returns `409`. Read the subscription and its period history to check payment and package delivery separately.'
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/RequiredIdempotencyKey'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimRecurringSubscription'
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimRecurringSubscriptionCreate'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    get:
+      operationId: listEsimRecurringSubscriptions
+      summary: List recurring eSIM subscriptions
+      description: Returns recurring services for assigned eSIMs in this workspace.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/EsimSubscriberFilter'
+      - name: esim_id
+        in: query
+        required: false
+        description: Filter by esim id.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimRecurringSubscriptionList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/subscriptions/{subscription_id}:
+    parameters:
+    - name: subscription_id
+      in: path
+      required: true
+      description: The recurring eSIM service.
+      schema:
+        $ref: '#/components/schemas/EsimRecurringSubscriptionID'
+    get:
+      operationId: getEsimRecurringSubscription
+      summary: Get a recurring eSIM subscription
+      description: Returns the current paid period separately from package delivery and cancellation state.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimRecurringSubscription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/subscriptions/{subscription_id}/periods:
+    parameters:
+    - name: subscription_id
+      in: path
+      required: true
+      description: The recurring eSIM service.
+      schema:
+        $ref: '#/components/schemas/EsimRecurringSubscriptionID'
+    get:
+      operationId: listEsimRecurringPeriods
+      summary: List recurring eSIM periods
+      description: Returns funded periods with their original charges, confirmed credits, and delivery orders. Unfunded renewals do not create a paid period.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimRecurringPeriodList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/subscriptions/{subscription_id}/cancel:
+    parameters:
+    - name: subscription_id
+      in: path
+      required: true
+      description: The recurring eSIM service.
+      schema:
+        $ref: '#/components/schemas/EsimRecurringSubscriptionID'
+    post:
+      operationId: cancelEsimRecurringSubscription
+      summary: Cancel recurring eSIM renewal
+      description: Stops future package renewal at the current paid boundary. A period already committed remains payable. The installed profile and separately purchased packages are preserved.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimRecurringSubscription'
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/subscribers:
+    post:
+      operationId: createEsimSubscriber
+      summary: Create an eSIM subscriber
+      description: 'Creates or returns the subscriber associated with a contact in this workspace. A subscriber identifies the person using the service. This request does not buy an eSIM, assign a profile, or grant workspace access. It requires `email_marketing:read` and `esim:write`.
+
+
+        Creating this association prevents deletion of the contact, including after the assigned eSIM ends. Subscriber associations cannot currently be removed, detached, or anonymized. Releasing an eSIM does not restore contact deletion.'
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimSubscriber'
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimSubscriberCreate'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    get:
+      operationId: listEsimSubscribers
+      summary: List eSIM subscribers
+      description: Returns person references in this workspace, newest first. Filter by contact_id to find an existing subscriber.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - name: contact_id
+        in: query
+        required: false
+        description: The contact id.
+        schema:
+          $ref: '#/components/schemas/ContactID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimSubscriberList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/subscribers/{subscriber_id}:
+    parameters:
+    - name: subscriber_id
+      in: path
+      required: true
+      description: The subscriber id.
+      schema:
+        $ref: '#/components/schemas/EsimSubscriberID'
+    get:
+      operationId: getEsimSubscriber
+      summary: Get an eSIM subscriber
+      description: Returns the contact reference for a subscriber in this workspace. Contact details remain available through Contacts with its separate permissions.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimSubscriber'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/assignment:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: The esim id.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    get:
+      operationId: getEsimAssignment
+      summary: Get an eSIM assignment
+      description: Returns the assigned person. An unassigned eSIM or a resource outside this workspace returns 404.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimAssignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    post:
+      operationId: createEsimAssignment
+      summary: Assign an eSIM to a person
+      description: Assigns an existing, allocated eSIM to a subscriber in the same workspace. Unavailable profile states return 409. Identification guidance does not gate assignment; customers handle identification collection and compliance. Repeating the same assignment returns its existing record; assigning a different person returns 409. This does not change paid packages, deliver credentials, or grant access to them.
+      tags:
+      - esims
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      x-data-region: regional
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimAssignment'
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimAssignmentCreate'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims:
+    get:
+      operationId: listEsims
+      summary: List eSIMs
+      description: 'Returns your workspace''s eSIMs as a cursor-paginated list, newest first.
+
+        Filter by lifecycle `status`, recurring subscription (`renewal`), exact `iccid`, tag, or
+
+        creation time;
+
+        pass the response''s `next_cursor` back as `starting_after` to fetch the
+
+        next page.
+
+
+        To find an eSIM you cannot name by its full ICCID, search on
+
+        `iccid_prefix`, `display_name`, or `phone_number`. Each searches a
+
+        different identifier and each combines with the filters above, narrowing
+
+        the list rather than widening it. Searching never reaches outside the
+
+        workspace the request is scoped to, so an eSIM belonging to another
+
+        workspace is absent from the results rather than reported as forbidden.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/EsimSubscriberFilter'
+      - $ref: '#/components/parameters/CreatedAfter'
+      - $ref: '#/components/parameters/CreatedBefore'
+      - name: status
+        in: query
+        required: false
+        description: Keep only eSIMs whose current `status` matches; repeat the parameter to match any of several.
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/EsimStatus'
+      - name: iccid
+        in: query
+        required: false
+        description: Filter by ICCID (exact match).
+        schema:
+          type: string
+          minLength: 1
+      - name: mode
+        in: query
+        required: false
+        description: Keep only eSIMs created in this mode. Without it, both live and test eSIMs are returned.
+        schema:
+          $ref: '#/components/schemas/EsimMode'
+      - name: renewal
+        in: query
+        required: false
+        description: Keep only eSIMs whose recurring subscription that has not ended is in this status, or that have none (`none`); repeat the parameter to match any of several.
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/EsimRenewalState'
+      - $ref: '#/components/parameters/EsimTagFilter'
+      - $ref: '#/components/parameters/EsimIccidPrefixFilter'
+      - name: display_name
+        in: query
+        required: false
+        description: Keep only eSIMs whose `display_name` contains this text, ignoring case. An eSIM you have not named has no `display_name`, so it never matches.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: field team
+      - name: phone_number
+        in: query
+        required: false
+        description: 'Keep only eSIMs whose mobile network has reported this phone number, matched as a whole number rather than as a fragment. Give it in international form, with or without the leading `+`: `+31612345678` and `31612345678` select the same eSIMs. An eSIM matches on any number its mobile network has ever reported for the profile, so a number that has since moved on still finds the eSIM that held it. An eSIM whose number no network has reported yet never matches.'
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 32
+          example: '+31612345678'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Paginated list of eSIMs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: eSIM ID.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    get:
+      operationId: getEsim
+      summary: Get an eSIM
+      description: 'Returns one eSIM: lifecycle status, device installation state, current data packages with balances, service-period timestamps, and the most recent network attachment. Balances update as mobile networks report usage: each package''s `balance.as_of` tells you how fresh they are.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The eSIM.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Esim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateEsim
+      summary: Update an eSIM
+      description: Updates the eSIM's display name, tags, or metadata. Lifecycle and connectivity are managed through the dedicated endpoints.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimUpdate'
+      responses:
+        '200':
+          description: The updated eSIM.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Esim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    delete:
+      operationId: releaseEsim
+      summary: Release an eSIM
+      description: 'Permanently releases an eSIM. This is irreversible: the eSIM can never be
+
+        installed or used again, any remaining package data balance is forfeited,
+
+        and release never credits anything back. Use release when responding to
+
+        fraud or closing out a trip; to pause service temporarily, use
+
+        Suspend an eSIM instead.
+
+
+        Release completes asynchronously: the `202` response returns the eSIM in
+
+        `releasing`, and the `esim.released` webhook event confirms completion.
+
+        An eSIM with an order still in flight cannot be released: wait for the
+
+        order to reach a terminal status first. When unexpired balance remains,
+
+        the request fails with a conflict unless `acknowledge_balance_forfeit=true`.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: acknowledge_balance_forfeit
+        in: query
+        required: false
+        description: 'Confirms you accept that remaining package balances are forfeited. Omitted or false while unexpired balance remains, the request fails with a conflict error.
+
+          '
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '202':
+          description: Release in progress. The eSIM is in releasing and transitions to released when complete.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Esim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/credentials:
+    get:
+      operationId: getEsimCredentials
+      summary: Get eSIM install credentials
+      description: 'Returns installation details for an eSIM, including an iOS installation link, an activation code, and manual setup components. Android installation links and hosted QR image URLs are currently unavailable and return null. Read `instructions` for device-specific steps in the returned language.
+
+
+        Keep installation details private: they can grant access to the profile. A null `apn`, `confirmation_code`, or `data_roaming_required` means the requirement is unknown; it does not mean the setting is unnecessary. Returns `409` when the profile cannot be installed and `503` when credentials are temporarily unavailable.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: Accept-Language
+        in: header
+        required: false
+        description: 'Preferred languages for the instructions field, as a standard weighted Accept-Language list. Bird serves the first one it stocks, then a variant sharing a requested base language, then English.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+      - name: esim_id
+        in: path
+        required: true
+        description: eSIM ID.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The install credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimCredentials'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/credentials/deliver:
+    post:
+      operationId: deliverEsimCredentials
+      summary: Send install credentials to the traveler
+      description: 'Sends a hosted installation link by email or SMS. The eSIM must be installable. Email includes the link expiry time; SMS includes the link. The recipient opens the page to view the QR code and manual installation details. Links expire after seven days; resending leaves earlier links valid until expiry or explicit revocation.
+
+
+        A `202` response confirms acceptance for sending. Check List credential deliveries for the delivery outcome and any failure code. Reuse the same `Idempotency-Key` to recover an accepted send while its response is retained.
+
+
+        Returns `409` with `E26012` when the selected channel is unavailable; choose another configured channel. New deliveries return `501` while hosted links are unavailable. A retained successful response can still be replayed during that time.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: esim_id
+        in: path
+        required: true
+        description: eSIM ID.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimDelivery'
+            example:
+              to: '+31612345678'
+              channel: sms
+              locale: nl
+      responses:
+        '202':
+          description: 'The delivery was accepted. The returned id reappears on the `esim.credentials.delivered` or `esim.credentials.delivery_failed` event that settles this delivery.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimCredentialsDelivery'
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/deliveries:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: Identifier of the eSIM.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    get:
+      operationId: listEsimDeliveries
+      summary: List an eSIM's credential deliveries
+      description: Returns the credential deliveries sent for this eSIM, newest first (the most recent 50), each with its outcome. A delivery settles to `delivered` or `failed` and is also reported by the `esim.credentials.delivered` and `esim.credentials.delivery_failed` events carrying the same delivery id.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The eSIM's deliveries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimDeliveryList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/install-links:
+    post:
+      operationId: createEsimInstallLink
+      summary: Create a hosted install link
+      description: 'Creates a link to a hosted installation page for one eSIM. The recipient can open the page without a Bird account. The returned `url` grants access to installation details: share it privately and retain it securely if needed, because later reads do not return it.
+
+
+        The link expires after seven days. Creating another link leaves earlier links valid. Use Revoke a hosted install link to disable a link before expiry. A matching retry with the same `Idempotency-Key` returns the original response while it is retained; after that, a retry creates a new link.
+
+
+        The eSIM must be installable. Returns `409` when the profile cannot be installed, `503` when credentials are temporarily unavailable, or `501` when new hosted links are unavailable. A retained successful response can still be replayed while new links are unavailable.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: esim_id
+        in: path
+        required: true
+        description: eSIM ID.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '201':
+          description: The link was minted. Its url appears here and in no later read.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimInstallLink'
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/install-links/{install_link_id}:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: eSIM ID.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    - name: install_link_id
+      in: path
+      required: true
+      description: Hosted install link ID.
+      schema:
+        $ref: '#/components/schemas/EsimInstallLinkID'
+    delete:
+      operationId: deleteEsimInstallLink
+      summary: Revoke a hosted install link
+      description: 'Revokes a hosted installation link so it no longer grants access to installation details. Revoking an expired or already revoked link also succeeds.
+
+
+        Revocation does not remove an installed profile or stop its service. Use Suspend an eSIM to pause data service. A link belonging to another eSIM returns `404`. Returns `501` when hosted installation is unavailable in the region.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '204':
+          description: The link no longer installs the eSIM.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/packages:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: eSIM ID.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    get:
+      operationId: listEsimPackages
+      summary: List an eSIM's data packages
+      description: 'Returns the eSIM''s data packages with per-zone balances, validity, and status, newest first and in full: an eSIM holds at most package_limit concurrent packages. Balances update as mobile networks report usage; `balance.as_of` tells you how fresh they are.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The eSIM's packages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimPackageList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/packages/{package_id}:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: eSIM ID.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    - name: package_id
+      in: path
+      required: true
+      description: Data package ID.
+      schema:
+        $ref: '#/components/schemas/EsimPackageID'
+    get:
+      operationId: getEsimPackage
+      summary: Get a data package
+      description: Returns one data package with its balance, validity, speed class, and status.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The package.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimPackage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    delete:
+      operationId: deleteEsimPackage
+      summary: Remove a data package
+      description: 'Removes a data package and frees capacity under the eSIM''s `package_limit`. Remaining data is forfeited without a refund. If usable balance remains, the request returns `409` unless `acknowledge_balance_forfeit=true`.
+
+
+        A `202` response returns the package in `removing`. Use Get a data package to confirm `removed`. If the network rejects removal, the package returns to its previous status.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: acknowledge_balance_forfeit
+        in: query
+        required: false
+        description: 'Confirms you accept that the package''s remaining balance is forfeited. Omitted or false while balance remains, the request fails with a conflict error.
+
+          '
+        schema:
+          type: boolean
+          default: false
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '202':
+          description: Removal in progress. The returned package is in `removing`; it reaches `removed` once complete, confirmed by the esim.package.removed event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimPackage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/compatible-offers:
+    parameters:
+    - name: esim_id
+      in: path
+      required: true
+      description: Identifier of the eSIM.
+      schema:
+        $ref: '#/components/schemas/EsimID'
+    get:
+      operationId: listEsimCompatibleOffers
+      summary: List offers an eSIM can take
+      description: Returns offers currently compatible with this eSIM’s network, package capacity, and existing packages. Use these offers for top-ups. Availability can change before purchase; refresh the list before ordering. An incompatible top-up returns `409`.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: recurring_only
+        in: query
+        required: false
+        description: Keep only offers with recurring service configured. Enrollment still checks supplier support and the published recurring price.
+        schema:
+          type: boolean
+          default: false
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Offers orderable as top-ups for this eSIM.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimCompatibleOfferList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/suspend:
+    post:
+      operationId: suspendEsim
+      summary: Suspend an eSIM
+      description: 'Suspends the eSIM''s data service, for example during a payment dispute or a suspected-fraud hold. Suspension is reversible: use Resume an eSIM to restore service. The suspension does not pause validity: package expiry and the eSIM''s service period keep running while suspended. Completes asynchronously; the `esim.suspended` webhook event confirms it.'
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: esim_id
+        in: path
+        required: true
+        description: eSIM ID.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '202':
+          description: Suspension in progress. The returned eSIM is in `suspending`; confirmed by the esim.suspended event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Esim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/sims/{esim_id}/resume:
+    post:
+      operationId: resumeEsim
+      summary: Resume an eSIM
+      description: Resumes a suspended eSIM so it can use data again. Completes asynchronously; the `esim.resumed` webhook event confirms it. Resuming an eSIM that is not suspended returns a conflict.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: esim_id
+        in: path
+        required: true
+        description: eSIM ID.
+        schema:
+          $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '202':
+          description: Resume in progress. The returned eSIM is in `resuming`; confirmed by the esim.resumed event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Esim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/esim/settings:
+    get:
+      operationId: getEsimSettings
+      summary: Get the eSIM settings
+      description: Returns your workspace’s eSIM settings, including defaults for fields you have not changed. Use the update operation to change them.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The workspace's eSIM settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateEsimSettings
+      summary: Update the eSIM settings
+      description: Applies partial changes to your workspace's eSIM settings and returns the effective result. Omit a field to leave it as it is. Automatic delivery is disabled initially. Enabling it applies to new eSIM purchases; disabling it also stops queued automatic sends. Manual sends are independent of this setting.
+      tags:
+      - esims
+      x-audiences:
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EsimSettingsUpdate'
+            example:
+              credential_delivery_enabled: false
+      responses:
+        '200':
+          description: The workspace's eSIM settings after the update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EsimSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    EsimDeliveryID:
+      type: string
+      minLength: 1
+      pattern: ^edv_[0-9a-hjkmnp-tv-z]{26}$
+      example: edv_01krdgeqcxet5s7t44vh8rt9mg
+    EsimUpdate:
+      type: object
+      additionalProperties: false
+      description: Fields that can be updated on an eSIM.
+      properties:
+        display_name:
+          type:
+          - string
+          - 'null'
+          maxLength: 120
+          description: Free-text label for your own reference. Null clears it.
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Replaces the eSIM's tags.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Replaces the eSIM's metadata. Maximum 2 KB serialized.
+    EsimOfferValidityUnit:
+      type: string
+      minLength: 1
+      enum:
+      - day
+      - month
+      description: Unit of the validity period.
+    EsimInstallLink:
+      type: object
+      additionalProperties: false
+      description: A hosted installation page for one eSIM. The recipient does not need a Bird account. The secret URL is returned at creation and cannot be retrieved through later reads.
+      required:
+      - id
+      - esim_id
+      - url
+      - expires_at
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimInstallLinkID'
+        esim_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimID'
+        url:
+          type: string
+          format: uri
+          minLength: 1
+          readOnly: true
+          x-sensitive: true
+          description: Private installation URL. Anyone holding it can access installation details until expiry or revocation. Store or share it securely when created; later reads do not return it.
+        expires_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the link stops granting access to installation details.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the link was created.
+    CurrencyCode:
+      type: string
+      minLength: 3
+      maxLength: 3
+      pattern: ^[A-Z]{3}$
+      description: ISO 4217 three-letter currency code.
+      example: EUR
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    EsimPackage:
+      type: object
+      additionalProperties: false
+      description: 'One data package held by an eSIM: a single purchase with its own balance, validity, and coverage zone. Every order that completes creates exactly one package, so a package is always traceable to the order that bought it. An eSIM can hold several packages per zone; the right one is consumed automatically based on the device''s location, and zone_balances on the eSIM carries the combined remainder per zone.
+
+        '
+      required:
+      - id
+      - order_id
+      - offer_id
+      - zone_id
+      - zone_name
+      - countries
+      - status
+      - speed
+      - balance
+      - price
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimPackageID'
+        order_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOrderID'
+          description: The order that purchased this package.
+        offer_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferID'
+          description: Offer this package was purchased from.
+        zone_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimZoneID'
+          description: Coverage zone the package draws on. The name and countries below are captured at purchase time; the zone resource carries the live footprint.
+        zone_name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Coverage zone name, from the offer.
+          example: Europe
+        countries:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/CountryCode'
+          description: 'Countries the package''s zone covers, captured at purchase time so the package is meaningful without fetching the offer.
+
+            '
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimPackageStatus'
+        speed:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimSpeed'
+          description: Speed class, from the offer.
+        balance:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimPackageBalance'
+        activated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the package started consuming data (first use in its zone). Null until then.
+        expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'When the package''s validity ends and unused balance expires. Already capped by the eSIM''s service period, so this is always the effective expiry. Null until the package activates.
+
+            '
+        price:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: What your workspace was billed for this package.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    EsimMode:
+      type: string
+      minLength: 1
+      enum:
+      - live
+      - test
+      description: 'Whether a purchase or eSIM is live or simulated. The mode is fixed when the order is created; the resulting eSIM retains it.
+
+
+        - `live`: purchases service for use on a device and charges the wallet.
+
+        - `test`: simulates a purchase without a charge or usable mobile service.
+
+
+        List responses can include both modes. Filter by `mode` when separating test activity from live purchases.
+
+        '
+    EsimSummary:
+      type: object
+      additionalProperties: false
+      description: 'Compact eSIM representation used in lists. Fetch the eSIM by id for the full aggregate with packages, balances, and installation state.
+
+        '
+      required:
+      - id
+      - subscriber_id
+      - status
+      - mode
+      - iccid
+      - phone_number
+      - display_name
+      - renewal
+      - created_at
+      properties:
+        subscriber_id:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/EsimSubscriberID'
+          - type: 'null'
+          description: The assigned service user, or null when the eSIM has no person assignment.
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimID'
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimStatus'
+        mode:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimMode'
+        iccid:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: ICCID of the eSIM profile, or null while none is allocated.
+          example: '8944500212345678912'
+        phone_number:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Phone number attached to this eSIM, in E.164 format, as the supplier reports it. Null while none is on record.
+
+            '
+          example: '+31612345678'
+        display_name:
+          type:
+          - string
+          - 'null'
+          maxLength: 120
+          readOnly: true
+          description: Free-text label for your own reference.
+        renewal:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/EsimRecurringSubscriptionSummary'
+          - type: 'null'
+          description: The eSIM's recurring subscription that has not ended, or null when it has none. The single-eSIM read does not carry it; list the eSIM's subscriptions with `esim_id` for the full renewal history.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    EsimOfferStatus:
+      type: string
+      minLength: 1
+      enum:
+      - draft
+      - active
+      - retired
+      description: 'Availability of an offer.
+
+
+        - `draft`: being curated; never returned on the customer surface and not purchasable.
+
+        - `active`: purchasable.
+
+        - `retired`: no longer purchasable; packages already sold are unaffected.
+
+        '
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    EsimSettings:
+      type: object
+      additionalProperties: false
+      description: 'The eSIM settings your workspace controls. Every field carries its effective value, whether or not the workspace has ever changed it.
+
+        '
+      required:
+      - credential_delivery_enabled
+      properties:
+        credential_delivery_enabled:
+          type: boolean
+          description: 'Whether Bird automatically sends an install link after a new eSIM purchase with a linked contact. Uses the contact''s email address, or SMS when only a phone number is available. Defaults to `false`. Manual install-link sends remain available regardless of this setting.
+
+            '
+          example: false
+    EsimCheckoutFunding:
+      type: object
+      additionalProperties: false
+      description: Current funding needed for this purchase, including tax and approved credit. The quoted price excludes tax; `total` includes tax for this purchase. This read reserves no funds; payment checks funding again. Test purchases have zero tax and total and are always covered.
+      required:
+      - tax_amount
+      - total
+      - covered
+      - shortfall
+      properties:
+        tax_amount:
+          $ref: '#/components/schemas/Money'
+          description: Tax included in the purchase total.
+        total:
+          $ref: '#/components/schemas/Money'
+          description: Total wallet charge for this purchase, including tax.
+        covered:
+          type: boolean
+          description: Whether the wallet can currently cover this purchase after reservations and approved credit.
+        shortfall:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: Additional funds needed to cover this purchase, or null without organization billing read permission. Zero when covered is true.
+    EsimCompatibleOfferList:
+      type: object
+      additionalProperties: false
+      description: Offers this eSIM can take as a top-up right now, given its mobile network, current packages, and package_limit. A point-in-time answer; re-fetch rather than caching.
+      required:
+      - data
+      - as_of
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EsimOfferSummary'
+          description: Orderable top-up offers for this eSIM.
+        as_of:
+          type: string
+          minLength: 1
+          format: date-time
+          readOnly: true
+          description: When this answer was computed.
+    EsimServiceCapabilities:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: Supported services for the eSIM. These values describe capabilities; package balances and current eSIM status determine whether service can be used now. Optional phone service can remain `unknown` until a number is assigned. Data packages do not establish call or SMS allowances.
+      required:
+      - data
+      - sms_inbound
+      - sms_outbound
+      - voice_inbound
+      - voice_outbound
+      properties:
+        data:
+          $ref: '#/components/schemas/EsimServiceCapability'
+        sms_inbound:
+          $ref: '#/components/schemas/EsimServiceCapability'
+        sms_outbound:
+          $ref: '#/components/schemas/EsimServiceCapability'
+        voice_inbound:
+          $ref: '#/components/schemas/EsimServiceCapability'
+        voice_outbound:
+          $ref: '#/components/schemas/EsimServiceCapability'
+    EsimCheckoutRecurringQuote:
+      type: object
+      additionalProperties: false
+      description: Published recurring terms and current funding requirement. The `price` excludes tax; `funding.total` includes tax for the first period. The first period starts when payment is funded, and cancellation stops future renewal while preserving paid packages.
+      required:
+      - delivery_mode
+      - offer_revision
+      - recurrence_revision
+      - price
+      - model
+      - interval_count
+      - funding
+      properties:
+        funding:
+          $ref: '#/components/schemas/EsimCheckoutFunding'
+        delivery_mode:
+          $ref: '#/components/schemas/EsimRecurrenceDeliveryMode'
+        offer_revision:
+          type: integer
+          minimum: 1
+          description: The offer revision to accept when purchasing.
+        recurrence_revision:
+          type: integer
+          minimum: 1
+          description: The recurring configuration revision to accept when purchasing.
+        price:
+          $ref: '#/components/schemas/Money'
+          description: Price before tax for the first period and each renewal.
+        model:
+          $ref: '#/components/schemas/EsimRecurrenceModel'
+        interval_count:
+          type: integer
+          minimum: 1
+          maximum: 366
+          description: The number of calendar months or fixed 24-hour days per period.
+    EsimOrderList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/EsimOrder'
+            description: Orders, newest first.
+      - $ref: '#/components/schemas/_ListEnvelope'
+    EsimOfferID:
+      type: string
+      minLength: 1
+      pattern: ^eof_[0-9a-hjkmnp-tv-z]{26}$
+      example: eof_01krdgeqcxet5s7t44vh8rt9mg
+    EsimCheckoutOptions:
+      type: object
+      additionalProperties: false
+      description: Published purchase terms. Renewal availability is a preview and does not reserve stock.
+      required:
+      - offer_id
+      - one_time
+      - recurrence
+      properties:
+        offer_id:
+          $ref: '#/components/schemas/EsimOfferID'
+        one_time:
+          $ref: '#/components/schemas/EsimCheckoutOneTime'
+        recurrence:
+          $ref: '#/components/schemas/EsimCheckoutRecurrence'
+    EsimAssignment:
+      readOnly: true
+      unevaluatedProperties: false
+      description: The person assigned to one eSIM. Assignment grants no workspace membership or permission to read installation credentials.
+      allOf:
+      - type: object
+        required:
+        - id
+        - subscriber_id
+        - esim_id
+        properties:
+          id:
+            $ref: '#/components/schemas/EsimAssignmentID'
+          subscriber_id:
+            $ref: '#/components/schemas/EsimSubscriberID'
+          esim_id:
+            $ref: '#/components/schemas/EsimID'
+      - $ref: '#/components/schemas/Timestamps'
+    EsimRecurringSubscriptionSummary:
+      type: object
+      additionalProperties: false
+      description: 'The eSIM''s recurring subscription that has not ended. Fetch the subscription by id for its price, cadence, next charge and period history.
+
+        '
+      required:
+      - subscription_id
+      - status
+      properties:
+        subscription_id:
+          $ref: '#/components/schemas/EsimRecurringSubscriptionID'
+        status:
+          $ref: '#/components/schemas/EsimRecurringSubscriptionStatus'
+    EsimCheckoutOneTime:
+      type: object
+      additionalProperties: false
+      description: Published one-time price and current funding requirement. The `price` excludes tax; `funding.total` includes tax.
+      required:
+      - offer_revision
+      - price
+      - funding
+      properties:
+        funding:
+          $ref: '#/components/schemas/EsimCheckoutFunding'
+        offer_revision:
+          type: integer
+          minimum: 1
+          description: The offer revision to accept when purchasing.
+        price:
+          $ref: '#/components/schemas/Money'
+          description: Price before tax to accept when creating the order.
+    EsimActionUnavailableReason:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - permission_denied
+      - network_unsupported
+      - network_unconfirmed
+      - esim_state
+      - operation_in_progress
+      - package_limit_reached
+      - identification_required
+      description: 'Reason an action is unavailable.
+
+
+        - `permission_denied`: your credentials lack the required permission. Update permissions and check availability again; another restriction may still apply.
+
+        - `network_unsupported`: the serving mobile network does not support the action for this eSIM.
+
+        - `network_unconfirmed`: support for the action has not been confirmed. Contact support if you need it.
+
+        - `esim_state`: the profile is not in a state that permits the action. Check the eSIM status.
+
+        - `operation_in_progress`: an existing order must finish before this action can proceed.
+
+        - `package_limit_reached`: the eSIM has reached its concurrent package limit. A depleted package still occupies a slot until it expires or is removed.
+
+        - `identification_required`: retained for compatibility; subscriber assignment no longer returns this reason.
+
+
+        Treat an unrecognized reason as unavailable and avoid automatically retrying the action.
+
+        '
+    EsimDeliveryList:
+      type: object
+      additionalProperties: false
+      description: The eSIM's credential deliveries, newest first, most recent 50.
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EsimCredentialsDelivery'
+    EsimActionName:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - suspend
+      - resume
+      - release
+      - install
+      - top_up
+      - assign
+      description: 'An operation you can attempt on an eSIM.
+
+
+        - `suspend`: pause data service, keeping packages and their validity running.
+
+        - `resume`: restore service to a suspended eSIM.
+
+        - `release`: permanently retire the eSIM.
+
+        - `install`: read the install credentials for a device.
+
+        - `top_up`: order another data package onto this eSIM.
+
+        - `assign`: assign an unassigned profile to a person, or read back the same assignment.
+
+
+        Tolerate a value you do not recognize: we report on more actions over time.
+
+        '
+    BillingProductSlug:
+      type: string
+      minLength: 1
+      pattern: ^[a-z][a-z0-9]*(_[a-z0-9]+)*$
+      description: URL-safe identifier for a billing product. Lowercase letters and digits, separated by underscores. Must start with a letter.
+      example: email_sends
+    EsimRecurringStopReason:
+      type: string
+      minLength: 1
+      description: 'Reason future package renewal stopped.
+
+
+        - `canceled`: cancellation was requested.
+
+        - `funding_unavailable`: the next period could not be funded.
+
+        - `price_changed`: the published price changed and requires new acceptance.
+
+        - `delivery_failed`: a paid package could not be delivered.
+
+        - `delivery_unresolved`: the previous period’s delivery remains unresolved.
+
+
+        Check period history for delivery and credit outcomes before starting another subscription.
+
+        '
+      enum:
+      - canceled
+      - funding_unavailable
+      - price_changed
+      - delivery_failed
+      - delivery_unresolved
+    EsimOrderCreate:
+      type: object
+      additionalProperties: false
+      description: 'Request to purchase a data package. Without esim_id, a new eSIM is provisioned carrying the package. With esim_id, the package is added to that eSIM: a new coverage zone stacks alongside existing packages, the same zone adds a further package for it, subject to the eSIM''s package_limit and speed class.
+
+        '
+      not:
+        required:
+        - esim_id
+        - subscriber_id
+        properties:
+          esim_id: {}
+          subscriber_id: {}
+      required:
+      - offer_id
+      properties:
+        offer_id:
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferID'
+          description: Offer to purchase.
+        esim_id:
+          allOf:
+          - $ref: '#/components/schemas/EsimID'
+          description: Existing eSIM to add the package to. Omit to provision a new eSIM.
+        subscriber_id:
+          allOf:
+          - $ref: '#/components/schemas/EsimSubscriberID'
+          description: Person to assign the new eSIM to when delivery completes. Must be a subscriber in this workspace. Omit to leave it unassigned. Supplying it with esim_id returns 422; top-ups retain the existing assignment. An unknown subscriber or one outside this workspace returns 404 before charging. Identification guidance does not gate purchase.
+        offer_revision:
+          type: integer
+          minimum: 1
+          description: The offer revision you are quoting from. When set and the offer has since moved to a newer revision, the order is refused with a conflict instead of charging a price you did not see. Omitted, the current revision is used.
+        recurrence:
+          $ref: '#/components/schemas/EsimOrderRecurrence'
+        expected_price:
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: The price you displayed to the buyer. When set and the workspace's current resolved price differs, the order is refused with a conflict instead of charging a different amount. Catches billing-rate changes, which move independently of the offer revision.
+        display_name:
+          type: string
+          maxLength: 120
+          description: Free-text label for the new eSIM, for your own reference. Ignored when esim_id is set.
+          example: Amsterdam trip, order 8812
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Tags for the new eSIM, echoed on its lifecycle webhook events. Ignored when esim_id is set.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Your own key-value data for the new eSIM, echoed on its lifecycle webhook events. Maximum 2 KB serialized. Ignored when esim_id is set.
+        acknowledge_shortened_validity:
+          type: boolean
+          description: Set to true to accept a validity cut short by the eSIM's service period. Without it, an order whose package would expire early is refused with a conflict that states the effective validity.
+      oneOf:
+      - not:
+          required:
+          - recurrence
+          properties:
+            recurrence: {}
+      - required:
+        - recurrence
+        - subscriber_id
+        - offer_revision
+        not:
+          anyOf:
+          - required:
+            - esim_id
+            properties:
+              esim_id: {}
+          - required:
+            - expected_price
+            properties:
+              expected_price: {}
+    EsimSpeed:
+      type: string
+      minLength: 1
+      enum:
+      - full
+      - reduced
+      description: 'Speed class. full: data flows at full network speed until the allowance is used; reduced: speed is limited, typically after the full-speed allowance. Full-speed and reduced-speed packages cannot be combined on one eSIM.
+
+        '
+    EsimPackageList:
+      type: object
+      additionalProperties: false
+      description: 'The eSIM''s data packages. Bounded: an eSIM holds at most package_limit concurrent packages, so the list is returned in full.'
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EsimPackage'
+          description: Packages, newest first.
+    EsimInstallationInstructions:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: Device installation steps based on the available credentials. Follow the list for the recipient’s device.
+      required:
+      - language
+      - ios
+      - android
+      properties:
+        language:
+          $ref: '#/components/schemas/LanguageTag'
+          description: 'BCP-47 tag of the language `ios` and `android` are written in. This is the language served, which is the closest match to Accept-Language, or English when nothing closer is available. One list never mixes two languages.
+
+            '
+          example: en
+        ios:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+          description: Ordered steps for iOS devices.
+        android:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+          description: Ordered steps for Android devices.
+    EsimRecurringOffer:
+      type: object
+      additionalProperties: false
+      description: The published recurring package price and cadence. Calendar months follow the billing anchor; fixed days use the stated number of 24-hour days.
+      required:
+      - delivery_mode
+      - offer_id
+      - model
+      - interval_count
+      - revision
+      - price
+      properties:
+        delivery_mode:
+          $ref: '#/components/schemas/EsimRecurrenceDeliveryMode'
+        offer_id:
+          $ref: '#/components/schemas/EsimOfferID'
+        model:
+          $ref: '#/components/schemas/EsimRecurrenceModel'
+        interval_count:
+          type: integer
+          minimum: 1
+          maximum: 366
+          description: The number of calendar months or fixed days in each period.
+        revision:
+          type: integer
+          minimum: 1
+          description: The recurring configuration revision to accept.
+        price:
+          $ref: '#/components/schemas/Money'
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+    EsimOrderFunding:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: Funding needed for an order in `charging`. Add funds to the wallet and retry the existing order. One-time orders also retry automatically. A funded order proceeds to delivery; a failed order receives an automatic credit for any charge.
+      required:
+      - required_amount
+      - lapses_at
+      properties:
+        required_amount:
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: Total wallet balance required for the charge, including tax. This is the required balance rather than the amount to add. Compare it with your current wallet balance.
+        lapses_at:
+          type: string
+          minLength: 1
+          format: date-time
+          example: '2026-09-08T14:51:01Z'
+          description: Earliest time a further insufficient-funds attempt can fail the order. Adding funds after this time can still complete the purchase before that attempt. Check the order status to determine whether it remains payable.
+    EsimPackageBalance:
+      type: object
+      additionalProperties: false
+      description: Package allowance and reported consumption. `total_bytes` is the purchased allowance. `used_bytes`, `remaining_bytes`, and `used_percent` are null until usage is reported. Reports can lag device usage; use `as_of` to show when the balance was updated.
+      required:
+      - total_bytes
+      - used_bytes
+      - remaining_bytes
+      - used_percent
+      - as_of
+      - observed_at
+      properties:
+        total_bytes:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total data in bytes, as purchased. Known from the order, so never null.
+        used_bytes:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Data used in bytes, or null while no network has reported on this package.
+        remaining_bytes:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Data remaining in bytes, or null while no network has reported on this package.
+        used_percent:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 100
+          readOnly: true
+          description: Share of the total data already used, as a percentage. Null while no network has reported on this package.
+        as_of:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the balance was last established. Before consumption is reported, this is the package delivery time. Check whether the consumption fields are null before treating this timestamp as a usage update.
+        observed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: Measurement time supplied by the mobile network. Null when no measurement or measurement time is available. Use `as_of` for the balance update time.
+    EsimAvailableAction:
+      type: object
+      additionalProperties: false
+      description: 'One action, and whether this eSIM permits it for you right now.
+
+        '
+      required:
+      - action
+      - operation
+      - available
+      - reason
+      properties:
+        action:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimActionName'
+        operation:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Operation to call for this action. Consult that operation’s reference for its request and response.
+          example: suspendEsim
+        available:
+          type: boolean
+          readOnly: true
+          description: Whether the action is available given your permissions and the current eSIM state. The action checks these again when submitted; a later request can be refused if conditions change.
+        reason:
+          readOnly: true
+          description: Why the action is unavailable. Null while `available` is true.
+          oneOf:
+          - $ref: '#/components/schemas/EsimActionUnavailableReason'
+          - type: 'null'
+        requires:
+          type: array
+          readOnly: true
+          items:
+            type: string
+            minLength: 1
+          description: Additional parameters required by the current state, such as `acknowledge_balance_forfeit` when releasing an eSIM with remaining data. Absent when no additional parameters apply or when permissions, network support, or profile state prevent the action.
+          example:
+          - acknowledge_balance_forfeit
+    Money:
+      type: object
+      additionalProperties: false
+      required:
+      - amount
+      - currency_code
+      properties:
+        amount:
+          type: string
+          minLength: 1
+          description: Decimal amount as a string, in major currency units.
+          example: '0.00995'
+        currency_code:
+          $ref: '#/components/schemas/CurrencyCode'
+          description: ISO 4217 currency code.
+          example: USD
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    EsimOrderStatus:
+      type: string
+      minLength: 1
+      enum:
+      - scheduled
+      - charging
+      - provisioning
+      - pending
+      - completed
+      - failed
+      - canceled
+      description: 'Order state.
+
+
+        - `scheduled`: reserved for a future scheduled purchase; no charge has been made.
+
+        - `charging`: payment is being obtained. If funds are insufficient, inspect `funding` and your wallet balance. One-time orders retry automatically; an initial recurring purchase requires an explicit retry after adding funds.
+
+        - `provisioning`: the package is being provisioned during the request.
+
+        - `pending`: the purchase continues after the request returns. Read the order again to check its outcome.
+
+        - `completed`: delivery completed and the eSIM and package IDs are available. This does not confirm device installation. Terminal.
+
+        - `failed`: delivery failed. Any charge is credited automatically; `refund_transaction_id` identifies an issued credit. Terminal.
+
+        - `canceled`: reserved for a scheduled purchase withdrawn before execution. Canceling an unfunded order currently returns `failed` with `failure_code: canceled`.
+
+        '
+    EsimAssignmentCreate:
+      type: object
+      additionalProperties: false
+      description: Assign an unassigned eSIM to this person. The profile must be allocated and ready, active, or suspended. Customers handle identification collection and compliance.
+      required:
+      - subscriber_id
+      properties:
+        subscriber_id:
+          $ref: '#/components/schemas/EsimSubscriberID'
+          description: Subscriber in this workspace to assign to the eSIM.
+    Esim:
+      unevaluatedProperties: false
+      allOf:
+      - type: object
+        required:
+        - id
+        - subscriber_id
+        - status
+        - mode
+        - iccid
+        - phone_number
+        - installation
+        - packages
+        - zone_balances
+        - package_limit
+        - usage_available
+        - balance_reporting
+        - order_id
+        properties:
+          subscriber_id:
+            readOnly: true
+            oneOf:
+            - $ref: '#/components/schemas/EsimSubscriberID'
+            - type: 'null'
+            description: The assigned service user, or null when the eSIM has no person assignment.
+          id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimID'
+          status:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimStatus'
+          mode:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimMode'
+          iccid:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            description: ICCID of the eSIM profile. Null while no profile is allocated yet, for example when provisioning failed before allocation.
+            example: '8944500212345678912'
+          phone_number:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            description: 'Phone number attached to this eSIM, in E.164 format, as the supplier reports it. Null while none is on record: a data-only plan comes with no number, and a plan that includes one reports it after provisioning.
+
+              '
+            example: '+31612345678'
+          capabilities:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimServiceCapabilities'
+          order_id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimOrderID'
+            description: The order that created this eSIM.
+          display_name:
+            type:
+            - string
+            - 'null'
+            maxLength: 120
+            description: Free-text label for your own reference, for example a traveler or order reference.
+            example: Amsterdam trip, order 8812
+          installation:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimInstallation'
+          packages:
+            type: array
+            readOnly: true
+            items:
+              $ref: '#/components/schemas/EsimPackage'
+            description: Current data packages, one per purchase.
+          zone_balances:
+            type: array
+            readOnly: true
+            items:
+              $ref: '#/components/schemas/EsimZoneBalance'
+            description: Remaining data per coverage zone, combined across the zone's packages. Derived; the packages are the source of truth.
+          available_actions:
+            type: array
+            readOnly: true
+            items:
+              $ref: '#/components/schemas/EsimAvailableAction'
+            description: Actions currently available to you on this eSIM, with reasons for unavailable actions. Returned by the individual eSIM read. Use this to display controls and explain restrictions. Each action rechecks permissions and state when submitted, so availability is not a guarantee of success.
+          package_limit:
+            type: integer
+            minimum: 1
+            readOnly: true
+            example: 3
+            description: 'Maximum number of concurrent data packages this eSIM can hold, counted across all zones; several packages may share one zone. Enforced when packages are added.
+
+              '
+          usage_available:
+            type: boolean
+            readOnly: true
+            example: true
+            description: Whether daily usage history is supported for this eSIM. The daily usage endpoint is currently unavailable; read package balances for reported consumption.
+          balance_reporting:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimBalanceReporting'
+            description: Whether ongoing package consumption reporting is available. Separate from daily usage history. Null package consumption values mean no measurement is available.
+          ready_until:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: Activate (first network use) before this moment or the eSIM expires. Null once activated.
+          activated_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: When the eSIM first used a mobile network. Null until then.
+          active_until:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: 'When the eSIM''s service period ends. The period starts at activation and data packages cannot outlive it. Null until activated.
+
+              '
+          last_attachment:
+            readOnly: true
+            description: Most recent network attachment, or null before first attach.
+            oneOf:
+            - $ref: '#/components/schemas/EsimNetworkAttachment'
+            - type: 'null'
+          tags:
+            type: array
+            maxItems: 20
+            items:
+              $ref: '#/components/schemas/Tag'
+            description: Tags for routing, filtering, and stats grouping, echoed on webhook events for the eSIM.
+          metadata:
+            type: object
+            additionalProperties: true
+            description: Your own key-value data, echoed on webhook events for the eSIM. Maximum 2 KB serialized.
+      - $ref: '#/components/schemas/Timestamps'
+    EsimSubscriberCreate:
+      type: object
+      additionalProperties: false
+      description: Select an existing contact in this workspace. One subscriber is kept per contact. Creating the link requires Contacts read permission and prevents Contact deletion, including after any assigned eSIM ends. Subscriber links cannot currently be removed.
+      required:
+      - contact_id
+      properties:
+        contact_id:
+          $ref: '#/components/schemas/ContactID'
+          description: Existing contact in this workspace; requires Contacts read permission.
+    EsimPackageStatus:
+      type: string
+      minLength: 1
+      enum:
+      - provisioning
+      - pending_first_use
+      - active
+      - depleted
+      - expired
+      - removing
+      - removed
+      - failed
+      description: 'Lifecycle state of a data package.
+
+
+        - `provisioning`: being applied to the eSIM.
+
+        - `pending_first_use`: confirmed; activates on first use in its coverage zone.
+
+        - `active`: consuming data; validity is running.
+
+        - `depleted`: balance fully used.
+
+        - `expired`: validity ended; unused balance is gone.
+
+        - `removing`: a removal was requested and is being applied. On definitive rejection the package returns to its prior status, reported by `esim.operation_failed`.
+
+        - `removed`: taken off the eSIM at your request; remaining balance forfeited.
+
+        - `failed`: could not be applied; any charge is credited back automatically through the owning order, which reports this through its `failed` status and the `esim.order.failed` event.
+
+        '
+    EsimOfferSummary:
+      type: object
+      additionalProperties: false
+      description: 'Compact offer row for lists: the full offer minus the embedded zone. Fetch the offer or its zone for the country list.
+
+        '
+      required:
+      - id
+      - name
+      - revision
+      - zone_id
+      - speed
+      - stackable
+      - phone
+      - pricing
+      - product
+      - status
+      - created_at
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferID'
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Display name of the offer.
+          example: Europe 10 GB / 30 days
+        revision:
+          type: integer
+          minimum: 1
+          readOnly: true
+          description: Increments whenever the offer's terms change. Orders lock the revision they were quoted at.
+        zone_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimZoneID'
+          description: Coverage zone the offer sells. Offers for the same footprint share one zone.
+        speed:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimSpeed'
+          description: Speed class. For reduced-speed offers, the bundle's data.throttled_after_bytes carries the full-speed allowance.
+        stackable:
+          type: boolean
+          readOnly: true
+          description: Whether packages from this offer can be held alongside packages from other zones on the same eSIM, subject to the eSIM's package_limit.
+        phone:
+          readOnly: true
+          description: 'Phone service that comes with the plan, or null when the plan includes no phone number. When present, `included` says how the number is provided and the flags state which call and text directions work.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/EsimOfferPhone'
+          - type: 'null'
+        pricing:
+          readOnly: true
+          description: 'Commercial terms of the offer. Every offer in the current catalog is a bundle: a fixed allowance with a validity period for a fixed price. Match on the pricing type; treat an unrecognized type as an offer your integration cannot order yet.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/EsimOfferBundlePricing'
+        product:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/BillingProductSlug'
+          description: Billing product the offer's charges post under, as it appears on your invoice line items.
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferStatus'
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    EsimID:
+      type: string
+      minLength: 1
+      pattern: ^esm_[0-9a-hjkmnp-tv-z]{26}$
+      example: esm_01krdgeqcxet5s7t44vh8rt9mg
+    EsimCheckoutRecurrence:
+      type: object
+      additionalProperties: false
+      description: When available is true, quote contains the recurring terms and unavailable_reason is null. Otherwise quote is null and unavailable_reason explains why renewal is unavailable.
+      required:
+      - available
+      - quote
+      - unavailable_reason
+      properties:
+        available:
+          type: boolean
+          description: Whether automatic renewal is currently available for a new eSIM.
+        quote:
+          oneOf:
+          - $ref: '#/components/schemas/EsimCheckoutRecurringQuote'
+          - type: 'null'
+        unavailable_reason:
+          oneOf:
+          - $ref: '#/components/schemas/EsimCheckoutUnavailableReason'
+          - type: 'null'
+      oneOf:
+      - properties:
+          available:
+            enum:
+            - true
+          quote:
+            $ref: '#/components/schemas/EsimCheckoutRecurringQuote'
+          unavailable_reason:
+            not:
+              type: string
+      - properties:
+          available:
+            enum:
+            - false
+          quote:
+            not:
+              type: object
+          unavailable_reason:
+            $ref: '#/components/schemas/EsimCheckoutUnavailableReason'
+    EsimOrderRecurrence:
+      type: object
+      additionalProperties: false
+      description: 'Buy the first package and enable automatic renewal in one purchase. Requires subscriber_id, offer_revision and Idempotency-Key. Omit esim_id and expected_price.
+
+        '
+      required:
+      - recurrence_revision
+      - accepted_price
+      properties:
+        recurrence_revision:
+          type: integer
+          minimum: 1
+          description: The accepted recurring configuration revision.
+        accepted_price:
+          $ref: '#/components/schemas/Money'
+    EsimPackageID:
+      type: string
+      minLength: 1
+      pattern: ^epk_[0-9a-hjkmnp-tv-z]{26}$
+      example: epk_01krdgeqcxet5s7t44vh8rt9mg
+    EsimCredentialsDelivery:
+      type: object
+      additionalProperties: false
+      description: One credential delivery to a traveler. Returned when a delivery is accepted and listed on the eSIM's delivery history; the id reappears on the event that settles it.
+      required:
+      - id
+      - channel
+      - to
+      - status
+      - failure_code
+      - created_at
+      - settled_at
+      - install_link
+      properties:
+        id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimDeliveryID'
+        channel:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimDeliveryChannel'
+        to:
+          type: string
+          minLength: 3
+          readOnly: true
+          description: Recipient address the message goes to.
+          example: traveler@example.com
+        status:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimDeliveryStatus'
+        failure_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          x-extensible-enum:
+          - invalid_recipient
+          - suppressed
+          - blocked
+          - bounced
+          - channel_unavailable
+          - send_failed
+          description: 'Why the delivery failed. Null unless status is failed. Open enum: treat unrecognized values as future failure kinds.'
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the delivery was accepted.
+        settled_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the outcome became known. Null while pending.
+        install_link:
+          readOnly: true
+          description: Link metadata for explicit revocation. Null for deliveries created before hosted links were enabled.
+          oneOf:
+          - $ref: '#/components/schemas/EsimInstallLinkMetadata'
+          - type: 'null'
+    EsimRecurringSubscription:
+      type: object
+      additionalProperties: false
+      description: Recurring service for an assigned eSIM or a pending initial purchase. Paid periods and delivered connectivity have separate states. Ending recurrence preserves the profile and separately purchased packages.
+      required:
+      - delivery_mode
+      - id
+      - esim_id
+      - initial_order_id
+      - subscriber_id
+      - offer_id
+      - status
+      - billing_status
+      - current_period_start
+      - current_period_end
+      - cancel_at_period_end
+      - latest_order_id
+      - created_at
+      - price
+      - model
+      - interval_count
+      - next_renewal_at
+      - cancellation_effective_at
+      - stop_reason
+      properties:
+        delivery_mode:
+          $ref: '#/components/schemas/EsimRecurrenceDeliveryMode'
+        id:
+          $ref: '#/components/schemas/EsimRecurringSubscriptionID'
+        esim_id:
+          oneOf:
+          - $ref: '#/components/schemas/EsimID'
+          - type: 'null'
+          description: The provisioned eSIM, or null while the initial purchase is pending.
+        initial_order_id:
+          oneOf:
+          - $ref: '#/components/schemas/EsimOrderID'
+          - type: 'null'
+          description: The initial purchase order, or null when recurrence was enrolled on an existing eSIM.
+        subscriber_id:
+          $ref: '#/components/schemas/EsimSubscriberID'
+        offer_id:
+          $ref: '#/components/schemas/EsimOfferID'
+        status:
+          $ref: '#/components/schemas/EsimRecurringSubscriptionStatus'
+        billing_status:
+          type:
+          - string
+          - 'null'
+          description: The financial subscription state, or null while acceptance is pending.
+        current_period_start:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: The authoritative billing period boundary, or null while acceptance is pending.
+        current_period_end:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: The authoritative billing period boundary, or null while acceptance is pending.
+        cancel_at_period_end:
+          type: boolean
+          description: Whether future renewal is stopped at the current paid boundary.
+        latest_order_id:
+          oneOf:
+          - $ref: '#/components/schemas/EsimOrderID'
+          - type: 'null'
+          description: The order for the current billing period, or null before fulfillment starts.
+        created_at:
+          type: string
+          minLength: 1
+          format: date-time
+          description: When the recurring service was requested.
+        price:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: Accepted package price before tax, in its published currency. Null before Billing accepts enrollment.
+        model:
+          oneOf:
+          - $ref: '#/components/schemas/EsimRecurrenceModel'
+          - type: 'null'
+          description: Accepted cadence, or null before Billing accepts enrollment.
+        interval_count:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 366
+          description: Number of calendar months or fixed 24-hour days in each accepted period. Null before acceptance.
+        next_renewal_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Next scheduled renewal boundary. Null when enrollment is pending or future renewals have stopped.
+        cancellation_effective_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: 'When canceled recurrence ends: the paid boundary for scheduled cancellation, or the recorded cancellation time for an immediate stop. Null when renewal has not been stopped or no period was accepted. Paid packages remain available under their own validity.'
+        stop_reason:
+          oneOf:
+          - $ref: '#/components/schemas/EsimRecurringStopReason'
+          - type: 'null'
+          description: First recorded reason future renewal stopped. Null when no reason has been recorded. Delivery outcomes are available separately in period history.
+      anyOf:
+      - properties:
+          esim_id:
+            $ref: '#/components/schemas/EsimID'
+      - properties:
+          initial_order_id:
+            $ref: '#/components/schemas/EsimOrderID'
+    EsimSettingsUpdate:
+      type: object
+      additionalProperties: false
+      description: 'Changes to your workspace''s eSIM settings. Omit a field to leave it as it is.
+
+        '
+      properties:
+        credential_delivery_enabled:
+          type: boolean
+          description: 'Whether Bird automatically sends an install link after a new eSIM purchase with a linked contact. Uses the contact''s email address, or SMS when only a phone number is available. Omit this field to retain the current value; a workspace without saved settings starts with `false`. Manual install-link sends remain available regardless of this setting.
+
+            '
+          example: false
+    EsimRecurrenceModel:
+      type: string
+      minLength: 1
+      description: 'Billing cadence for recurring packages.
+
+
+        - `calendar_month`: periods follow calendar months from the billing anchor.
+
+        - `fixed_days`: each period lasts the stated number of 24-hour days.
+
+        '
+      enum:
+      - calendar_month
+      - fixed_days
+    EsimOrderID:
+      type: string
+      minLength: 1
+      pattern: ^eor_[0-9a-hjkmnp-tv-z]{26}$
+      example: eor_01krdgeqcxet5s7t44vh8rt9mg
+    EsimRecurringPeriod:
+      type: object
+      additionalProperties: false
+      description: A funded period and its delivery outcome. Amounts retain the original charged currency and tax; free periods have no wallet transaction.
+      required:
+      - delivery_mode
+      - period_start
+      - period_end
+      - status
+      - net_amount
+      - tax_amount
+      - total_amount
+      - wallet_transaction_id
+      - refund_transaction_id
+      - order_id
+      - order_status
+      properties:
+        delivery_mode:
+          $ref: '#/components/schemas/EsimRecurrenceDeliveryMode'
+        period_start:
+          type: string
+          minLength: 1
+          format: date-time
+          description: Start of the funded billing period. Package activation follows the accepted delivery mode.
+        period_end:
+          type: string
+          minLength: 1
+          format: date-time
+          description: End of the paid billing period. A recurring top-up package can expire at a different time; check the package’s expiry.
+        status:
+          $ref: '#/components/schemas/EsimRecurringPeriodStatus'
+        net_amount:
+          $ref: '#/components/schemas/Money'
+        tax_amount:
+          $ref: '#/components/schemas/Money'
+        total_amount:
+          $ref: '#/components/schemas/Money'
+        wallet_transaction_id:
+          oneOf:
+          - $ref: '#/components/schemas/WalletTransactionID'
+          - type: 'null'
+          description: Original wallet charge, or null for a free period.
+        refund_transaction_id:
+          oneOf:
+          - $ref: '#/components/schemas/WalletTransactionID'
+          - type: 'null'
+          description: Confirmed wallet credit after definitive failure, or null when no credit was issued.
+        order_id:
+          oneOf:
+          - $ref: '#/components/schemas/EsimOrderID'
+          - type: 'null'
+          description: Delivery order, or null before fulfillment starts.
+        order_status:
+          oneOf:
+          - $ref: '#/components/schemas/EsimOrderStatus'
+          - type: 'null'
+          description: Delivery order state, or null before fulfillment starts.
+    EsimOrder:
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Timestamps'
+      - type: object
+        description: 'One purchase: a new eSIM with its first package, or an additional package on an existing eSIM. The order locks the quote at creation (the offer revision and the exact price) and is the durable record of the purchase: poll it until a terminal status when it does not complete inline. Orders that can be served immediately complete within the request.
+
+          '
+        required:
+        - id
+        - status
+        - mode
+        - offer_id
+        - offer_revision
+        - zone_id
+        - esim_id
+        - subscriber_id
+        - package_id
+        - price
+        - wallet_transaction_id
+        - refund_transaction_id
+        - funding
+        - failure_code
+        - failure_reason
+        - completed_at
+        properties:
+          id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimOrderID'
+          status:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimOrderStatus'
+          mode:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimMode'
+          offer_id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimOfferID'
+            description: Offer purchased.
+          offer_revision:
+            type: integer
+            minimum: 1
+            readOnly: true
+            description: Revision of the offer this order locked at creation. The quoted price stays that of this revision even if the offer changes later. The produced package snapshots its coverage at purchase; the zone's live country list governs new sales only.
+          zone_id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimZoneID'
+            description: Coverage zone of the purchased offer, captured at creation.
+          esim_id:
+            readOnly: true
+            description: The eSIM the package lands on. Set at creation when adding to an existing eSIM; set when provisioning starts for a new-eSIM order; null before that.
+            oneOf:
+            - $ref: '#/components/schemas/EsimID'
+            - type: 'null'
+          subscriber_id:
+            readOnly: true
+            description: Subscriber to assign when the new eSIM is delivered. Null when none was requested, including top-up orders, which retain the existing assignment.
+            oneOf:
+            - $ref: '#/components/schemas/EsimSubscriberID'
+            - type: 'null'
+          recurring_subscription_id:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimRecurringSubscriptionID'
+            description: The recurring service associated with this purchase. Absent for one-time orders.
+          package_id:
+            readOnly: true
+            description: The purchased data package, set when the order completes; null before that.
+            oneOf:
+            - $ref: '#/components/schemas/EsimPackageID'
+            - type: 'null'
+          price:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/Money'
+            description: 'The quoted price, locked at creation in your billing currency. A `mode: test` order quotes this price and is never charged it, so its `wallet_transaction_id` stays null.'
+          wallet_transaction_id:
+            readOnly: true
+            description: 'The wallet transaction that paid for this order, for reconciling against your billing transactions. Null until the charge lands, and always null for a `mode: test` order, which is never charged.'
+            oneOf:
+            - $ref: '#/components/schemas/WalletTransactionID'
+            - type: 'null'
+          refund_transaction_id:
+            readOnly: true
+            description: The wallet transaction that credited the charge back after a failure. Null unless the order failed after charging.
+            oneOf:
+            - $ref: '#/components/schemas/WalletTransactionID'
+            - type: 'null'
+          delivery:
+            readOnly: true
+            allOf:
+            - $ref: '#/components/schemas/EsimDelivery'
+            description: Where install credentials are delivered once available. Present when requested at creation.
+          awaiting_funds:
+            type: boolean
+            readOnly: true
+            description: Whether this order is in `charging` after an insufficient wallet balance refusal. The required balance is in `funding` when available. False does not confirm payment; check `status` and `wallet_transaction_id`. When absent, `funding` indicates a refusal if present; otherwise the funding state is unknown.
+          funding:
+            readOnly: true
+            description: Details of an insufficient-funds attempt while the order is in `charging`. May be null even while the order is awaiting funds; a null value does not confirm payment. Check `awaiting_funds` to identify an outstanding insufficient-balance refusal.
+            oneOf:
+            - $ref: '#/components/schemas/EsimOrderFunding'
+            - type: 'null'
+          failure_code:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            x-extensible-enum:
+            - insufficient_balance
+            - carrier_error
+            - capacity_exhausted
+            - offer_unavailable
+            - internal_error
+            - canceled
+            - resolved_by_support
+            - esim_released
+            - mode_mismatch
+            description: 'Reason the order failed. Null unless `status` is `failed`. Handle unrecognized codes without assuming the purchase succeeded.
+
+
+              - `canceled`: canceled while awaiting funds.
+
+              - `resolved_by_support`: support closed an unresolved order as failed.
+
+              - `esim_released`: the target profile became unavailable before delivery.
+
+              - `mode_mismatch`: the purchase could not be fulfilled in its original live or test mode.
+
+
+              Any charge is credited automatically. Check `refund_transaction_id` to confirm an issued credit.
+
+              '
+          failure_reason:
+            type:
+            - string
+            - 'null'
+            readOnly: true
+            description: Why the order failed, in plain terms. Null unless status is failed.
+          completed_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: When the order reached completed. Null before that.
+    EsimAssignmentID:
+      type: string
+      minLength: 1
+      pattern: ^eas_[0-9a-hjkmnp-tv-z]{26}$
+      example: eas_01krdgeqcxet5s7t44vh8rt9mg
+    EsimNetworkAttachment:
+      type: object
+      additionalProperties: false
+      description: The most recent mobile network the device attached to.
+      required:
+      - country_code
+      - attached_at
+      properties:
+        country_code:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/CountryCode'
+          description: Country of the network.
+        country_name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: English name of the country, or null when not known.
+        network_name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Name of the mobile network, or null when not known.
+        attached_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the device attached.
+    EsimInstallation:
+      type: object
+      additionalProperties: false
+      description: Device-side installation state of the eSIM profile.
+      required:
+      - state
+      properties:
+        state:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - pending
+          - downloaded
+          - installed
+          - removed
+          - error
+          description: 'pending: not yet downloaded by a device; downloaded: downloaded but not installed; installed: installed on the device; removed: deleted from the device; whether the profile can be installed again depends on the carrier profile, so treat removal as final; error: download or installation failed, see error_reason. Open enum: installation state is reported by the device, so additional states may be added over time. Treat an unrecognized value as a future state, not an error.
+
+            '
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the installation state last changed. Null before the first device interaction.
+        error_reason:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Human-readable reason installation failed, for example an ineligible device or an exhausted download limit. Null unless state is error.
+
+            '
+    EsimSubscriberID:
+      type: string
+      minLength: 1
+      pattern: ^esub_[0-9a-hjkmnp-tv-z]{26}$
+      example: esub_01krdgeqcxet5s7t44vh8rt9mg
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    EsimServiceCapability:
+      type: string
+      minLength: 2
+      readOnly: true
+      enum:
+      - 'yes'
+      - 'no'
+      - unknown
+      description: 'Whether a service is supported. `yes` confirms support, `no` confirms it is not supported, and `unknown` means support has not been established.
+
+        '
+      example: 'yes'
+    EsimRecurringPeriodList:
+      allOf:
+      - $ref: '#/components/schemas/_ListEnvelope'
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/EsimRecurringPeriod'
+      unevaluatedProperties: false
+    EsimZoneID:
+      type: string
+      minLength: 1
+      pattern: ^ezn_[0-9a-hjkmnp-tv-z]{26}$
+      example: ezn_01krdgeqcxet5s7t44vh8rt9mg
+    ContactID:
+      type: string
+      minLength: 1
+      pattern: ^con_[0-9a-hjkmnp-tv-z]{26}$
+      example: con_01krdgeqcxet5s7t44vh8rt9mg
+    EsimInstallLinkID:
+      type: string
+      minLength: 1
+      pattern: ^eil_[0-9a-hjkmnp-tv-z]{26}$
+      example: eil_01krdgeqcxet5s7t44vh8rt9mg
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - value
+      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
+
+
+        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
+
+
+        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+
+            '
+          example: category
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+
+            '
+          example: welcome
+    EsimRecurringPeriodStatus:
+      type: string
+      minLength: 1
+      description: 'Delivery outcome of a paid period.
+
+
+        - `pending`: package delivery has not been confirmed, including an uncertain network outcome.
+
+        - `completed`: the package was delivered.
+
+        - `failing`: delivery failed and the credit is being processed.
+
+        - `failed`: failure processing is complete. Check `refund_transaction_id` for an issued credit.
+
+        '
+      enum:
+      - pending
+      - completed
+      - failing
+      - failed
+    EsimRecurringSubscriptionList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/EsimRecurringSubscription'
+            description: Recurring services in this workspace.
+      - $ref: '#/components/schemas/_ListEnvelope'
+    EsimOfferValidityType:
+      type: string
+      minLength: 1
+      enum:
+      - one_time
+      - recurring
+      description: How the validity period behaves. one_time runs once and expires; recurring renews for a further period each time it lapses.
+    EsimDeliveryChannel:
+      type: string
+      minLength: 1
+      enum:
+      - email
+      - sms
+      description: Channel the install credentials are delivered over.
+    EsimOfferBundlePricing:
+      type: object
+      additionalProperties: false
+      description: 'Fixed-allowance terms: a data allowance with a validity period, charged once per provisioned package.
+
+        '
+      required:
+      - type
+      - data
+      - validity
+      - price
+      properties:
+        type:
+          type: string
+          minLength: 1
+          const: bundle
+          readOnly: true
+          description: Pricing type.
+        data:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferData'
+        validity:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferValidity'
+          description: 'Validity of packages created from this offer. The period starts at activation, which happens on first use in the coverage zone. The effective validity is capped by the eSIM''s service period: see the package''s expires_at for the real expiry.
+
+            '
+        price:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: What your workspace is billed per package provisioned from this offer.
+    EsimDelivery:
+      type: object
+      x-sensitive: true
+      additionalProperties: false
+      description: 'Where and how install credentials reach the traveler. The recipient is a raw address, so delivery works for travelers who are not stored anywhere: an email address for email, an E.164 phone number for sms.
+
+        '
+      required:
+      - to
+      - channel
+      properties:
+        to:
+          type: string
+          minLength: 3
+          description: Recipient address. An email address for the email channel, an E.164 phone number for the sms channel.
+          example: traveler@example.com
+        channel:
+          $ref: '#/components/schemas/EsimDeliveryChannel'
+        locale:
+          allOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          description: Language for the message. Falls back to the closest available language, then English.
+    EsimCheckoutUnavailableReason:
+      type: string
+      enum:
+      - not_configured
+      - price_unavailable
+      - no_eligible_route
+      description: Renewal is not configured, has no published price, or has no eligible mobile network. A failed lookup returns an error instead.
+    EsimList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/EsimSummary'
+            description: eSIMs, newest first, in compact form; fetch one by id for the full aggregate.
+      - $ref: '#/components/schemas/_ListEnvelope'
+    EsimDeliveryStatus:
+      type: string
+      minLength: 1
+      enum:
+      - pending
+      - delivered
+      - failed
+      description: 'Outcome of a credential delivery.
+
+
+        - `pending`: accepted; the outcome has not settled.
+
+        - `delivered`: the message reached the recipient''s provider; terminal.
+
+        - `failed`: the message could not be delivered; `failure_code` says why. Terminal.
+
+        '
+    EsimCredentials:
+      type: object
+      additionalProperties: false
+      description: Installation details for an eSIM. Keep activation codes, installation links, QR images, and manual setup credentials private because they can grant access to the profile. Use fields with a value and follow the returned device instructions.
+      required:
+      - esim_id
+      - ios_install_url
+      - android_install_url
+      - qr_code_url
+      - activation_code
+      - smdp_address
+      - matching_id
+      - apn
+      - data_roaming_required
+      - instructions
+      properties:
+        esim_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimID'
+        ios_install_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          readOnly: true
+          x-sensitive: true
+          description: One-tap install link for iOS 17.4 and later, derived from the activation code. Null when a valid link cannot be derived for this eSIM.
+        android_install_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          readOnly: true
+          x-sensitive: true
+          description: Android installation link. Currently unavailable; returns null. Use the returned Android instructions for manual setup.
+        qr_code_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          readOnly: true
+          x-sensitive: true
+          description: Hosted QR image URL. Currently unavailable; returns null. Use the activation code in your own installation flow or provide a hosted installation page.
+        activation_code:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-sensitive: true
+          description: Raw activation string for manual entry in device settings.
+          example: LPA:1$smdp.example.com$K2-1AbCdE-2FgHiJ
+        smdp_address:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-sensitive: true
+          description: SM-DP+ server address, for building a custom install flow.
+          example: smdp.example.com
+        matching_id:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-sensitive: true
+          description: Matching ID component of the activation code, for building a custom install flow.
+        confirmation_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          x-sensitive: true
+          description: Confirmation code requested during installation, when available. Null means the requirement is unknown; it does not confirm that a code is unnecessary.
+        apn:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Access point name for mobile data, when available. Null means no APN information is available; it does not confirm automatic configuration.
+          example: internet
+        data_roaming_required:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether data roaming must be enabled. Null means the requirement is unknown. When true, `instructions` includes a step to enable roaming.
+        instructions:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimInstallationInstructions'
+          description: 'Step-by-step install instructions, covering whichever of the fields in this response carry a value, in the closest language available for the Accept-Language request header. Its `language` field names the one served.
+
+            '
+    EsimRecurringSubscriptionCreate:
+      type: object
+      additionalProperties: false
+      description: Starts a new paid package period on an existing assigned eSIM. The workspace organization pays; the subscriber has no personal wallet.
+      required:
+      - esim_id
+      - offer_id
+      - offer_revision
+      - recurrence_revision
+      - accepted_price
+      properties:
+        esim_id:
+          $ref: '#/components/schemas/EsimID'
+          description: Assigned eSIM receiving the recurring package.
+        offer_id:
+          $ref: '#/components/schemas/EsimOfferID'
+          description: Offer whose recurring terms the buyer accepted.
+        offer_revision:
+          type: integer
+          minimum: 1
+          example: 1
+          description: The accepted offer revision.
+        recurrence_revision:
+          type: integer
+          minimum: 1
+          example: 1
+          description: The accepted recurring configuration revision.
+        accepted_price:
+          $ref: '#/components/schemas/Money'
+    EsimRecurringSubscriptionID:
+      type: string
+      minLength: 1
+      pattern: ^ers_[0-9a-hjkmnp-tv-z]{26}$
+      example: ers_01krdgeqcxet5s7t44vh8rt9mg
+    EsimInstallLinkMetadata:
+      type: object
+      readOnly: true
+      additionalProperties: false
+      description: Non-secret link details for identifying and revoking a delivered installation link. Contains no token or installation credentials.
+      required:
+      - id
+      - expires_at
+      - revoked_at
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/EsimInstallLinkID'
+        expires_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the installation link expires.
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: When the link was revoked, or null while not revoked.
+    EsimOfferPhoneInclusion:
+      type: string
+      minLength: 1
+      enum:
+      - always
+      - on_request
+      description: 'How the plan provides a phone number.
+
+
+        - `always`: a phone number is included with each eSIM purchased from the offer.
+
+        - `on_request`: reserved for offers with an optional phone number; currently unavailable.
+
+        '
+      example: always
+    EsimOfferValidity:
+      type: object
+      additionalProperties: false
+      description: 'How long a package from this offer stays usable. one_time offers run once for the given period after activation; recurring offers renew for a further period each time it lapses. Match on type and treat an unrecognized value as an offer your integration cannot order.
+
+        '
+      required:
+      - type
+      - unit
+      - value
+      properties:
+        type:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferValidityType'
+        unit:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimOfferValidityUnit'
+        value:
+          type: integer
+          minimum: 1
+          readOnly: true
+          description: Number of units per period.
+          example: 30
+        minimum_periods:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          readOnly: true
+          description: For recurring offers, the minimum number of periods committed. Null when there is no minimum, and for one_time offers.
+    EsimRecurrenceDeliveryMode:
+      type: string
+      minLength: 1
+      description: 'Relationship between the paid period and package delivery.
+
+
+        - `exact_period`: the package covers the accepted paid interval.
+
+        - `recurring_top_up`: each funded period purchases a standard package. Activation, expiry, and accumulation follow that package’s terms.
+
+        '
+      enum:
+      - exact_period
+      - recurring_top_up
+    EsimOfferData:
+      type: object
+      additionalProperties: false
+      description: Data allowance of a bundle.
+      required:
+      - amount_bytes
+      properties:
+        amount_bytes:
+          type: integer
+          minimum: 1
+          readOnly: true
+          description: Total data allowance in bytes.
+          example: 10737418240
+        throttled_after_bytes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          readOnly: true
+          description: 'Data amount in bytes after which speed is reduced instead of cut off. Null when the allowance is a hard cap.
+
+            '
+    EsimOfferPhone:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Phone service included with the plan. Every eSIM sold from the offer gets its own phone number; each flag states one direction of service on that number. A false flag means the plan does not include that service.
+
+        '
+      required:
+      - included
+      - voice_inbound
+      - voice_outbound
+      - sms_inbound
+      - sms_outbound
+      properties:
+        included:
+          $ref: '#/components/schemas/EsimOfferPhoneInclusion'
+        voice_inbound:
+          type: boolean
+          description: The eSIM can receive calls on its phone number.
+          example: false
+        voice_outbound:
+          type: boolean
+          description: The eSIM can place calls.
+          example: false
+        sms_inbound:
+          type: boolean
+          description: The eSIM can receive text messages on its phone number.
+          example: true
+        sms_outbound:
+          type: boolean
+          description: The eSIM can send text messages.
+          example: false
+      example:
+        included: always
+        voice_inbound: false
+        voice_outbound: false
+        sms_inbound: true
+        sms_outbound: false
+    EsimSubscriberList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/EsimSubscriber'
+            description: Subscribers in creation order, newest first.
+      - $ref: '#/components/schemas/_ListEnvelope'
+    EsimSubscriber:
+      readOnly: true
+      unevaluatedProperties: false
+      description: A stable person reference for eSIM service in this workspace. Editing contact details does not change this identity.
+      allOf:
+      - type: object
+        required:
+        - id
+        - contact_id
+        properties:
+          id:
+            $ref: '#/components/schemas/EsimSubscriberID'
+          contact_id:
+            $ref: '#/components/schemas/ContactID'
+      - $ref: '#/components/schemas/Timestamps'
+    EsimRecurringSubscriptionStatus:
+      type: string
+      minLength: 1
+      description: 'Delivery state of the recurring service. Check payment and renewal fields separately.
+
+
+        - `pending`: enrollment or the initial purchase is still being processed.
+
+        - `active`: the service has delivered a package and remains active.
+
+        - `needs_attention`: delivery or a related credit remains unresolved. Check period history and the associated order before purchasing a replacement.
+
+        - `ended`: recurrence has ended. Previously delivered packages keep their own validity.
+
+        '
+      enum:
+      - pending
+      - active
+      - needs_attention
+      - ended
+    EsimStatus:
+      type: string
+      minLength: 1
+      enum:
+      - provisioning
+      - ready
+      - activating
+      - active
+      - suspending
+      - suspended
+      - resuming
+      - releasing
+      - released
+      - expired
+      - failed
+      description: 'Lifecycle state of an eSIM. A pending state always settles: to its target on
+
+        success, or back to the prior status when the network definitively rejects
+
+        the change, reported by the `esim.operation_failed` event.
+
+
+        - `provisioning`: the initial data package is being applied; install credentials may already be available.
+
+        - `ready`: installable and usable, waiting for first network use; allows top-up orders and release. Activate before `ready_until` or the eSIM expires.
+
+        - `activating`: an activation is being applied.
+
+        - `active`: in service; the service period ends at `active_until`. Allows top-up orders, suspend, resync, and release.
+
+        - `suspending`: a suspension was requested and is being applied.
+
+        - `suspended`: data service is paused; allows resume and release.
+
+        - `resuming`: a resume was requested and is being applied.
+
+        - `releasing`: a permanent release is in progress.
+
+        - `released`: permanently released; terminal.
+
+        - `expired`: dormant. No data package has been live (each one depleted, expired, removed, or failed) for the expiry window. Not terminal: a completed top-up returns the eSIM to `active`, and release remains available. Balances and the installed profile are untouched.
+
+        - `failed`: provisioning failed; any charge on the owning order is credited back automatically, reported by that order. Terminal.
+
+        '
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    EsimBalanceReporting:
+      type: string
+      minLength: 1
+      readOnly: true
+      enum:
+      - available
+      - unavailable
+      description: 'Whether package consumption can be reported for this eSIM.
+
+
+        - `available`: consumption reporting has not been ruled out. A null package balance means no measurement is available yet.
+
+        - `unavailable`: ongoing consumption reporting is unavailable. Display the purchased `total_bytes` as allowance; do not present it as measured remaining data.
+
+
+        This field is separate from daily usage history. Reporting availability can change as network support is confirmed.
+
+        '
+    WalletTransactionID:
+      type: string
+      minLength: 1
+      pattern: ^wtx_[0-9a-hjkmnp-tv-z]{26}$
+      example: wtx_01krdgeqcxet5s7t44vh8rt9mg
+    EsimZoneBalance:
+      type: object
+      additionalProperties: false
+      description: Reported balance across packages in one coverage zone. Zones can overlap; check each package’s countries before using these totals to estimate allowance for a destination. The mobile network selects which eligible package serves a connection.
+      required:
+      - zone_id
+      - total_bytes
+      - used_bytes
+      - remaining_bytes
+      - as_of
+      - observed_at
+      properties:
+        zone_id:
+          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/EsimZoneID'
+        total_bytes:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total purchased data for the zone, in bytes. Known from the orders, so never null.
+        used_bytes:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Reported data used in this zone, in bytes. Null if any contributing package lacks a usage report. Read individual package balances for available measurements.
+        remaining_bytes:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Data remaining, in bytes. Null under the same condition as `used_bytes`.
+        as_of:
+          type: string
+          minLength: 1
+          format: date-time
+          readOnly: true
+          description: Freshness of this combined figure - the oldest balance read among the zone's contributing packages. Each package's own balance.as_of can be newer.
+        observed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: Oldest network measurement time among the contributing packages. Null if any package lacks a report or a measurement time. Use `as_of` for the balance update time.
+    EsimRenewalState:
+      type: string
+      minLength: 1
+      description: 'The status of the eSIM''s one recurring subscription that has not ended, or `none` when it has no such subscription. The values are every `EsimRecurringSubscriptionStatus` except `ended`, plus `none`. This is subscription state, not a promise of another renewal: read the subscription''s `cancel_at_period_end` for that.
+
+
+        - `pending`: enrollment or the initial purchase is still being processed.
+
+        - `active`: the subscription is in service. One canceled at the end of its paid period stays `active` until that boundary; read the subscription''s `cancel_at_period_end` to tell them apart.
+
+        - `needs_attention`: a delivery or a related credit remains unresolved.
+
+        - `none`: the eSIM has no recurring subscription, or only ended ones.
+
+        '
+      enum:
+      - pending
+      - active
+      - needs_attention
+      - none
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    CreatedAfter:
+      name: created_after
+      in: query
+      required: false
+      description: Limits the response to resources created at or after this timestamp. Combine it with `created_before` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-05-01T00:00:00Z'
+    EsimSubscriberFilter:
+      name: subscriber_id
+      in: query
+      required: false
+      description: Return eSIMs assigned to this subscriber.
+      schema:
+        $ref: '#/components/schemas/EsimSubscriberID'
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    EsimTagFilter:
+      name: tag
+      in: query
+      required: false
+      description: 'Filter by tag. Accepts `name` to match any eSIM carrying that tag name, or `name:value` to match a specific tag pair (e.g. `trip:summer`). A trailing colon (`name:`) matches the name alone, the same as `name`. A term with an empty name is rejected. Repeat the parameter to AND-combine several tag filters.
+
+        '
+      schema:
+        type: array
+        items:
+          type: string
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    RequiredIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Required client-supplied deduplication key for this write. Reuse it for retries of the same intent. Successful results replay within the configured idempotency window (three hours by default); selected connected-app writes also replay uncertain-write conflicts. Use a new key only after confirming the prior result and beginning a different action.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+    EsimIccidPrefixFilter:
+      name: iccid_prefix
+      in: query
+      required: false
+      description: 'Keep only eSIMs whose ICCID starts with these digits. Use it when you hold only the first part of an ICCID. Pass `iccid` instead when you hold the whole number.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 22
+        example: '89445002'
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    CreatedBefore:
+      name: created_before
+      in: query
+      required: false
+      description: Limits the response to resources created before this timestamp. Combine it with `created_after` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-01T00:00:00Z'
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  responses:
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotImplemented:
+      description: The operation is not supported
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentRequired:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

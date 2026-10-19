@@ -93,6 +93,13 @@ components:
           type: string
         connectorId:
           type: string
+    CreatePresignedUpload:
+      type: object
+      required:
+      - contentType
+      properties:
+        contentType:
+          type: string
     PresignedUpload:
       type: object
       properties:
@@ -112,13 +119,6 @@ components:
           items:
             $ref: '#/components/schemas/Channel'
         nextPageToken:
-          type: string
-    CreatePresignedUpload:
-      type: object
-      required:
-      - contentType
-      properties:
-        contentType:
           type: string
   parameters:
     WorkspaceId:

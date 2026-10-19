@@ -107,6 +107,15 @@ components:
           type: string
           format: date-time
           description: The date and time when the recording was last updated.
+    RecordingList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recording'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     Pagination:
       type: object
       properties:
@@ -129,21 +138,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Recording'
-    RecordingList:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Recording'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
   parameters:
-    callIdParam:
-      name: callId
+    legIdParam:
+      name: legId
       in: path
       required: true
-      description: The unique identifier of the call.
+      description: The unique identifier of the leg.
       schema:
         type: string
     recordingIdParam:
@@ -153,11 +153,11 @@ components:
       description: The unique identifier of the recording.
       schema:
         type: string
-    legIdParam:
-      name: legId
+    callIdParam:
+      name: callId
       in: path
       required: true
-      description: The unique identifier of the leg.
+      description: The unique identifier of the call.
       schema:
         type: string
   securitySchemes:

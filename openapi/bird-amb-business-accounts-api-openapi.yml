@@ -1,0 +1,1738 @@
+openapi: 3.2.0
+info:
+  title: Bird Amb Business Accounts API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: amb-business-accounts
+  description: The Apple Messages for Business brand record your workspace sends as, its approval state, and the channel settings and landing page Apple requires.
+paths:
+  /v1/amb/business-accounts/{business_account_id}/reconnect:
+    post:
+      operationId: restoreAMBBusinessAccount
+      x-snippet-key: amb.business_accounts.reconnect
+      summary: Reconnect an Apple business account
+      description: Restores the local connection. The retained approval and suspension state still determines whether the account can send. Repeated reconnects return the current account.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The reconnected business account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/business-accounts/{business_account_id}/events:
+    get:
+      operationId: listAMBBusinessAccountEvents
+      x-snippet-key: amb.business_accounts.events.list
+      summary: List Apple business account events
+      description: Returns account activity with event time, summary and source metadata, newest first by default.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - name: sort
+        in: query
+        description: 'Field to sort by. Possible values: `created_at`. Defaults to `created_at`.'
+        schema:
+          $ref: '#/components/schemas/AMBBusinessAccountEventSort'
+      - $ref: '#/components/parameters/OrderDesc'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/IncludeTotal'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: A page of business account activity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccountEventList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/business-accounts:
+    get:
+      operationId: listAMBBusinessAccounts
+      x-snippet-key: amb.business_accounts.list
+      summary: List Apple Messages for Business records
+      description: 'Returns a paginated list of your workspace''s Apple Messages for Business
+
+        records. A workspace can register multiple businesses.'
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: sort
+        in: query
+        required: false
+        description: 'Field to sort by. Possible values: `created_at`. Defaults to `created_at`.'
+        schema:
+          $ref: '#/components/schemas/AMBBusinessAccountSort'
+      - $ref: '#/components/parameters/OrderDesc'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/IncludeTotal'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: A page of your workspace's Apple Messages for Business records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccountList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    post:
+      operationId: createAMBBusinessAccount
+      x-snippet-key: amb.business_accounts.create
+      summary: Create an Apple Messages for Business record
+      description: 'Creates an Apple Messages for Business record in your workspace. Each
+
+        Apple Business ID can belong to only one retained business record in this region.
+
+        Disconnecting an account does not release its identifier.
+
+
+        The account starts with `status: pending` and no `account_review_status`,
+
+        including when you supply `apple_business_id`. Upload the required evidence
+
+        and create a submission to begin review. The account remains pending until
+
+        approved; its submission records review progress.'
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AMBBusinessAccountCreate'
+            example:
+              name: Acme Retail
+      responses:
+        '201':
+          description: The created Apple Messages for Business record.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/business-accounts/{business_account_id}:
+    get:
+      operationId: getAMBBusinessAccount
+      x-snippet-key: amb.business_accounts.get
+      summary: Get an Apple Messages for Business record
+      description: Returns your workspace's Apple Messages for Business record, including its current status with Apple.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        description: Bird business account ID (abz_) or Apple business UUID. Both resolve within the current workspace.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The Apple Messages for Business record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateAMBBusinessAccount
+      x-snippet-key: amb.business_accounts.update
+      summary: Update an Apple Messages for Business record
+      description: 'Changes your workspace''s Apple Messages for Business record. Fields you
+
+        omit are left as they are.
+
+
+        Sending `apple_business_id` identifies the draft but does not submit it.
+
+        Create a submission with all three evidence attachments when the record
+
+        is ready for review.'
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        description: ID of the Apple Messages for Business record, as returned by the business list.
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AMBBusinessAccountUpdate'
+            example:
+              apple_business_id: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+      responses:
+        '200':
+          description: The updated Apple Messages for Business record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    delete:
+      operationId: deleteAMBBusinessAccount
+      x-snippet-key: amb.business_accounts.delete
+      summary: Disconnect an Apple business account
+      description: Stops new and queued sends while retaining the account, Apple UUID, approval, credentials and history. Repeated disconnects succeed without changing history. An already-started send attempt may finish; provider requests cannot be recalled. This is a local Bird connection change, not Apple deregistration.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '204':
+          description: The business account is disconnected.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/business-accounts/{business_account_id}/submissions:
+    get:
+      operationId: listAMBBusinessAccountSubmissions
+      x-snippet-key: amb.business_accounts.submissions.list
+      summary: List Apple Messages for Business submissions
+      description: Returns review attempts with frozen evidence for this business, newest first, with fresh private evidence URLs.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - name: sort
+        in: query
+        description: 'Field to sort by. Possible values: `created_at`. Defaults to `created_at`.'
+        schema:
+          $ref: '#/components/schemas/AMBBusinessAccountSubmissionSort'
+      - $ref: '#/components/parameters/OrderDesc'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/IncludeTotal'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: A page of submission attempts, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccountSubmissionList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    post:
+      operationId: createAMBBusinessAccountSubmission
+      x-snippet-key: amb.business_accounts.submissions.create
+      summary: Submit an Apple Messages for Business business for review
+      description: Submits an account for review, making its name, Apple UUID and three uploaded evidence attachments available to Bird staff. This does not approve the account.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AMBBusinessAccountSubmissionCreate'
+      responses:
+        '201':
+          description: The submission with its frozen evidence manifest.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBBusinessAccountSubmission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/business-account-attachments:
+    post:
+      operationId: createAMBBusinessAccountAttachment
+      summary: Upload Apple Messages for Business review evidence
+      description: Uploads a private PDF or MP4 for a later business submission and returns expiring download and preview links.
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AMBBusinessAccountAttachmentUpload'
+      responses:
+        '200':
+          description: An existing same-content attachment in this workspace, which may already be committed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+        '201':
+          description: The uploaded evidence attachment.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-snippet-key: none
+      x-surfaces:
+      - cli
+      - mcp
+  /v1/amb/business-accounts/{business_account_id}/channel-settings:
+    get:
+      operationId: getAMBChannelSettings
+      x-snippet-key: amb.business_accounts.settings.get
+      summary: Get Apple Messages for Business channel settings
+      description: 'Returns the channel settings for your workspace''s Apple Messages for Business record: its entry points, default locale, and the brand name and logo shown on the landing page customers use to connect it.'
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        description: ID of the Apple Messages for Business record, as returned by the business list.
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The business's channel settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBChannelSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateAMBChannelSettings
+      x-snippet-key: amb.business_accounts.settings.update
+      summary: Update Apple Messages for Business channel settings
+      description: 'Changes the channel settings for your workspace''s Apple Messages for
+
+        Business record. Fields you omit are left as they are, except
+
+        `entry_points`: sending it replaces the entire set, since there is no
+
+        way to add or remove a single entry point without resending the rest.'
+      tags:
+      - amb-business-accounts
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: business_account_id
+        in: path
+        required: true
+        description: ID of the Apple Messages for Business record, as returned by the business list.
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AMBChannelSettingsUpdate'
+            example:
+              brand_name: Acme Retail
+              default_locale: en-US
+              entry_points:
+              - id: website-footer
+                group: support
+                intent: general-inquiry
+                body: Hi, I have a question about my order.
+      responses:
+        '200':
+          description: The updated channel settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBChannelSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    AssetID:
+      type: string
+      minLength: 1
+      pattern: ^ast_[0-9a-hjkmnp-tv-z]{26}$
+      example: ast_01krdgeqcxet5s7t44vh8rt9mg
+    AttachmentID:
+      type: string
+      minLength: 1
+      pattern: ^tca_[0-9a-hjkmnp-tv-z]{26}$
+      example: tca_01krdgeqcxet5s7t44vh8rt9mg
+    AMBBusinessAccountSubmissionSort:
+      type: string
+      enum:
+      - created_at
+      default: created_at
+      description: Field used to order the records.
+    AMBBusinessAccountCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The brand name shown for this business record inside Bird.
+          example: Acme Retail
+        apple_business_id:
+          type: string
+          format: uuid
+          minLength: 1
+          description: The Business ID Apple issued for this brand, if you already have it. Supplying it identifies the draft. Submit the completed evidence requirements explicitly when the business is ready for review.
+          example: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+    AMBBusinessAccountAttachmentUpload:
+      type: object
+      additionalProperties: false
+      required:
+      - file
+      properties:
+        file:
+          type: string
+          format: binary
+          minLength: 1
+          description: A PDF up to 10 MiB or an MP4 video up to 25,000,000 bytes. Bird determines the type from the file contents.
+    AMBBusinessAccountSubmissionCreate:
+      type: object
+      additionalProperties: false
+      description: The submission commits three distinct attachments uploaded to this workspace. `readiness_attachment_id` identifies the PDF business readiness assessment; `use_cases_attachment_id` identifies the PDF describing proposed customer use cases; `video_attachment_id` identifies the MP4 demonstration of the customer experience. Invalid or duplicate evidence returns 422.
+      required:
+      - readiness_attachment_id
+      - use_cases_attachment_id
+      - video_attachment_id
+      properties:
+        readiness_attachment_id:
+          $ref: '#/components/schemas/AttachmentID'
+          description: Uploaded PDF attachment containing the business readiness assessment.
+        use_cases_attachment_id:
+          $ref: '#/components/schemas/AttachmentID'
+          description: Uploaded PDF attachment describing the proposed customer use cases.
+        video_attachment_id:
+          $ref: '#/components/schemas/AttachmentID'
+          description: Uploaded MP4 attachment demonstrating the customer experience.
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    AMBBusinessAccountSort:
+      type: string
+      enum:
+      - created_at
+      default: created_at
+      description: Field used to order the records.
+    AMBBusinessAccountSubmissionList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/AMBBusinessAccountSubmission'
+      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    _ListEnvelopeWithTotal:
+      allOf:
+      - $ref: '#/components/schemas/_ListEnvelope'
+      - type: object
+        properties:
+          total:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+            description: Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise `null`.
+    AMBChannelSettings:
+      type: object
+      additionalProperties: false
+      required:
+      - entry_points
+      - brand_name
+      - logo_asset_id
+      properties:
+        entry_points:
+          type: array
+          description: The entry points customers can use to open a conversation with this business, each matched against the group and intent an inbound message reports.
+          items:
+            $ref: '#/components/schemas/AMBEntryPoint'
+        default_locale:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: The locale used for this business when a conversation reports none of its own, in canonical BCP-47 form. Null until you set one or after you clear it. Bird converts a configured default to Apple's locale form when sending a message without a conversation locale.
+          example: en-US
+        brand_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The brand name shown on the Bird-hosted landing page customers use to connect this business.
+          example: Acme Retail
+        logo_asset_id:
+          oneOf:
+          - $ref: '#/components/schemas/AssetID'
+          - type: 'null'
+          description: The business's logo, as an asset in your media library. Null until one is set, either from Apple's own redirect or from a later change here.
+          example: ast_01krdgeqcxet5s7t44vh8rt9mg
+      description: A business's entry points, default locale, and landing-page brand settings. OpenID Connect providers use separate business authentication provider operations. Apple Pay merchant settings use the separate business Apple Pay configuration operations. Supply custom iMessage app metadata on each message.
+    AMBBusinessAccountUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The brand name shown for this business record inside Bird.
+          example: Acme Retail
+        apple_business_id:
+          type: string
+          format: uuid
+          minLength: 1
+          description: The Business ID Apple issued for this brand. Accepted only while the account has not yet been submitted and is connected. Updating it does not submit the business.
+          example: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    AMBBusinessAccountList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: The business records your workspace holds.
+            items:
+              $ref: '#/components/schemas/AMBBusinessAccount'
+      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    AMBBusinessAccountEventSort:
+      type: string
+      enum:
+      - created_at
+      default: created_at
+      description: Account event ordering field.
+    AMBEntryPoint:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - group
+      - intent
+      - body
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Identifier for this entry point, chosen by you and unique within the business's entry points. A conversation opened through this entry point carries it as `entry_point`.
+          example: website-footer
+        group:
+          type: string
+          minLength: 1
+          description: The group value Apple reports on a conversation opened through this entry point. Matched against the `group` the first inbound message carries.
+          example: support
+        intent:
+          type: string
+          minLength: 1
+          description: The intent value Apple reports on a conversation opened through this entry point. Matched against the `intent` the first inbound message carries, together with `group`.
+          example: general-inquiry
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: The message text pre-filled for the customer when they open a conversation through this entry point.
+          example: Hi, I have a question about my order.
+    AMBBusinessAccountEventList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/AMBBusinessAccountEvent'
+      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    AMBBusinessAccountSubmission:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - business_account_id
+      - apple_business_id
+      - name
+      - readiness_attachment
+      - use_cases_attachment
+      - video_attachment
+      - status
+      - status_reason
+      - created_at
+      - updated_at
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/AMBBusinessSubmissionID'
+          readOnly: true
+        business_account_id:
+          allOf:
+          - $ref: '#/components/schemas/AMBBusinessID'
+          readOnly: true
+        apple_business_id:
+          type: string
+          format: uuid
+          minLength: 1
+          readOnly: true
+          description: The Apple business UUID frozen when this attempt was submitted.
+        name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The customer-supplied Bird account name frozen when this attempt was submitted.
+        readiness_attachment:
+          allOf:
+          - $ref: '#/components/schemas/Attachment'
+          readOnly: true
+        use_cases_attachment:
+          allOf:
+          - $ref: '#/components/schemas/Attachment'
+          readOnly: true
+        video_attachment:
+          allOf:
+          - $ref: '#/components/schemas/Attachment'
+          readOnly: true
+        status:
+          description: The review outcome of this attempt. Earlier attempts retain their outcome when a new attempt is submitted.
+          allOf:
+          - $ref: '#/components/schemas/AMBBusinessAccountSubmissionStatus'
+          readOnly: true
+        status_reason:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          readOnly: true
+          description: Review feedback on this attempt, such as the reason Apple rejected it. May contain basic Markdown, such as emphasis and lists.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+        next:
+          type: array
+          readOnly: true
+          description: Read the parent business account for current eligibility and next actions. Present on create responses and each customer submission-list item; historical attempts do not establish current account state.
+          items:
+            $ref: '#/components/schemas/NextAction'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    AMBBusinessAccountEventID:
+      type: string
+      minLength: 1
+      pattern: ^abe_[0-9a-hjkmnp-tv-z]{26}$
+      example: abe_01krdgeqcxet5s7t44vh8rt9mg
+    AMBBusinessAccountStatus:
+      type: string
+      minLength: 1
+      enum:
+      - pending
+      - active
+      - suspended
+      - disconnected
+      description: Pending accounts need setup or review. Active accounts have recorded approval. Suspended accounts retain their recorded suspension. Configured, connected accounts can exchange messages regardless of review status; Apple decides whether to accept outgoing requests. Disconnected accounts retain their identity and history but cannot exchange new messages until reconnected.
+      example: active
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    AttachmentStatus:
+      type: string
+      minLength: 1
+      enum:
+      - draft
+      - attached
+      description: 'Lifecycle of an attachment. `draft` is a file that has been uploaded but nothing
+
+        has been registered or submitted with it yet, and it is discarded at its
+
+        `expires_at`. `attached` means at least one registration has cited it, so it is
+
+        kept permanently and can no longer be deleted.
+
+        '
+    AMBBusinessAccount:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - apple_business_id
+      - name
+      - status
+      - invitations_enabled
+      - created_at
+      - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/AMBBusinessID'
+          readOnly: true
+          description: Unique identifier for the business record.
+        apple_business_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+          description: Apple business UUID, or null until supplied. Adding this identifier does not submit the account for review.
+          example: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+        name:
+          type: string
+          minLength: 1
+          description: Customer-supplied account name used in Bird. Apple controls the name shown to customers in Messages.
+          example: Acme Retail
+        status:
+          $ref: '#/components/schemas/AMBBusinessAccountStatus'
+          readOnly: true
+          description: Operational state of the business account.
+        status_reason:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: Reason for the current operational suspension, when recorded. Review feedback is retained on the submission. May contain basic Markdown, such as emphasis and lists.
+        invitations_enabled:
+          type: boolean
+          readOnly: true
+          description: Whether Apple has granted invitation access. Sending also requires a configured, connected account and eligible recipient.
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the business record was created.
+          example: '2026-08-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When the business record was last changed.
+          example: '2026-08-25T16:42:01Z'
+        next:
+          type: array
+          readOnly: true
+          description: Next setup actions on create, update and single-account reads. Active accounts return an empty array. Lists omit this field.
+          items:
+            $ref: '#/components/schemas/NextAction'
+        account_review_status:
+          $ref: '#/components/schemas/AMBBusinessAccountReviewStatus'
+          readOnly: true
+          description: Latest recorded review outcome. Absent before the first submission.
+        finish_setup_url:
+          type: string
+          format: uri
+          readOnly: true
+          description: Bird dashboard URL for completing setup. Present only when customer action is available.
+    AMBBusinessSubmissionID:
+      type: string
+      minLength: 1
+      pattern: ^abs_[0-9a-hjkmnp-tv-z]{26}$
+      example: abs_01krdgeqcxet5s7t44vh8rt9mg
+    Attachment:
+      description: A supporting document uploaded for an SMS registration (10DLC campaign evidence, toll-free verification opt-in screenshots). Reference it from the registration's own attachment-id field to submit it as evidence.
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Timestamps'
+      - type: object
+        required:
+        - id
+        - filename
+        - content_type
+        - size_bytes
+        - download_url
+        - download_url_expires_at
+        - status
+        - expires_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/AttachmentID'
+          filename:
+            type: string
+            minLength: 1
+            readOnly: true
+            description: The uploaded file's name.
+          content_type:
+            type: string
+            minLength: 1
+            readOnly: true
+            description: The file's content type, determined from its contents.
+          size_bytes:
+            type: integer
+            format: int64
+            readOnly: true
+            description: The file's size in bytes.
+          description:
+            type: string
+            maxLength: 255
+            readOnly: true
+            description: A short note describing what the file shows.
+          status:
+            readOnly: true
+            $ref: '#/components/schemas/AttachmentStatus'
+          download_url:
+            type: string
+            format: uri
+            minLength: 1
+            readOnly: true
+            x-sensitive: true
+            description: Short-lived signed URL for downloading or previewing the attachment. Valid for 24 hours from when the resource was fetched; request a fresh resource to obtain a new URL after expiry. Do not cache beyond `download_url_expires_at`. Registration authorities (10DLC and toll-free carriers) retrieve evidence via a separate, longer-lived token; this URL is not that token.
+          preview_url:
+            type: string
+            format: uri
+            readOnly: true
+            x-sensitive: true
+            description: Optional signed URL for inline viewing on an isolated storage origin. Valid for one hour; fetch the attachment again to refresh it.
+          download_url_expires_at:
+            type: string
+            format: date-time
+            minLength: 1
+            readOnly: true
+            description: When `download_url` expires. Both fields are always present; the server returns an error rather than omitting them.
+          expires_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: When this attachment is discarded if nothing is registered or submitted with it. Null once its status is `attached`.
+    AMBBusinessAccountSubmissionStatus:
+      type: string
+      minLength: 1
+      enum:
+      - submitted
+      - in_review
+      - approved
+      - rejected
+      description: State of this review attempt. Later suspension or disconnection does not change an approved attempt.
+      example: submitted
+    AMBChannelSettingsUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        entry_points:
+          type: array
+          description: The entry points customers can use to open a conversation with this business. Sending this replaces the entire set; there is no way to add or remove a single entry point without resending the rest.
+          items:
+            $ref: '#/components/schemas/AMBEntryPoint'
+        default_locale:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: The locale used for this business when a conversation reports none of its own, in BCP-47 form. Omit this field to keep the current default, or send null to clear it. Bird converts a configured default to Apple's locale form when sending a message without a conversation locale.
+          example: en-US
+        brand_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The brand name shown on the Bird-hosted landing page customers use to connect this business.
+          example: Acme Retail
+        logo_asset_id:
+          oneOf:
+          - $ref: '#/components/schemas/AssetID'
+          - type: 'null'
+          description: The business's logo, as an asset in your media library. Send null to clear it.
+          example: ast_01krdgeqcxet5s7t44vh8rt9mg
+    AMBBusinessID:
+      type: string
+      minLength: 1
+      pattern: ^abz_[0-9a-hjkmnp-tv-z]{26}$
+      example: abz_01krdgeqcxet5s7t44vh8rt9mg
+    AMBBusinessAccountEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - summary
+      - metadata
+      - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/AMBBusinessAccountEventID'
+          readOnly: true
+        type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - amb_business_account.created
+          - amb_business_account.status_changed
+          - amb_business_account.submission_created
+          - amb_business_account.review_changed
+          - amb_business_account.invitation_access_changed
+          - amb_business_account.suspension_changed
+        summary:
+          type: string
+          minLength: 1
+          readOnly: true
+        metadata:
+          type: object
+          additionalProperties: true
+          readOnly: true
+          description: Details of the change. source identifies whether a customer or Bird staff recorded it.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+    AMBBusinessAccountReviewStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - pending
+      - approved
+      - rejected
+      description: Latest review outcome recorded by Bird staff.
+      example: approved
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+  responses:
+    PayloadTooLarge:
+      description: Request body or message size exceeds the allowed limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    OrderDesc:
+      name: order
+      in: query
+      required: false
+      description: 'Sort direction. Defaults to `desc`, which sorts from newest to oldest or largest to smallest, depending on the selected sort field.
+
+        '
+      schema:
+        $ref: '#/components/schemas/SortOrder'
+        default: desc
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    IncludeTotal:
+      name: include_total
+      in: query
+      required: false
+      description: When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
+      schema:
+        type: boolean
+        default: false
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

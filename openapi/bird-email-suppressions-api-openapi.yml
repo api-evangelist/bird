@@ -2,9 +2,45 @@ openapi: 3.2.0
 info:
   title: Bird Email Suppressions API
   version: 1.0.0
-  description: 'The Bird API: one REST API for email, SMS, WhatsApp, verification, and
+  description: 'Build communications into your applications and AI workflows with the Bird API.
 
-    Realtime.'
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
 servers:
 - url: https://{region}.platform.bird.com
   description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
@@ -84,6 +120,8 @@ paths:
       - $ref: '#/components/parameters/PaginationLimit'
       - $ref: '#/components/parameters/StartingAfter'
       - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
       responses:
         '200':
           description: Paginated list of suppressions.
@@ -91,10 +129,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuppressionList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/Unprocessable'
         '429':
@@ -103,7 +145,6 @@ paths:
           $ref: '#/components/responses/InternalError'
       x-surfaces:
       - cli
-      - make
       - mcp
       - n8n
       - sdk
@@ -125,6 +166,8 @@ paths:
       x-snippet-key: suppressions.add
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
       requestBody:
         required: true
         content:
@@ -155,6 +198,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/Unprocessable'
         '429':
@@ -165,7 +210,6 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
       x-surfaces:
       - cli
-      - make
       - mcp
       - n8n
       - sdk
@@ -212,6 +256,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Suppression'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -224,9 +270,11 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
       x-surfaces:
       - cli
-      - make
       - mcp
       - n8n
       - sdk
@@ -251,9 +299,13 @@ paths:
       x-snippet-key: suppressions.remove
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
       responses:
         '204':
           description: Suppression deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -270,17 +322,145 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
       x-surfaces:
       - cli
-      - make
       - mcp
       - n8n
       - sdk
 components:
   schemas:
-    RecipientID:
+    SuppressionScope:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - id
+      properties:
+        type:
+          $ref: '#/components/schemas/SuppressionScopeType'
+        id:
+          type: string
+          minLength: 1
+          description: 'Public ID or alias of the scoped resource. For workspace scope, this is the workspace ID.
+
+            '
+          example: ws_01krdgeqcxet5s7t44vh8rt9mg
+    EmailID:
       type: string
       minLength: 1
-      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
-      example: er_01krdgeqcxet5s7t44vh8rt9mg
+      pattern: ^em_[0-9a-hjkmnp-tv-z]{26}$
+      example: em_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    SuppressionReasonFilter:
+      type: string
+      enum:
+      - hard_bounce
+      - complaint
+      - unsubscribe
+      - manual
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -306,6 +486,32 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ErrorBody'
+    SuppressionID:
+      type: string
+      minLength: 1
+      pattern: ^sup_[0-9a-hjkmnp-tv-z]{26}$
+      example: sup_01krdgeqcxet5s7t44vh8rt9mg
+    SuppressionList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of suppression records.
+            items:
+              $ref: '#/components/schemas/Suppression'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    SuppressionScopeTypeFilter:
+      type: string
+      enum:
+      - workspace
+      - category
+      - audience
+      - topic
+      - contact
+      - domain
     NextAction:
       type: object
       additionalProperties: false
@@ -346,39 +552,25 @@ components:
           description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
 
             '
-    SuppressionScope:
+    SuppressionCreate:
       type: object
       additionalProperties: false
       required:
-      - type
-      - id
+      - email
       properties:
-        type:
-          $ref: '#/components/schemas/SuppressionScopeType'
-        id:
+        email:
           type: string
-          minLength: 1
-          description: 'Public ID or alias of the scoped resource. For workspace scope, this is the workspace ID.
+          format: email
+          minLength: 5
+          description: 'The address to stop sending to. Normalized before storage and matching: lowercased and trimmed of surrounding whitespace.
 
             '
-          example: ws_01krdgeqcxet5s7t44vh8rt9mg
-    EmailID:
+          example: user@example.com
+    RecipientID:
       type: string
       minLength: 1
-      pattern: ^em_[0-9a-hjkmnp-tv-z]{26}$
-      example: em_01krdgeqcxet5s7t44vh8rt9mg
-    SuppressionList:
-      allOf:
-      - type: object
-        required:
-        - data
-        properties:
-          data:
-            type: array
-            description: Page of suppression records.
-            items:
-              $ref: '#/components/schemas/Suppression'
-      - $ref: '#/components/schemas/_ListEnvelope'
+      pattern: ^er_[0-9a-hjkmnp-tv-z]{26}$
+      example: er_01krdgeqcxet5s7t44vh8rt9mg
     SuppressionScopeType:
       type: string
       minLength: 1
@@ -392,20 +584,6 @@ components:
       description: 'How widely the email suppression applies. Responses use `workspace`. The values `category`, `audience`, `topic`, `contact`, and `domain` are reserved and have no records. The record''s `applies_to` field determines which message categories are blocked.
 
         '
-    SuppressionScopeTypeFilter:
-      type: string
-      enum:
-      - workspace
-      - category
-      - audience
-      - topic
-      - contact
-      - domain
-    SuppressionID:
-      type: string
-      minLength: 1
-      pattern: ^sup_[0-9a-hjkmnp-tv-z]{26}$
-      example: sup_01krdgeqcxet5s7t44vh8rt9mg
     Suppression:
       type: object
       additionalProperties: false
@@ -505,137 +683,118 @@ components:
           format: date-time
           readOnly: true
           description: When the address was suppressed.
-    _ListEnvelope:
-      type: object
-      required:
-      - next_cursor
-      - prev_cursor
-      - refresh_cursor
-      properties:
-        next_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
-        prev_cursor:
-          type:
-          - string
-          - 'null'
-          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
-          example: null
-        refresh_cursor:
-          type:
-          - string
-          - 'null'
-          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
-          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
-    SuppressionReasonFilter:
-      type: string
-      enum:
-      - hard_bounce
-      - complaint
-      - unsubscribe
-      - manual
-    ErrorBody:
-      type: object
-      additionalProperties: false
-      required:
-      - type
-      - code
-      - name
-      - message
-      - doc_url
-      - request_id
-      properties:
-        type:
-          type: string
-          minLength: 1
-          description: Broad category for coarse client branching.
-          enum:
-          - auth_error
-          - bad_request_error
-          - billing_error
-          - conflict_error
-          - gone_error
-          - internal_error
-          - misdirected_error
-          - not_found_error
-          - not_implemented_error
-          - payload_too_large_error
-          - permission_error
-          - precondition_error
-          - rate_limit_error
-          - service_unavailable_error
-          - too_early_error
-          - validation_error
-        code:
-          type: string
-          minLength: 1
-          pattern: ^E\d{5}$
-          description: Opaque, stable, unique error identifier. Never reused.
-        name:
-          type: string
-          minLength: 1
-          description: Human-readable slug for log readability. Paired with code, never replaces it.
-        message:
-          type: string
-          minLength: 1
-          description: Human-readable description. Not stable; clients must not parse it.
-        param:
-          type: string
-          minLength: 1
-          description: Identifies the offending field. Omitted when not applicable.
-        doc_url:
-          type: string
-          minLength: 1
-          format: uri
-          description: Stable link to the docs page for this error code.
-        request_id:
-          type: string
-          minLength: 1
-          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
-        vendor_code:
-          type: string
-          minLength: 1
-          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
 
-            '
-        details:
-          type: array
-          description: Per-field validation errors. Present only on validation_error responses.
-          items:
-            $ref: '#/components/schemas/ErrorDetail'
-        remediation:
-          type: string
-          minLength: 1
-          description: A human-readable next step to resolve this error. Present when a recovery is known.
-        next:
-          type: array
-          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
 
-            '
-          items:
-            $ref: '#/components/schemas/NextAction'
-    SuppressionCreate:
-      type: object
-      additionalProperties: false
-      required:
-      - email
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 5
-          description: 'The address to stop sending to. Normalized before storage and matching: lowercased and trimmed of surrounding whitespace.
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
 
-            '
-          example: user@example.com
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
   responses:
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     Unprocessable:
       description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
 
         '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -665,104 +824,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    ServiceUnavailable:
-      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
-
-        '
-      headers:
-        Retry-After:
-          $ref: '#/components/headers/RetryAfter'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-  parameters:
-    StartingAfter:
-      name: starting_after
-      in: query
-      required: false
-      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-      schema:
-        type: string
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      description: Maximum number of items to return per page.
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 25
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
-      schema:
-        type: string
-        maxLength: 255
-    EndingBefore:
-      name: ending_before
-      in: query
-      required: false
-      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
-      schema:
-        type: string
-  headers:
-    IdempotencyReplay:
-      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
-      schema:
-        type: string
-        enum:
-        - 'true'
-    RateLimit-Policy:
-      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";q=1000;w=60'
-    RetryAfter:
-      description: 'Number of seconds to wait before retrying the request.
-
-        '
-      schema:
-        type: integer
-        minimum: 0
-      example: 35
-    RateLimit:
-      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
-
-        '
-      schema:
-        type: string
-      example: '"email_send";r=842;t=35'
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
-      description: 'Pass the API key as a bearer token in the `Authorization` header. Keys use
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
 
-        the format `bk_{region}_*`. The prefix identifies the region and selects the
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
 
         API endpoint. Official Bird SDKs and the CLI derive the region from the key.
 

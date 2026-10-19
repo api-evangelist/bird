@@ -103,18 +103,6 @@ components:
           type: array
           items:
             type: string
-    Receiver:
-      type: object
-      properties:
-        contacts:
-          type: array
-          items:
-            type: object
-            properties:
-              identifierValue:
-                type: string
-              identifierKey:
-                type: string
     MessageList:
       type: object
       properties:
@@ -160,6 +148,18 @@ components:
           properties:
             text:
               type: string
+    Receiver:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              identifierValue:
+                type: string
+              identifierKey:
+                type: string
   parameters:
     WorkspaceId:
       name: workspaceId

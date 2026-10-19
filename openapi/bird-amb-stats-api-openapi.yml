@@ -1,0 +1,3085 @@
+openapi: 3.2.0
+info:
+  title: Bird Amb Stats API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: amb-stats
+  description: 'Apple Messages for Business analytics: outbound and inbound volume, conversation activity, processing latency, and first response time.'
+paths:
+  /v1/amb/stats/summary:
+    get:
+      operationId: getAMBStatsSummary
+      x-snippet-key: amb.stats.summary
+      summary: Get aggregate outbound Apple Messages for Business statistics
+      description: 'Returns one aggregate row of outbound Apple Messages for Business counts and latency percentiles (`p50`, `p95`, and `p99`) for the requested period. Counts are attributed to the time each message was accepted, so a send failure recorded today counts against the day its message was accepted; `period.data_as_of` is the freshness boundary the rollups have reached.
+
+
+        There is no delivery receipt on this channel, so there is no `delivered` count, delivery rate, or delivery-latency figure anywhere in this response. `latency.processing` covers acceptance to Apple handoff, and `first_response` measures the oldest unanswered inbound message to acceptance of the first outbound reply that claims it. When no qualifying message contributes a measurement, processing percentiles are null and `first_response` is omitted.
+
+
+        `from` and `to` must both be calendar days or RFC 3339 instants. Day windows cover up to 365 whole days. Instant bounds round down to the hour, remain inclusive, and may span up to 720 hours. Mixing the forms returns `422`. Set `timezone` for local boundaries. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.
+
+
+        Set one dimension filter at most (`business_account_id`, `message_kind`, `intent`, `group`, `category`, or `tag`); more than one returns `422`. Use `compare=previous_period` to include the preceding equal-length window and computed changes for the message counts and rates listed in `comparison.delta`. Monthly active contacts and latency values have no computed change.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: 'Inclusive start of the window: a calendar day (YYYY-MM-DD) or an RFC 3339 instant rounded down to the hour. The `timezone` parameter makes a calendar day local and rounds an instant down to the local hour. Omit `timezone` to use UTC. When `timezone` is set, a numeric UTC offset such as `+05:45` is rejected; use a calendar day or a `Z` (UTC) instant. This value must use the same form as `to`. When omitted, it defaults to 30 days before `to` for day windows or 168 hours (7 days) before `to` for hour windows.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          example: '2026-05-01'
+      - name: to
+        in: query
+        required: false
+        description: 'Inclusive end of the window: a calendar day (YYYY-MM-DD) or an RFC 3339 instant rounded down to the hour. The `timezone` parameter makes a calendar day local and rounds an instant down to the local hour. Omit `timezone` to use UTC. When `timezone` is set, a numeric UTC offset is rejected; use a calendar day or a `Z` (UTC) instant. This value must use the same form as `from`. When omitted, it defaults to today for day windows or the current hour for hour windows in that timezone. Day windows may not exceed 365 days; hour windows may not exceed 720 hours (30 days).
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          example: '2026-05-25'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: business_account_id
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single business. Mutually exclusive with the other dimension filters (`message_kind`, `intent`, `group`, `category`, `tag`); only one may be set per request. Matches the `business_account_id` key on a row of the per-business breakdown.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - name: message_kind
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single message content kind. Mutually exclusive with the other dimension filters (`business_account_id`, `intent`, `group`, `category`, `tag`); only one may be set per request. Matches the `message_kind` key on a row of the per-content-kind breakdown.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBContentKind'
+      - name: intent
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single entry-point intent. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `group`, `category`, `tag`); only one may be set per request. Matches the `intent` key on a row of the per-intent breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: order_support
+      - name: group
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single entry-point group. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `category`, `tag`); only one may be set per request. Matches the `group` key on a row of the per-group breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: sales
+      - name: category
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single message category. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `group`, `tag`); only one may be set per request. Matches the `category` key on a row of the per-category breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: order_update
+      - name: tag
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single tag. Use `name` to match any value of a tag, or `name:value` for a specific pair (for example `campaign:spring_launch`). Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `group`, `category`); only one may be set per request. A row of the per-tag breakdown carries the same pair in its single `tag` key.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: campaign:spring_launch
+      - name: compare
+        in: query
+        required: false
+        description: 'Set to `previous_period` to also include the same statistics for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request. The comparison window carries any dimension filter set on the request, so a filtered comparison compares like with like.
+
+          '
+        schema:
+          $ref: '#/components/schemas/StatsComparePeriod'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Aggregate summary for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/daily:
+    get:
+      operationId: getAMBStatsDaily
+      x-snippet-key: amb.stats.daily
+      summary: Get daily outbound Apple Messages for Business statistics
+      description: 'Returns one row of outbound Apple Messages for Business counts and processing-latency percentiles per calendar day for the workspace, gap-filled so a silent day is a zero row rather than a missing one. Every count in a row is attributed to the day its message was accepted, regardless of when a later event, such as a send failure, arrived.
+
+
+        There is no delivery receipt on this channel, so there is no `delivered` count or delivery-latency figure in any row. Each row carries its own `latency.processing` percentiles. Read `first_response` from the summary or a breakdown endpoint.
+
+
+        `from` and `to` are optional calendar days (YYYY-MM-DD), defaulting to the trailing 30 days. The maximum window is 365 days; a longer range returns `422`. Set `timezone` to report rows by your local calendar day. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.
+
+
+        Set at most one dimension filter (`business_account_id`, `message_kind`, `intent`, `group`, `category`, or `tag`) to restrict the statistics to that dimension''s value; setting more than one returns `422`.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Start date (inclusive), YYYY-MM-DD. Interpreted as a calendar day in `timezone` (a UTC day when `timezone` is omitted). The window may not exceed 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-05-01'
+      - name: to
+        in: query
+        required: false
+        description: End date (inclusive), YYYY-MM-DD. Interpreted as a calendar day in `timezone` (a UTC day when `timezone` is omitted). The window may not exceed 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-05-25'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: business_account_id
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single business. Mutually exclusive with the other dimension filters (`message_kind`, `intent`, `group`, `category`, `tag`); only one may be set per request. Matches the `business_account_id` key on a row of the per-business breakdown.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - name: message_kind
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single message content kind. Mutually exclusive with the other dimension filters (`business_account_id`, `intent`, `group`, `category`, `tag`); only one may be set per request. Matches the `message_kind` key on a row of the per-content-kind breakdown.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBContentKind'
+      - name: intent
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single entry-point intent. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `group`, `category`, `tag`); only one may be set per request. Matches the `intent` key on a row of the per-intent breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: order_support
+      - name: group
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single entry-point group. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `category`, `tag`); only one may be set per request. Matches the `group` key on a row of the per-group breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: sales
+      - name: category
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single message category. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `group`, `tag`); only one may be set per request. Matches the `category` key on a row of the per-category breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: order_update
+      - name: tag
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single tag. Use `name` to match any value of a tag, or `name:value` for a specific pair (for example `campaign:spring_launch`). Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `group`, `category`); only one may be set per request. A row of the per-tag breakdown carries the same pair in its single `tag` key.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: campaign:spring_launch
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Daily aggregate stats for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/hourly:
+    get:
+      operationId: getAMBStatsHourly
+      x-snippet-key: amb.stats.hourly
+      summary: Get hourly outbound Apple Messages for Business statistics
+      description: 'Returns one row of outbound Apple Messages for Business counts and processing-latency percentiles per hour, gap-filled so a silent hour is a zero row rather than a missing one. Every count in a row is attributed to the hour its message was accepted, regardless of when a later event, such as a send failure, arrived. Use it where the daily grain hides the shape; a window spans at most 720 hours (30 days), and for anything longer use the daily endpoint.
+
+
+        There is no delivery receipt on this channel, so there is no `delivered` count or delivery-latency figure in any row. Each row carries its own `latency.processing` percentiles. Read `first_response` from the summary or a breakdown endpoint.
+
+
+        `from` and `to` are optional RFC 3339 instants, defaulting to the trailing 168 hours; each bound rounds down to the hour and remains inclusive. A request may span up to 30 days (720 rows). An excessive or reversed window returns `422`. Set `timezone` for local hours instead of UTC, including zones with sub-hour offsets; when the timezone''s offset is not a whole number of hours, rows are read from finer-grained internal rollups and combined into hour boundaries automatically, with no parameter to select this. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.
+
+
+        Set one dimension filter at most (`business_account_id`, `message_kind`, `intent`, `group`, `category`, or `tag`); more than one returns `422`.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Start of the window (RFC 3339 instant), rounded down to the start of its hour and included. The boundary uses the local hour when `timezone` is set and the UTC hour otherwise. The window may not exceed 30 days (720 hours). Defaults to 168 hours (7 days) before `to` when omitted.
+        schema:
+          type: string
+          format: date-time
+          minLength: 1
+          example: '2026-05-25T00:00:00Z'
+      - name: to
+        in: query
+        required: false
+        description: End of the window (RFC 3339 instant), rounded down to the start of its hour and included. The boundary uses the local hour when `timezone` is set and the UTC hour otherwise, so both bounds are inclusive. The window may not exceed 30 days (720 hours). Defaults to the current hour when omitted.
+        schema:
+          type: string
+          format: date-time
+          minLength: 1
+          example: '2026-05-25T23:59:59Z'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: business_account_id
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single business. Mutually exclusive with the other dimension filters (`message_kind`, `intent`, `group`, `category`, `tag`); only one may be set per request. Matches the `business_account_id` key on a row of the per-business breakdown.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - name: message_kind
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single message content kind. Mutually exclusive with the other dimension filters (`business_account_id`, `intent`, `group`, `category`, `tag`); only one may be set per request. Matches the `message_kind` key on a row of the per-content-kind breakdown.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBContentKind'
+      - name: intent
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single entry-point intent. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `group`, `category`, `tag`); only one may be set per request. Matches the `intent` key on a row of the per-intent breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: order_support
+      - name: group
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single entry-point group. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `category`, `tag`); only one may be set per request. Matches the `group` key on a row of the per-group breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: sales
+      - name: category
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single message category. Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `group`, `tag`); only one may be set per request. Matches the `category` key on a row of the per-category breakdown.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: order_update
+      - name: tag
+        in: query
+        required: false
+        description: 'Restrict the statistics to a single tag. Use `name` to match any value of a tag, or `name:value` for a specific pair (for example `campaign:spring_launch`). Mutually exclusive with the other dimension filters (`business_account_id`, `message_kind`, `intent`, `group`, `category`); only one may be set per request. A row of the per-tag breakdown carries the same pair in its single `tag` key.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          example: campaign:spring_launch
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Hourly aggregate stats for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/businesses:
+    get:
+      operationId: getAMBStatsByBusiness
+      x-snippet-key: amb.stats.by_business
+      summary: Get outbound Apple Messages for Business statistics by business
+      description: 'Returns outbound counts and latency percentiles grouped by business, for the requested period. Rows are ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, omitted when no qualifying message contributes a measurement. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single business, use the summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of business rows to return, ranked by accepted volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-business breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByBusinessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/message-kinds:
+    get:
+      operationId: getAMBStatsByMessageKind
+      x-snippet-key: amb.stats.by_message_kind
+      summary: Get outbound Apple Messages for Business statistics by message kind
+      description: 'Returns outbound counts and latency percentiles grouped by message content kind, for the requested period. Rows are ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, omitted when no qualifying message contributes a measurement. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single content kind, use the summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of content-kind rows to return, ranked by accepted volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-content-kind breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByMessageKindResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/intents:
+    get:
+      operationId: getAMBStatsByIntent
+      x-snippet-key: amb.stats.by_intent
+      summary: Get outbound Apple Messages for Business statistics by intent
+      description: 'Returns outbound counts and latency percentiles grouped by entry-point intent, for the requested period. Rows are ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). Intents are workspace-defined strings configured on the business''s entry points and have no fixed vocabulary. Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, omitted when no qualifying message contributes a measurement. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single intent, use the summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of intent rows to return, ranked by accepted volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-intent breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByIntentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/groups:
+    get:
+      operationId: getAMBStatsByGroup
+      x-snippet-key: amb.stats.by_group
+      summary: Get outbound Apple Messages for Business statistics by group
+      description: 'Returns outbound counts and latency percentiles grouped by entry-point group, for the requested period. Rows are ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). Groups are workspace-defined strings configured on the business''s entry points and have no fixed vocabulary. Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, omitted when no qualifying message contributes a measurement. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single group, use the summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of group rows to return, ranked by accepted volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-group breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByGroupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/categories:
+    get:
+      operationId: getAMBStatsByCategory
+      x-snippet-key: amb.stats.by_category
+      summary: Get outbound Apple Messages for Business statistics by category
+      description: 'Returns outbound counts and latency percentiles grouped by message category, for the requested period. Rows are ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). A send that names no category is grouped under an empty-string category. Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, omitted when no qualifying message contributes a measurement. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single category, use the summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of category rows to return, ranked by accepted volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-category breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByCategoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/tags:
+    get:
+      operationId: getAMBStatsByTag
+      x-snippet-key: amb.stats.by_tag
+      summary: Get outbound Apple Messages for Business statistics by tag
+      description: 'Returns outbound counts and latency percentiles grouped by tag (`name` or `name:value`), for the requested period. Rows are ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). Only tagged messages appear, and one carrying several tags counts once under each, so rows do not sum to the period total. Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, omitted when no qualifying message contributes a measurement. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single tag, use the summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of tag rows to return, ranked by accepted volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-tag breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByTagResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/error-codes:
+    get:
+      operationId: getAMBStatsByErrorCode
+      x-snippet-key: amb.stats.by_error_code
+      summary: Get outbound Apple Messages for Business statistics by error code
+      description: 'Returns outbound counts and latency percentiles grouped by failure reason, for the requested period. Rows are ranked by `send_failed + rejected` descending and capped at the requested `limit` (default 50, max 200). Only messages carrying a failure reason appear: a `bird:` code is usually a rejection (never charged, never attempted), an `apple:` code a send failure; use the summary for the period''s full accepted total. Rows use accepted-time attribution: a send failure recorded during the period for a message accepted earlier counts against the earlier period. Each row also carries `first_response` latency percentiles, when a failed reply claimed an unanswered inbound message. There is no delivery receipt on this channel, so there is no `delivered` count anywhere in the row.
+
+        This is a workspace-scoped, single-dimension breakdown; it does not cross error code with any other dimension such as business. The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of error-code rows to return, ranked by `send_failed + rejected` descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-error-code breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBStatsByErrorCodeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/inbound/summary:
+    get:
+      operationId: getAMBInboundStatsSummary
+      x-snippet-key: amb.stats.inbound.summary
+      summary: Get aggregate inbound Apple Messages for Business statistics
+      description: 'Returns one aggregate row of inbound Apple Messages for Business counts for the requested period. Inbound statistics are attributed to when the event occurred, not to any earlier outbound message, so a reply received today counts against today regardless of when the conversation started. `period.data_as_of` is the freshness boundary the rollups have reached.
+
+
+        This channel has no delivery receipt and no derived rate; the response carries only the raw `received` count.
+
+
+        `from` and `to` must both be calendar days or RFC 3339 instants. Day windows cover up to 365 whole days. Instant bounds round down to the hour, remain inclusive, and may span up to 720 hours. Mixing the forms returns `422`. Set `timezone` for local boundaries. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.
+
+
+        Use `compare=previous_period` to include the preceding equal-length window and the change between the two.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: 'Inclusive start of the window: a calendar day (YYYY-MM-DD) or an RFC 3339 instant rounded down to the hour. The `timezone` parameter makes a calendar day local and rounds an instant down to the local hour. Omit `timezone` to use UTC. When `timezone` is set, a numeric UTC offset such as `+05:45` is rejected; use a calendar day or a `Z` (UTC) instant. This value must use the same form as `to`. When omitted, it defaults to 30 days before `to` for day windows or 168 hours (7 days) before `to` for hour windows.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          example: '2026-05-01'
+      - name: to
+        in: query
+        required: false
+        description: 'Inclusive end of the window: a calendar day (YYYY-MM-DD) or an RFC 3339 instant rounded down to the hour. The `timezone` parameter makes a calendar day local and rounds an instant down to the local hour. Omit `timezone` to use UTC. When `timezone` is set, a numeric UTC offset is rejected; use a calendar day or a `Z` (UTC) instant. This value must use the same form as `from`. When omitted, it defaults to today for day windows or the current hour for hour windows in that timezone. Day windows may not exceed 365 days; hour windows may not exceed 720 hours (30 days).
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          example: '2026-05-25'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: compare
+        in: query
+        required: false
+        description: 'Set to `previous_period` to also include the same statistics for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
+
+          '
+        schema:
+          $ref: '#/components/schemas/StatsComparePeriod'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Aggregate inbound summary for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBInboundStatsSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/inbound/daily:
+    get:
+      operationId: getAMBInboundStatsDaily
+      x-snippet-key: amb.stats.inbound.daily
+      summary: Get daily inbound Apple Messages for Business statistics
+      description: 'Returns one row of inbound Apple Messages for Business counts per calendar day for the workspace, gap-filled so a silent day is a zero row rather than a missing one. Every row is attributed to the day the inbound event occurred, not to any earlier outbound message.
+
+
+        This channel has no delivery receipt and no derived rate; each row carries only the raw `received` count.
+
+
+        `from` and `to` are optional calendar days (YYYY-MM-DD), defaulting to the trailing 30 days. The maximum window is 365 days; a longer range returns `422`. Set `timezone` to report rows by your local calendar day. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Start date (inclusive), YYYY-MM-DD. Interpreted as a calendar day in `timezone` (a UTC day when `timezone` is omitted). The window may not exceed 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-05-01'
+      - name: to
+        in: query
+        required: false
+        description: End date (inclusive), YYYY-MM-DD. Interpreted as a calendar day in `timezone` (a UTC day when `timezone` is omitted). The window may not exceed 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-05-25'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Daily inbound series for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBInboundStatsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/inbound/hourly:
+    get:
+      operationId: getAMBInboundStatsHourly
+      x-snippet-key: amb.stats.inbound.hourly
+      summary: Get hourly inbound Apple Messages for Business statistics
+      description: 'Returns one row of inbound Apple Messages for Business counts per hour, gap-filled so a silent hour is a zero row rather than a missing one. Every row is attributed to the hour the inbound event occurred, not to any earlier outbound message. Use it where the daily grain hides the shape; a window spans at most 720 hours (30 days), and for anything longer use the daily endpoint.
+
+
+        This channel has no delivery receipt and no derived rate; each row carries only the raw `received` count.
+
+
+        `from` and `to` are optional RFC 3339 instants, defaulting to the trailing 168 hours; each bound rounds down to the hour and remains inclusive. A request may span up to 30 days (720 rows). An excessive or reversed window returns `422`. Set `timezone` for local hours instead of UTC, including zones with sub-hour offsets; when the timezone''s offset is not a whole number of hours, rows are read from finer-grained internal rollups and combined into hour boundaries automatically, with no parameter to select this. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Start of the window (RFC 3339 instant), rounded down to the start of its hour and included. The boundary uses the local hour when `timezone` is set and the UTC hour otherwise. The window may not exceed 30 days (720 hours). Defaults to 168 hours (7 days) before `to` when omitted.
+        schema:
+          type: string
+          format: date-time
+          minLength: 1
+          example: '2026-05-25T00:00:00Z'
+      - name: to
+        in: query
+        required: false
+        description: End of the window (RFC 3339 instant), rounded down to the start of its hour and included. The boundary uses the local hour when `timezone` is set and the UTC hour otherwise, so both bounds are inclusive. The window may not exceed 30 days (720 hours). Defaults to the current hour when omitted.
+        schema:
+          type: string
+          format: date-time
+          minLength: 1
+          example: '2026-05-25T23:59:59Z'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Hourly inbound series for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBInboundStatsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/inbound/businesses:
+    get:
+      operationId: getAMBInboundStatsByBusiness
+      x-snippet-key: amb.stats.inbound.by_business
+      summary: Get inbound Apple Messages for Business statistics by business
+      description: 'Returns inbound received counts grouped by business, for the requested period. Rows are ranked by received volume descending and capped at the requested `limit` (default 50, max 200). Rows are attributed to when the inbound event occurred, not to any earlier outbound message. This channel has no delivery receipt and no derived rate, so each row carries only the raw `received` count.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single business, use the inbound summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of business rows to return, ranked by received volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-business inbound breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBInboundStatsByBusinessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/inbound/intents:
+    get:
+      operationId: getAMBInboundStatsByIntent
+      x-snippet-key: amb.stats.inbound.by_intent
+      summary: Get inbound Apple Messages for Business statistics by intent
+      description: 'Returns inbound received counts grouped by entry-point intent, for the requested period. Rows are ranked by received volume descending and capped at the requested `limit` (default 50, max 200). Intents are workspace-defined strings configured on the business''s entry points and have no fixed vocabulary. Rows are attributed to when the inbound event occurred, not to any earlier outbound message. This channel has no delivery receipt and no derived rate, so each row carries only the raw `received` count.
+
+        The maximum window is 365 days; a longer range returns `422`. Historical dates are supported within the maximum window length; the requested dates are not shifted forward. A breakdown is already a single-dimension view and takes no dimension filter; to restrict statistics to a single intent, use the inbound summary, daily, or hourly statistics instead.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Inclusive start of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Must not be after `to`. Max window 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-06-14'
+      - name: to
+        in: query
+        required: false
+        description: Inclusive end of the window, a calendar day (YYYY-MM-DD). Interpreted in `timezone`, or UTC when omitted. Max window 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-07-13'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of intent rows to return, ranked by received volume descending.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Per-intent inbound breakdown for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBInboundStatsByIntentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/conversations/summary:
+    get:
+      operationId: getAMBConversationStatsSummary
+      x-snippet-key: amb.stats.conversations.summary
+      summary: Get aggregate Apple Messages for Business conversation statistics
+      description: 'Returns one aggregate row of Apple Messages for Business conversation lifecycle counts (`started`, `reopened`, `closed`, `conversations`) for the requested period. Rows are attributed to when the lifecycle event occurred, not to any earlier outbound message. A conversation can be reopened and closed more than once, so `started`, `reopened`, and `closed` need not sum to `conversations`, and any one of them can exceed it. `period.data_as_of` is the freshness boundary the rollups have reached.
+
+
+        `from` and `to` must both be calendar days or RFC 3339 instants. Day windows cover up to 365 whole days. Instant bounds round down to the hour, remain inclusive, and may span up to 720 hours. Mixing the forms returns `422`. Set `timezone` for local boundaries. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.
+
+
+        Use `compare=previous_period` to include the preceding equal-length window and the change between the two.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: 'Inclusive start of the window: a calendar day (YYYY-MM-DD) or an RFC 3339 instant rounded down to the hour. The `timezone` parameter makes a calendar day local and rounds an instant down to the local hour. Omit `timezone` to use UTC. When `timezone` is set, a numeric UTC offset such as `+05:45` is rejected; use a calendar day or a `Z` (UTC) instant. This value must use the same form as `to`. When omitted, it defaults to 30 days before `to` for day windows or 168 hours (7 days) before `to` for hour windows.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          example: '2026-05-01'
+      - name: to
+        in: query
+        required: false
+        description: 'Inclusive end of the window: a calendar day (YYYY-MM-DD) or an RFC 3339 instant rounded down to the hour. The `timezone` parameter makes a calendar day local and rounds an instant down to the local hour. Omit `timezone` to use UTC. When `timezone` is set, a numeric UTC offset is rejected; use a calendar day or a `Z` (UTC) instant. This value must use the same form as `from`. When omitted, it defaults to today for day windows or the current hour for hour windows in that timezone. Day windows may not exceed 365 days; hour windows may not exceed 720 hours (30 days).
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          example: '2026-05-25'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - name: compare
+        in: query
+        required: false
+        description: 'Set to `previous_period` to also include the same statistics for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
+
+          '
+        schema:
+          $ref: '#/components/schemas/StatsComparePeriod'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Aggregate conversation summary for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBConversationStatsSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/conversations/daily:
+    get:
+      operationId: getAMBConversationStatsDaily
+      x-snippet-key: amb.stats.conversations.daily
+      summary: Get daily Apple Messages for Business conversation statistics
+      description: 'Returns one row of Apple Messages for Business conversation lifecycle counts (`started`, `reopened`, `closed`, `conversations`) per calendar day for the workspace, gap-filled so a silent day is a zero row rather than a missing one. Every row is attributed to the day the lifecycle event occurred, not to any earlier outbound message. A conversation can be reopened and closed more than once, so `started`, `reopened`, and `closed` need not sum to `conversations` within a row, and any one of them can exceed it.
+
+
+        `from` and `to` are optional calendar days (YYYY-MM-DD), defaulting to the trailing 30 days. The maximum window is 365 days; a longer range returns `422`. Set `timezone` to report rows by your local calendar day. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Start date (inclusive), YYYY-MM-DD. Interpreted as a calendar day in `timezone` (a UTC day when `timezone` is omitted). The window may not exceed 365 days. Defaults to 30 days before `to` when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-05-01'
+      - name: to
+        in: query
+        required: false
+        description: End date (inclusive), YYYY-MM-DD. Interpreted as a calendar day in `timezone` (a UTC day when `timezone` is omitted). The window may not exceed 365 days. Defaults to today in that timezone when omitted.
+        schema:
+          type: string
+          format: date
+          minLength: 1
+          example: '2026-05-25'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Daily conversation series for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBConversationStatsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/stats/conversations/hourly:
+    get:
+      operationId: getAMBConversationStatsHourly
+      x-snippet-key: amb.stats.conversations.hourly
+      summary: Get hourly Apple Messages for Business conversation statistics
+      description: 'Returns one row of Apple Messages for Business conversation lifecycle counts (`started`, `reopened`, `closed`, `conversations`) per hour, gap-filled so a silent hour is a zero row rather than a missing one. Every row is attributed to the hour the lifecycle event occurred, not to any earlier outbound message. A conversation can be reopened and closed more than once, so `started`, `reopened`, and `closed` need not sum to `conversations` within a row, and any one of them can exceed it. Use it where the daily grain hides the shape; a window spans at most 720 hours (30 days), and for anything longer use the daily endpoint.
+
+
+        `from` and `to` are optional RFC 3339 instants, defaulting to the trailing 168 hours; each bound rounds down to the hour and remains inclusive. A request may span up to 30 days (720 rows). An excessive or reversed window returns `422`. Set `timezone` for local hours instead of UTC, including zones with sub-hour offsets; when the timezone''s offset is not a whole number of hours, rows are read from finer-grained internal rollups and combined into hour boundaries automatically, with no parameter to select this. Historical dates are supported within the maximum window length; the requested dates are not shifted forward.'
+      tags:
+      - amb-stats
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: from
+        in: query
+        required: false
+        description: Start of the window (RFC 3339 instant), rounded down to the start of its hour and included. The boundary uses the local hour when `timezone` is set and the UTC hour otherwise. The window may not exceed 30 days (720 hours). Defaults to 168 hours (7 days) before `to` when omitted.
+        schema:
+          type: string
+          format: date-time
+          minLength: 1
+          example: '2026-05-25T00:00:00Z'
+      - name: to
+        in: query
+        required: false
+        description: End of the window (RFC 3339 instant), rounded down to the start of its hour and included. The boundary uses the local hour when `timezone` is set and the UTC hour otherwise, so both bounds are inclusive. The window may not exceed 30 days (720 hours). Defaults to the current hour when omitted.
+        schema:
+          type: string
+          format: date-time
+          minLength: 1
+          example: '2026-05-25T23:59:59Z'
+      - $ref: '#/components/parameters/StatsTimezone'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Hourly conversation series for the requested period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBConversationStatsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    AMBGroupStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single entry-point group over the requested period.
+      required:
+      - group
+      - counts
+      - latency
+      properties:
+        group:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The group these messages were routed under, as configured in the business's entry points. Groups are workspace-defined and have no fixed vocabulary.
+          example: sales
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for this group. Omitted when no qualifying message contributes a measurement.
+    AMBMessageKindStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single message content kind over the requested period.
+      required:
+      - message_kind
+      - counts
+      - latency
+      properties:
+        message_kind:
+          $ref: '#/components/schemas/AMBContentKind'
+          readOnly: true
+          description: The content kind these messages were sent as, the same value the message read returns as its content kind discriminator.
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for this content kind. Omitted when no qualifying message contributes a measurement.
+    AMBOutboundStatsCounts:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Outbound Apple Messages for Business counts for the requested scope, attributed to when each message was accepted. Apple Messages for Business has no delivery receipt, so there is no `delivered` count anywhere in this API: `sent` is the last outbound state Bird observes for a message. Very large counts are close estimates rather than exact tallies. Rates are computed once here, clamped to 1, and null when nothing was accepted.
+
+        '
+      required:
+      - accepted
+      - sent
+      - send_failed
+      - rejected
+      - sent_rate
+      - send_failure_rate
+      properties:
+        accepted:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages accepted for sending after admission checks. This is the denominator for `sent_rate` and `send_failure_rate`.
+          example: 4820
+        sent:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages handed off to Apple.
+          example: 4790
+        send_failed:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct accepted messages that Apple refused or that exhausted their send attempts. See `last_error.code` on the message for the reason; a refused charge is not a send failure, it is `rejected`.
+          example: 30
+        rejected:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages refused before any send attempt, because the destination has no price, the wallet could not fund the send, or the content cannot be sent yet. Rejected messages are never charged and are not counted in `accepted`, so the total addressed is `accepted + rejected`. Excluded from `send_failure_rate`, which covers send failures only.
+          example: 4
+        sent_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: Share of accepted messages Apple acknowledged, computed as `sent / accepted`. Null when no messages were accepted in scope. This stands where other channels report a delivery rate.
+          example: 0.9938
+        send_failure_rate:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+          readOnly: true
+          description: Share of accepted messages that failed to send, computed as `send_failed / accepted`. Null when no messages were accepted in scope.
+          example: 0.0062
+    AMBStatsLatency:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Processing-latency percentiles in milliseconds for the requested scope, from acceptance to Apple handoff. Apple Messages for Business has no delivery receipt, so there is no `delivery` or `total` member beside `processing`. Conversation response timing is reported separately in `first_response`. Always present; every percentile is null when no qualifying message in scope has a measurement.
+
+        '
+      required:
+      - processing
+      properties:
+        processing:
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+    AMBInboundIntentStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Received-message count for a single entry-point intent over the requested period.
+      required:
+      - intent
+      - received
+      properties:
+        intent:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The intent these messages arrived under, as configured in the business's entry points. Intents are workspace-defined and have no fixed vocabulary.
+          example: order_support
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received under this intent in the period.
+          example: 305
+    AMBStatsResponse:
+      type: object
+      additionalProperties: false
+      description: 'Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
+
+        '
+      required:
+      - period
+      - attribution
+      - data
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSeriesPeriod'
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: One row per day or hour in chronological order. Buckets with no activity contain zero counts.
+          items:
+            $ref: '#/components/schemas/AMBStatsPoint'
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    AMBContentKind:
+      type: string
+      minLength: 1
+      enum:
+      - text
+      - attachment
+      - rich_link
+      - quick_reply
+      - list_picker
+      - time_picker
+      - form
+      - apple_pay
+      - authenticate
+      - imessage_app
+      - interactive
+      description: 'Derived message classification for filtering and statistics. Send requests use the native content.type families. Create Apple Pay and authentication requests through the conversation payment and authentication operations.
+
+
+        - text: Text, optionally with a subject.
+
+        - attachment: One or more files, images, audio clips, or videos.
+
+        - rich_link: A link with a preview card.
+
+        - quick_reply: Two to five reply choices.
+
+        - list_picker: A grouped menu of choices.
+
+        - time_picker: Appointment time slots; a reply may contain only a selected label.
+
+        - form: A multi-page form.
+
+        - imessage_app: A custom iMessage app interaction on a compatible device.
+
+        - interactive: An opaque interactive reference whose subtype is unknown.
+
+        - apple_pay: An Apple Pay request created through the conversation payment operations.
+
+        - authenticate: An identity verification request created through the conversation authentication operations.'
+    AMBStatsByGroupResponse:
+      type: object
+      additionalProperties: false
+      description: Per-group breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Group rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/AMBGroupStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct groups with activity in the period, regardless of `limit`.
+          example: 3
+    AMBIntentStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single entry-point intent over the requested period.
+      required:
+      - intent
+      - counts
+      - latency
+      properties:
+        intent:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The intent these messages were routed under, as configured in the business's entry points. Intents are workspace-defined and have no fixed vocabulary.
+          example: order_support
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for this intent. Omitted when no qualifying message contributes a measurement.
+    AMBStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The same statistics for the equal-length, inclusive period ending immediately before the requested start, together with computed changes for the message counts and rates listed in `delta`. Present only when `compare=previous_period` is requested. Monthly active contacts and latency values are returned for both periods without a computed change.
+
+        '
+      required:
+      - period
+      - counts
+      - latency
+      - delta
+      properties:
+        monthly_active_contacts:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          description: New monthly active contact charges activated by replies submitted in this window. Each business-scoped contact counts once per UTC calendar month. Omitted for message-kind, intent, group, category or tag filters. Read from retained activation records independently of the message rollup data_as_of boundary; tenant purges remove these records.
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows).
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for the preceding period. Omitted when no qualifying message in that period has a measurement.
+        delta:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsComparisonDelta'
+    AMBStatsByTagResponse:
+      type: object
+      additionalProperties: false
+      description: Per-tag breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200). Only tagged messages appear.
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Tag rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/AMBTagStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct tags with activity in the period, regardless of `limit`.
+          example: 9
+    AMBStatsAttribution:
+      type: string
+      minLength: 1
+      readOnly: true
+      enum:
+      - accepted_time
+      - event_time
+      description: 'Which timestamp a statistics response buckets its rows and totals by:
+
+
+        - `accepted_time`: attributed to when Bird accepted the outbound message for sending. The outbound send statistics use this, so a later event for the same message, such as a send failure, still counts against the day or hour its message was accepted.
+
+        - `event_time`: attributed to when the event itself occurred. Inbound message statistics, conversation statistics and the staff per-business failure counts use this, since there is no earlier outbound event to anchor them to.
+
+
+        A response never mixes the two axes: every row and total in one payload shares the same attribution.
+
+        '
+      example: accepted_time
+    AMBInboundStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Received-message count for one time bucket (a calendar day or hour), bucketed by the time each message occurred.
+
+        '
+      required:
+      - bucket
+      - received
+      properties:
+        bucket:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the request's grain.
+          example: '2026-05-25'
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in this bucket.
+          example: 182
+    AMBErrorCodeStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single failure reason over the requested period.
+      required:
+      - error_code
+      - counts
+      - latency
+      properties:
+        error_code:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsErrorCode'
+          description: The failure reason these messages share.
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: 'First-response latency for failed replies that claimed an unanswered inbound message. Omitted when no qualifying reply contributes a measurement.
+
+            '
+    AMBInboundStatsByBusinessResponse:
+      type: object
+      additionalProperties: false
+      description: Per-business breakdown of received messages for the requested period, ranked by volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `event_time` for inbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Business rows ranked by received-message volume descending, capped at the requested `limit`. A business with no received messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
+          items:
+            $ref: '#/components/schemas/AMBInboundBusinessStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct businesses with received messages in the period, regardless of `limit`.
+          example: 1
+    AMBStatsByMessageKindResponse:
+      type: object
+      additionalProperties: false
+      description: Per-content-kind breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Content-kind rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/AMBMessageKindStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct content kinds with activity in the period, regardless of `limit`.
+          example: 4
+    AMBStatsQuantiles:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Approximate p50, p95, and p99 latency percentiles in milliseconds for one latency family. All three are null when no qualifying event contributed a measurement.
+
+        '
+      required:
+      - p50_ms
+      - p95_ms
+      - p99_ms
+      properties:
+        p50_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 610
+        p95_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 2140
+        p99_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          readOnly: true
+          description: 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+          example: 5380
+    AMBStatsErrorCode:
+      type: string
+      minLength: 1
+      pattern: ^(bird:[a-z0-9_]+|apple:\d{3})$
+      description: 'Machine-readable reason a send failed, in one of two namespaces: `bird:` for a reason Bird''s own pipeline assigned (for example `bird:business_not_registered`), or `apple:` followed by the HTTP status Apple''s API returned for the send attempt (for example `apple:404`). This is an open, growing set in both namespaces; accept unrecognized values.
+
+        '
+      example: bird:business_not_registered
+    AMBInboundBusinessStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Received-message count for a single business over the requested period.
+      required:
+      - business_account_id
+      - received
+      properties:
+        business_account_id:
+          $ref: '#/components/schemas/AMBBusinessID'
+          readOnly: true
+          description: The business that received these messages.
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received by this business in the period.
+          example: 640
+    AMBStatsByBusinessResponse:
+      type: object
+      additionalProperties: false
+      description: Per-business breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Business rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/AMBBusinessAccountStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct businesses with activity in the period, regardless of `limit`.
+          example: 1
+    AMBInboundStatsComparisonDelta:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The change from the preceding period to the requested one. The `received_pct_change` field is a signed relative change, computed as `(current - previous) / previous`. A value of `0.5` means 50% higher, and `-0.2` means 20% lower. The field is null when the previous period received none.
+
+        '
+      required:
+      - received_pct_change
+      properties:
+        received_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in received messages versus the previous period, as a signed fraction. Null when the previous period received none.
+          example: 0.058
+    AMBConversationStatsResponse:
+      type: object
+      additionalProperties: false
+      description: 'Conversation lifecycle time series. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.
+
+        '
+      required:
+      - period
+      - attribution
+      - data
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSeriesPeriod'
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `event_time` for conversation statistics.
+        data:
+          type: array
+          readOnly: true
+          description: One row per day or hour in chronological order. Buckets with no activity contain zero counts.
+          items:
+            $ref: '#/components/schemas/AMBConversationStatsPoint'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    AMBTagStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single tag over the requested period.
+      required:
+      - tag
+      - counts
+      - latency
+      properties:
+        tag:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The tag these messages carry, as a bare name or a `name:value` pair. A message with several tags is counted once under each, so rows do not sum to the period total.
+          example: campaign:spring_launch
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for this tag. Omitted when no qualifying message contributes a measurement.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    AMBConversationStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The same statistics for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - counts
+      - delta
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows).
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBConversationStatsCounts'
+        delta:
+          readOnly: true
+          $ref: '#/components/schemas/AMBConversationStatsComparisonDelta'
+    AMBStatsSummaryPeriod:
+      type: object
+      additionalProperties: false
+      description: 'The window the server actually computed against. The summary serves two window grains: calendar days (bounds are YYYY-MM-DD) and hours (bounds are RFC 3339 instants on the hour). The grain of `from` and `to` mirrors the grain of the request''s bounds.
+
+        '
+      required:
+      - from
+      - to
+      properties:
+        from:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive start of the window, as a calendar day (`YYYY-MM-DD`) or an RFC 3339 hour boundary. Historical starts are preserved; the maximum request length does not impose a historical cutoff.
+          example: '2026-05-01'
+        to:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive end of the window, as a calendar day (`YYYY-MM-DD`) or an RFC 3339 hour boundary.
+          example: '2026-05-25'
+        data_as_of:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'Latest time reflected in the statistics. More recent events might not be included yet. Null when the freshness boundary is unavailable.
+
+            '
+          example: '2026-05-25T14:03:10Z'
+    AMBConversationStatsSummary:
+      type: object
+      additionalProperties: false
+      description: 'Conversation lifecycle counts for the full requested period. Counts aggregate the time buckets.
+
+        '
+      required:
+      - period
+      - attribution
+      - counts
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `event_time` for conversation statistics.
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBConversationStatsCounts'
+        comparison:
+          readOnly: true
+          $ref: '#/components/schemas/AMBConversationStatsComparison'
+    AMBConversationStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Conversation lifecycle counts for one time bucket (a calendar day or hour), bucketed by when each event occurred.
+
+        '
+      required:
+      - bucket
+      - counts
+      properties:
+        bucket:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the period's grain.
+          example: '2026-05-25'
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBConversationStatsCounts'
+    AMBInboundStatsResponse:
+      type: object
+      additionalProperties: false
+      description: 'Received-message time series. `period` echoes the range the server computed against; `data` is one row per bucket in chronological order.
+
+        '
+      required:
+      - period
+      - attribution
+      - data
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSeriesPeriod'
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `event_time` for inbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: One row per bucket (day or hour, matching the request) in the period, in chronological order. Buckets with no activity are included with a count of zero, so the series charts continuously without client-side gap handling.
+          items:
+            $ref: '#/components/schemas/AMBInboundStatsPoint'
+    AMBCategoryStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single message category over the requested period.
+      required:
+      - category
+      - counts
+      - latency
+      properties:
+        category:
+          type: string
+          minLength: 0
+          readOnly: true
+          description: The category these messages were sent with. Defaults to an empty string when a send names no category.
+          example: order_update
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for this category. Omitted when no qualifying message contributes a measurement.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    AMBStatsSeriesPeriod:
+      type: object
+      additionalProperties: false
+      description: 'The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
+
+        '
+      required:
+      - from
+      - to
+      - grain
+      properties:
+        from:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive start of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant on the hour grain. Historical starts are preserved; the maximum request length does not impose a historical cutoff.
+          example: '2026-05-01'
+        to:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$
+          readOnly: true
+          description: Inclusive end of the window. A calendar day (YYYY-MM-DD) on the day grain, an RFC 3339 instant on the hour grain.
+          example: '2026-05-25'
+        grain:
+          $ref: '#/components/schemas/StatsGrain'
+          readOnly: true
+        data_as_of:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: 'Latest time reflected in the statistics. More recent events might not be included yet. Null when the freshness boundary is unavailable.
+
+            '
+          example: '2026-05-25T14:03:10Z'
+    StatsGrain:
+      type: string
+      minLength: 1
+      enum:
+      - day
+      - hour
+      readOnly: true
+      description: The bucket grain of the series, either `day` or `hour`.
+      example: day
+    AMBInboundStatsSummary:
+      type: object
+      additionalProperties: false
+      description: 'Total inbound Apple Messages for Business messages for the requested period.
+
+        '
+      required:
+      - period
+      - attribution
+      - received
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `event_time` for inbound statistics.
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in the period, counted by the time each message occurred. Computed across the whole window rather than summed from the daily or hourly series, so it can sit slightly below the sum of those rows.
+          example: 4210
+        comparison:
+          readOnly: true
+          $ref: '#/components/schemas/AMBInboundStatsComparison'
+    AMBInboundStatsComparison:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'The received-message count for the equal-length, inclusive period ending immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
+
+        '
+      required:
+      - period
+      - received
+      - delta
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows).
+        received:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct messages received in the preceding period.
+          example: 3980
+        delta:
+          readOnly: true
+          $ref: '#/components/schemas/AMBInboundStatsComparisonDelta'
+    AMBStatsByCategoryResponse:
+      type: object
+      additionalProperties: false
+      description: Per-category breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Category rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/AMBCategoryStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct categories with activity in the period, regardless of `limit`.
+          example: 6
+    AMBConversationStatsCounts:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Conversation lifecycle counts for the requested scope, attributed to when each event occurred. A conversation can start, reopen, and close more than once over its life, so `started`, `reopened`, and `closed` can each exceed `conversations`, the number of distinct conversations touched in scope. Very large counts are close estimates rather than exact tallies.
+
+        '
+      required:
+      - started
+      - reopened
+      - closed
+      - conversations
+      properties:
+        started:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Count of conversation-started events in scope.
+          example: 210
+        reopened:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Count of conversation-reopened events in scope.
+          example: 34
+        closed:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Count of conversation-closed events in scope.
+          example: 198
+        conversations:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Distinct conversations with at least one lifecycle event in scope.
+          example: 205
+    AMBConversationStatsComparisonDelta:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Changes from the previous period. Each value is the signed relative change `(current - previous) / previous` and is null when the previous count is zero.
+
+        '
+      required:
+      - started_pct_change
+      - reopened_pct_change
+      - closed_pct_change
+      - conversations_pct_change
+      properties:
+        started_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in conversation starts (`counts.started`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: 0.22
+        reopened_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in conversation reopens (`counts.reopened`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: -0.05
+        closed_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in conversation closes (`counts.closed`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: 0.19
+        conversations_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in distinct conversations touched (`counts.conversations`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: 0.21
+    AMBInboundStatsByIntentResponse:
+      type: object
+      additionalProperties: false
+      description: Per-intent breakdown of received messages for the requested period, ranked by volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `event_time` for inbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Intent rows ranked by received-message volume descending, capped at the requested `limit`. An intent with no received messages in the period is absent rather than zero-filled, because unlike a time bucket it is not part of a continuous axis.
+          items:
+            $ref: '#/components/schemas/AMBInboundIntentStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct intents with received messages in the period, regardless of `limit`.
+          example: 4
+    AMBStatsByErrorCodeResponse:
+      type: object
+      additionalProperties: false
+      description: 'Per-failure-reason breakdown for the requested period, ranked by `send_failed + rejected` descending and capped at the requested `limit` (default 50, max 200). Only messages carrying an error code appear: a `bird:` code is usually a rejection, an `apple:` code a send failure.'
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Error-code rows ranked by `send_failed + rejected` descending.
+          items:
+            $ref: '#/components/schemas/AMBErrorCodeStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct error codes with activity in the period, regardless of `limit`.
+          example: 2
+    AMBStatsPoint:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Outbound Apple Messages for Business counts and processing-latency percentiles for one time bucket (a calendar day or hour), bucketed by acceptance time. Every count in a bucket describes the messages accepted in it, regardless of when their later events arrived. There is no `first_response` here. Read first-response latency from the summary or a breakdown endpoint.
+
+        '
+      required:
+      - bucket
+      - counts
+      - latency
+      properties:
+        bucket:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The day (YYYY-MM-DD) or hour (RFC 3339, on the hour) this point covers, matching the period's grain.
+          example: '2026-05-25'
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+    StatsComparePeriod:
+      type: string
+      description: 'Set to `previous_period` to also return the same figures for the immediately preceding window of equal length, plus the change between the two, so you can show "+X% vs last period" without a second request.
+
+        '
+      enum:
+      - previous_period
+    AMBBusinessAccountStatsPoint:
+      type: object
+      additionalProperties: false
+      description: Outbound counts and latency percentiles for a single business over the requested period.
+      required:
+      - business_account_id
+      - counts
+      - latency
+      properties:
+        business_account_id:
+          $ref: '#/components/schemas/AMBBusinessID'
+          readOnly: true
+          description: The business these messages were sent from.
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: First-response latency percentiles for this business. Omitted when no qualifying message contributes a measurement.
+    AMBStatsComparisonDelta:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: 'Changes from the previous period. Each value is the signed relative change `(current - previous) / previous` and is null when the previous count is zero.
+
+        '
+      required:
+      - accepted_pct_change
+      - sent_pct_change
+      - send_failed_pct_change
+      - rejected_pct_change
+      properties:
+        accepted_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in accepted messages (`counts.accepted`) versus the previous period, as a signed fraction. Null when the previous period accepted none.
+          example: 0.508
+        sent_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in sent messages (`counts.sent`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: 0.501
+        send_failed_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in send failures (`counts.send_failed`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: -0.12
+        rejected_pct_change:
+          type:
+          - number
+          - 'null'
+          readOnly: true
+          description: Relative change in rejected messages (`counts.rejected`) versus the previous period, as a signed fraction. Null when the previous period had none.
+          example: 0
+    AMBBusinessID:
+      type: string
+      minLength: 1
+      pattern: ^abz_[0-9a-hjkmnp-tv-z]{26}$
+      example: abz_01krdgeqcxet5s7t44vh8rt9mg
+    AMBStatsByIntentResponse:
+      type: object
+      additionalProperties: false
+      description: Per-intent breakdown for the requested period, ranked by accepted volume descending and capped at the requested `limit` (default 50, max 200).
+      required:
+      - period
+      - attribution
+      - data
+      - total
+      properties:
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back), plus `data_as_of`.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        data:
+          type: array
+          readOnly: true
+          description: Intent rows ranked by accepted volume descending.
+          items:
+            $ref: '#/components/schemas/AMBIntentStatsPoint'
+        total:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Total distinct intents with activity in the period, regardless of `limit`.
+          example: 5
+    AMBStatsSummary:
+      type: object
+      additionalProperties: false
+      description: 'Outbound Apple Messages for Business counts and latency percentiles for the full requested period. Counts and percentiles are computed over the whole period rather than combined from the returned time-series values.
+
+        '
+      required:
+      - period
+      - attribution
+      - counts
+      - latency
+      properties:
+        monthly_active_contacts:
+          type: integer
+          format: int64
+          minimum: 0
+          readOnly: true
+          description: New monthly active contact charges activated by replies submitted in this window. Each business-scoped contact counts once per UTC calendar month. Omitted for message-kind, intent, group, category or tag filters. Read from retained activation records independently of the message rollup data_as_of boundary; tenant purges remove these records.
+        period:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsSummaryPeriod'
+          description: The window the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+        attribution:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsAttribution'
+          description: Always `accepted_time` for outbound statistics.
+        counts:
+          readOnly: true
+          $ref: '#/components/schemas/AMBOutboundStatsCounts'
+        latency:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsLatency'
+        first_response:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsQuantiles'
+          description: Time from the oldest unanswered inbound message to acceptance of the first outbound reply that claims it. Reported on summaries and breakdowns. Omitted when no qualifying reply contributes a measurement.
+        comparison:
+          readOnly: true
+          $ref: '#/components/schemas/AMBStatsComparison'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+  responses:
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StatsTimezone:
+      name: timezone
+      in: query
+      required: false
+      description: 'IANA timezone identifier used to group statistics, for example `Asia/Kathmandu`. The default is UTC. Day and hour boundaries, including the default window when `from` and `to` are omitted, follow this timezone. When this parameter is set, pass `from` and `to` as calendar days or `Z` instants instead of timestamps with explicit UTC offsets.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        example: Asia/Kathmandu
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

@@ -97,42 +97,42 @@ paths:
           description: Template not found
 components:
   schemas:
-    Template:
+    TemplateCreate:
       type: object
+      required:
+      - name
+      - language
+      - category
+      - components
       properties:
         name:
           type: string
-          description: The name of the template.
+          description: The name of the template. Must be unique within the account.
+          pattern: ^[a-z0-9_]+$
+          maxLength: 512
         language:
           type: string
-          description: The language code.
+          description: The language code for the template.
         category:
           type: string
-          description: The template category.
+          description: The category of the template.
+          enum:
+          - ACCOUNT_UPDATE
+          - PAYMENT_UPDATE
+          - PERSONAL_FINANCE_UPDATE
+          - SHIPPING_UPDATE
+          - RESERVATION_UPDATE
+          - ISSUE_RESOLUTION
+          - APPOINTMENT_UPDATE
+          - TRANSPORTATION_UPDATE
+          - TICKET_UPDATE
+          - ALERT_UPDATE
+          - AUTO_REPLY
         components:
           type: array
-          description: The template components.
+          description: The components that make up the template content.
           items:
             $ref: '#/components/schemas/TemplateComponent'
-        status:
-          type: string
-          description: The approval status of the template.
-          enum:
-          - NEW
-          - PENDING
-          - APPROVED
-          - REJECTED
-        rejectedReason:
-          type: string
-          description: The reason for rejection, if applicable.
-        createdAt:
-          type: string
-          format: date-time
-          description: The date and time when the template was created.
-        updatedAt:
-          type: string
-          format: date-time
-          description: The date and time when the template was last updated.
     TemplateList:
       type: object
       properties:
@@ -199,42 +199,42 @@ components:
                 type: string
                 format: uri
                 description: The URL for URL buttons.
-    TemplateCreate:
+    Template:
       type: object
-      required:
-      - name
-      - language
-      - category
-      - components
       properties:
         name:
           type: string
-          description: The name of the template. Must be unique within the account.
-          pattern: ^[a-z0-9_]+$
-          maxLength: 512
+          description: The name of the template.
         language:
           type: string
-          description: The language code for the template.
+          description: The language code.
         category:
           type: string
-          description: The category of the template.
-          enum:
-          - ACCOUNT_UPDATE
-          - PAYMENT_UPDATE
-          - PERSONAL_FINANCE_UPDATE
-          - SHIPPING_UPDATE
-          - RESERVATION_UPDATE
-          - ISSUE_RESOLUTION
-          - APPOINTMENT_UPDATE
-          - TRANSPORTATION_UPDATE
-          - TICKET_UPDATE
-          - ALERT_UPDATE
-          - AUTO_REPLY
+          description: The template category.
         components:
           type: array
-          description: The components that make up the template content.
+          description: The template components.
           items:
             $ref: '#/components/schemas/TemplateComponent'
+        status:
+          type: string
+          description: The approval status of the template.
+          enum:
+          - NEW
+          - PENDING
+          - APPROVED
+          - REJECTED
+        rejectedReason:
+          type: string
+          description: The reason for rejection, if applicable.
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time when the template was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: The date and time when the template was last updated.
   parameters:
     templateNameParam:
       name: templateName

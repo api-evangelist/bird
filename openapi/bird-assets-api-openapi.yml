@@ -1,0 +1,1238 @@
+openapi: 3.2.0
+info:
+  title: Bird Assets API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: Assets
+  description: Upload an image once and get a permanent public URL for it, ready to embed in email.
+paths:
+  /v1/assets:
+    post:
+      operationId: createAsset
+      x-snippet-key: none
+      summary: Create a media-library asset
+      description: 'Uploads a file to the workspace''s media library and returns its permanent public
+
+        URL. Send a `multipart/form-data` body with the bytes in the `file` part.
+
+
+        The file''s contents determine its type, and the type determines its `kind`:
+
+
+        | Kind | Accepted formats | Maximum size |
+
+        | --- | --- | --- |
+
+        | `image` | PNG, JPEG, GIF, WebP | 5 MB |
+
+        | `video` | MP4, WebM, QuickTime | 25 MB |
+
+        | `audio` | MP3, M4A, Ogg, WAV | 25 MB |
+
+        | `document` | PDF | 25 MB |
+
+
+        Images are re-encoded to remove embedded metadata and apply recorded rotation.
+
+        Animated GIFs keep their animation, and WebP images become JPEG or PNG. Other
+
+        files are stored byte-for-byte. Documents are downloads; other media displays
+
+        inline. Asset bytes and URLs do not change. Upload new content as a new asset.
+
+        A duplicate file returns the existing asset with `200 OK`.
+
+        An organization can retain at most 100,000 assets per region, including removed library
+
+        entries whose URLs still serve. Reusing an existing asset does not use another slot.
+
+
+        Include each multipart field at most once. `file` is required. Optional `name`
+
+        is a display name of up to 255 characters and defaults to the filename when
+
+        omitted or empty after trimming;
+
+        `alt_text` allows up to 1,000 characters; `folder_id` places a new asset in an
+
+        existing folder. Omit `folder_id` for the library root. Each text part is
+
+        limited to 8 KiB before trimming surrounding whitespace. Duplicate uploads
+
+        retain the existing asset''s metadata and folder.
+
+
+        See Manage media-library files for CLI and MCP use.'
+      tags:
+      - Assets
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssetUpload'
+      responses:
+        '200':
+          description: An asset with identical contents already existed and was returned unchanged.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '201':
+          description: The uploaded asset.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+    get:
+      operationId: listAssets
+      x-snippet-key: assets.list
+      summary: List workspace media-library assets
+      description: Returns a cursor page of the workspace's media-library assets, most recently created first. Filters can narrow results by media type, name, deletion status, or folder placement.
+      tags:
+      - Assets
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - name: sort
+        in: query
+        required: false
+        description: Field to sort by. Defaults to `created_at`.
+        schema:
+          $ref: '#/components/schemas/AssetSortField'
+      - name: kind
+        in: query
+        required: false
+        description: Return only assets in this category. This groups exact `content_type` values into images, video, audio, and documents.
+        schema:
+          $ref: '#/components/schemas/AssetKindFilter'
+      - name: content_type
+        in: query
+        required: false
+        description: Return only assets stored with this media type.
+        schema:
+          $ref: '#/components/schemas/AssetContentTypeFilter'
+      - name: deleted
+        in: query
+        required: false
+        description: 'Whether to include assets that have been removed from the library. Removed assets keep serving at their original URL, so they remain listable.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AssetDeletedFilter'
+      - name: q
+        in: query
+        required: false
+        description: A case-insensitive substring match against the asset's name.
+        schema:
+          type: string
+          minLength: 1
+      - name: folder_id
+        in: query
+        required: false
+        description: Return only the assets filed directly in this folder. Subfolders are not included, and a folder that does not exist matches nothing. Cannot be combined with `root_only`.
+        schema:
+          $ref: '#/components/schemas/AssetFolderID'
+      - name: root_only
+        in: query
+        required: false
+        description: Return only the assets at the top level of the library, filed in no folder. Cannot be combined with `folder_id`.
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/OrderDesc'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/IncludeTotal'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: A page of assets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/assets/{asset_id}:
+    get:
+      operationId: getAsset
+      x-snippet-key: assets.get
+      summary: Get a media-library asset by ID
+      description: Returns one media-library asset. An asset that has been removed from the library is returned with `deleted_at` set rather than as a missing resource, because its URL keeps serving and messages already sent still reference it.
+      tags:
+      - Assets
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        description: ID of the asset.
+        schema:
+          $ref: '#/components/schemas/AssetID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The asset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateAsset
+      x-snippet-key: assets.update
+      summary: Update asset metadata or folder placement
+      description: Renames an asset, sets its default alternative text, or moves it to a folder. These changes preserve the asset's URL and bytes.
+      tags:
+      - Assets
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: asset_id
+        in: path
+        required: true
+        description: ID of the asset.
+        schema:
+          $ref: '#/components/schemas/AssetID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetUpdate'
+      responses:
+        '200':
+          description: The updated asset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    delete:
+      operationId: deleteAsset
+      x-snippet-key: assets.delete
+      summary: Remove an asset from the media library
+      description: Removes an asset from the library. The asset stops appearing in the library and cannot be added to new content, but its URL keeps serving so messages that already reference it continue to render. Deleting is idempotent.
+      tags:
+      - Assets
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: asset_id
+        in: path
+        required: true
+        description: ID of the asset.
+        schema:
+          $ref: '#/components/schemas/AssetID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '204':
+          description: The asset was removed from the library.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/assets/{asset_id}/references:
+    get:
+      operationId: listAssetReferences
+      x-snippet-key: assets.references.list
+      summary: List editable resources that use an asset
+      description: 'Returns editable resources that reference this asset. Each entry indicates whether
+
+        the reference appears in the resource''s draft, published version, or both. Results
+
+        reflect the latest saved versions, so they exclude unsaved editor changes and older
+
+        published versions.
+
+
+        Only resources you have permission to read are included. Email-template references
+
+        require `email_management:read` in addition to `assets:read`. Hidden resources do not
+
+        affect the `truncated` flag.
+
+
+        Removing an asset does not break existing references because its original URL keeps
+
+        serving. Use this list to find content that should reference a replacement asset.'
+      tags:
+      - Assets
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        description: ID of the asset.
+        schema:
+          $ref: '#/components/schemas/AssetID'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The resources that reference the asset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetReferenceList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    AssetID:
+      type: string
+      minLength: 1
+      pattern: ^ast_[0-9a-hjkmnp-tv-z]{26}$
+      example: ast_01krdgeqcxet5s7t44vh8rt9mg
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    AssetKind:
+      type: string
+      minLength: 1
+      description: 'The category a media-library asset''s type falls into. Use it to group or filter a
+
+        mixed library.
+
+
+        - `image`: covers PNG, JPEG, and GIF.
+
+        - `video`: covers MP4, WebM, and QuickTime.
+
+        - `audio`: covers MP3, M4A, Ogg, and WAV.
+
+        - `document`: covers PDF.
+
+        '
+      x-extensible-enum:
+      - image
+      - video
+      - audio
+      - document
+      example: image
+    Timestamps:
+      type: object
+      required:
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-20T09:14:52Z'
+        updated_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          example: '2026-05-25T16:42:01Z'
+    _ListEnvelopeWithTotal:
+      allOf:
+      - $ref: '#/components/schemas/_ListEnvelope'
+      - type: object
+        properties:
+          total:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+            description: Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise `null`.
+    AssetKindFilter:
+      type: string
+      minLength: 1
+      description: 'The media category to select when listing assets.
+
+
+        - `image`: covers PNG, JPEG, and GIF.
+
+        - `video`: covers MP4, WebM, and QuickTime.
+
+        - `audio`: covers MP3, M4A, Ogg, and WAV.
+
+        - `document`: covers PDF.
+
+        '
+      enum:
+      - image
+      - video
+      - audio
+      - document
+      example: image
+    AssetList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/Asset'
+      - $ref: '#/components/schemas/_ListEnvelopeWithTotal'
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    Asset:
+      description: 'A file in the workspace''s media library, hosted at a permanent public URL. Embed or link `url` anywhere hosted media is needed, including in email that has already been sent: an asset''s bytes and URL never change.'
+      unevaluatedProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Timestamps'
+      - type: object
+        required:
+        - id
+        - url
+        - thumbnail_url
+        - name
+        - content_type
+        - kind
+        - size_bytes
+        - width
+        - height
+        - alt_text
+        - folder_id
+        - deleted_at
+        properties:
+          id:
+            readOnly: true
+            $ref: '#/components/schemas/AssetID'
+          url:
+            type: string
+            format: uri
+            minLength: 1
+            readOnly: true
+            description: The asset's permanent public URL. Safe to embed or link in sent messages; for a document the usable form is a link.
+          thumbnail_url:
+            type:
+            - string
+            - 'null'
+            format: uri
+            minLength: 1
+            readOnly: true
+            description: 'A small preview of the asset, for rendering a picker or a grid. Intended for your own interfaces rather than for embedding in messages. Null for every kind but `image`: generating a preview of a video, an audio file, or a document would mean rendering its contents, which the library does not do. Show an icon for the `kind` instead.'
+          name:
+            type: string
+            minLength: 1
+            description: The asset's display name. Defaults to the uploaded file's name.
+          content_type:
+            type: string
+            minLength: 1
+            readOnly: true
+            description: The stored file's media type, determined from its contents.
+          kind:
+            readOnly: true
+            $ref: '#/components/schemas/AssetKind'
+          size_bytes:
+            type: integer
+            format: int64
+            readOnly: true
+            description: The stored file's size in bytes. Images are re-encoded on upload, so for those this can differ from the size of the file you sent. Every other kind is stored byte-for-byte.
+          width:
+            type:
+            - integer
+            - 'null'
+            readOnly: true
+            description: The stored image's width in pixels. Null for every kind but `image`.
+          height:
+            type:
+            - integer
+            - 'null'
+            readOnly: true
+            description: The stored image's height in pixels. Null for every kind but `image`.
+          alt_text:
+            type:
+            - string
+            - 'null'
+            maxLength: 1000
+            description: Default alternative text describing the asset, carried along whenever it is placed. Most mail clients block images by default, so for an image this is often the only thing a recipient reads.
+          folder_id:
+            oneOf:
+            - $ref: '#/components/schemas/AssetFolderID'
+            - type: 'null'
+            description: The folder the asset is filed in, or null when it sits at the top level of the library. Filing an asset never changes its URL.
+          deleted_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            readOnly: true
+            description: When the asset was removed from the library, or null if it is still listed. A removed asset keeps serving at its original URL.
+    AssetUpload:
+      description: The file to upload, sent as a `multipart/form-data` body. Include each field at most once. Each text field is limited to 8 KiB before surrounding whitespace is trimmed; its character limit also applies.
+      type: object
+      additionalProperties: false
+      required:
+      - file
+      properties:
+        file:
+          type: string
+          format: binary
+          minLength: 1
+          description: 'The file to upload. The file''s contents determine its type; a declared content
+
+            type is ignored.
+
+
+            Images: PNG, JPEG, GIF, or WebP, up to 5 MB. WebP is converted on upload, and
+
+            every image is re-encoded.
+
+
+            Video (MP4, WebM, QuickTime), audio (MP3, M4A, Ogg, WAV), and PDF: up to 25 MB,
+
+            stored byte-for-byte.
+
+            '
+        name:
+          type: string
+          maxLength: 255
+          description: A display name for the asset. Defaults to the uploaded file's name when omitted or empty after trimming.
+        alt_text:
+          type: string
+          maxLength: 1000
+          description: Default alternative text describing the asset, carried along whenever it is placed.
+        folder_id:
+          $ref: '#/components/schemas/AssetFolderID'
+          description: The folder to file the asset in. Omit it to place the asset at the top level of the library. Ignored when the upload matches an existing asset, which is returned where it already sits.
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    AssetReference:
+      description: A resource that uses an asset, so you can find everything to update before replacing an image.
+      type: object
+      additionalProperties: false
+      required:
+      - resource_type
+      - resource_id
+      - resource_name
+      - usage
+      properties:
+        resource_type:
+          type: string
+          minLength: 1
+          readOnly: true
+          x-extensible-enum:
+          - email_template
+          description: What kind of resource this is. New kinds appear as other products start using the media library, so treat an unfamiliar value as a resource this client does not know how to link to rather than as an error.
+        resource_id:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The resource's own identifier, carrying that resource's prefix (`emt_` for an email template), for linking straight to it.
+          example: emt_01j9zyq8k7f0ra2m6c4x5w8pv3
+        resource_name:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The resource's current display name, read when you list references.
+        usage:
+          readOnly: true
+          $ref: '#/components/schemas/AssetReferenceUsage'
+    AssetReferenceUsage:
+      description: 'Which copy of a resource uses an asset.
+
+
+        - `draft`: it is not reaching anyone yet.
+
+        - `published`: the change has to be published before recipients see it.
+
+        - `both`: the asset is used in both copies.
+
+        '
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - draft
+      - published
+      - both
+    AssetSortField:
+      type: string
+      description: Field used to order media-library records.
+      enum:
+      - created_at
+      default: created_at
+    AssetDeletedFilter:
+      type: string
+      description: Whether to include assets removed from the library.
+      enum:
+      - exclude
+      - include
+      - only
+      default: exclude
+    AssetUpdate:
+      description: Fields to change on an asset. Omit a field to leave it as it is. The asset's bytes and URL are fixed and cannot be changed.
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The asset's display name.
+        alt_text:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+          description: Default alternative text describing the image. Send null to clear it.
+        folder_id:
+          oneOf:
+          - $ref: '#/components/schemas/AssetFolderID'
+          - type: 'null'
+          description: The folder to file the asset in. Send null to move it to the top level of the library. Moving an asset never changes its URL.
+      example:
+        name: Summer banner
+        alt_text: Sunset over the ocean
+    AssetFolderID:
+      type: string
+      minLength: 1
+      pattern: ^asf_[0-9a-hjkmnp-tv-z]{26}$
+      example: asf_01krdgeqcxet5s7t44vh8rt9mg
+    AssetReferenceList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      - truncated
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetReference'
+        truncated:
+          type: boolean
+          readOnly: true
+          description: True when more resources use this asset than one response can carry, so the list is a partial answer. Replace the asset's usages you can see, then list again to find the rest.
+    AssetContentTypeFilter:
+      type: string
+      description: Stored media type to match.
+      enum:
+      - image/png
+      - image/jpeg
+      - image/gif
+      - video/mp4
+      - video/webm
+      - video/quicktime
+      - audio/mpeg
+      - audio/mp4
+      - audio/ogg
+      - audio/wav
+      - application/pdf
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+  responses:
+    PayloadTooLarge:
+      description: Request body or message size exceeds the allowed limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotImplemented:
+      description: The operation is not supported
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    OrderDesc:
+      name: order
+      in: query
+      required: false
+      description: 'Sort direction. Defaults to `desc`, which sorts from newest to oldest or largest to smallest, depending on the selected sort field.
+
+        '
+      schema:
+        $ref: '#/components/schemas/SortOrder'
+        default: desc
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    IncludeTotal:
+      name: include_total
+      in: query
+      required: false
+      description: When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
+      schema:
+        type: boolean
+        default: false
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

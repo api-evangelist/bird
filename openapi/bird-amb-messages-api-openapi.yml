@@ -1,0 +1,3152 @@
+openapi: 3.2.0
+info:
+  title: Bird Amb Messages API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: amb-messages
+  description: Send Apple Messages for Business messages into a conversation a customer opened, and read the messages your workspace sent and received, including their status and lifecycle events.
+paths:
+  /v1/amb/messages/{message_id}/attachments/{index}:
+    get:
+      operationId: getAMBMessageAttachment
+      summary: Get a message attachment
+      description: 'Downloads the attachment at the zero-based `index` in a message''s
+
+        `content.attachments` array and returns its decrypted bytes with the
+
+        media type the attachment declares. A declared PNG, JPEG, GIF or WebP
+
+        type is kept only when the bytes match it; a missing, malformed or
+
+        mismatched type returns `application/octet-stream`. The
+
+        `Content-Disposition` header carries the original filename.
+
+        Works for attachments a customer sent and for attachments
+
+        you sent. For a received attachment, `message_id` is the `message.id`
+
+        of the `amb.received` webhook event, and `index` is the attachment''s
+
+        position in that message''s `content.attachments` array.
+
+
+        Apple retains an attachment for 30 days, renewed each time its reference
+
+        is reused; availability after that period is not guaranteed, so download
+
+        an attachment when the message arrives rather than on demand later. An unknown message or
+
+        index returns `404`; an unavailable or expired Apple reference returns
+
+        `503`.'
+      tags:
+      - amb-messages
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      x-snippet-key: none
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        description: Message identifier. Starts with `amb_`. For a received attachment, use the `message.id` from the `amb.received` webhook event.
+        schema:
+          $ref: '#/components/schemas/AMBMessageID'
+      - name: index
+        in: path
+        required: true
+        description: Zero-based position in the message's `content.attachments` array.
+        schema:
+          type: integer
+          minimum: 0
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: The raw attachment bytes.
+          headers:
+            Content-Disposition:
+              description: 'Downloads the attachment with its original filename.
+
+                '
+              schema:
+                type: string
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+  /v1/amb/messages:
+    get:
+      operationId: listAMBMessages
+      x-snippet-key: amb.list
+      summary: List messages
+      description: 'Returns your business''s Apple Messages for Business messages across
+
+        conversations, newest first, both received and sent. To page through
+
+        older messages, use `starting_after`. Messages do not expire based on age.
+
+
+        To list messages within a single conversation, use
+
+        `listAMBConversationMessages`.'
+      tags:
+      - amb-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - name: conversation_id
+        in: query
+        required: false
+        description: Filter to messages belonging to this conversation.
+        schema:
+          $ref: '#/components/schemas/AMBConversationID'
+      - name: business_account_id
+        in: query
+        required: false
+        description: Filter to messages belonging to this business.
+        schema:
+          $ref: '#/components/schemas/AMBBusinessID'
+      - name: direction
+        in: query
+        required: false
+        description: Filter to received (`inbound`) or sent (`outbound`) messages.
+        schema:
+          $ref: '#/components/schemas/AMBMessageDirection'
+      - name: status
+        in: query
+        required: false
+        description: Filter to messages with this status.
+        schema:
+          $ref: '#/components/schemas/AMBMessageStatus'
+      - name: kind
+        in: query
+        required: false
+        description: Filter to messages whose content is this shape.
+        schema:
+          $ref: '#/components/schemas/AMBContentKind'
+      - name: category
+        in: query
+        required: false
+        description: Filter to outbound messages sent with this category, exact match.
+        schema:
+          type: string
+          maxLength: 64
+        example: order_update
+      - $ref: '#/components/parameters/TagFilter'
+      - $ref: '#/components/parameters/CreatedAfter'
+      - $ref: '#/components/parameters/CreatedBefore'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Paginated list of messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBMessageList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    post:
+      operationId: createAMBMessage
+      x-snippet-key: amb.send
+      summary: Send a message
+      description: 'Send a message in an existing Apple Messages for Business conversation. `from` is the Apple business identifier and `to` is the customer’s opaque identifier for that business. An unknown conversation returns 404; a closed conversation returns 422. Only the customer can reopen a conversation.
+
+
+        Choose text, rich_link, or interactive content. Interactive content contains a quick reply, list picker, event, form, or custom iMessage app. Native payment and authentication requests are not available through this public operation. Device support varies; an unsupported interaction returns 422.
+
+
+        Supply attachment URLs or reusable Apple references. Bird downloads source URLs and uploads the files before sending. Interactive images must be PNG files up to 200 kB each, totaling at most 5 MB. Each attachment must be smaller than 100 MB. A media or provider failure after acceptance changes the message status to send_failed.
+
+
+        The 202 response confirms acceptance, not delivery. Read the message to obtain its final status and any reusable reference returned by Apple.'
+      tags:
+      - amb-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AMBMessageSendRequest'
+            examples:
+              text:
+                summary: A plain text message
+                value:
+                  content:
+                    type: text
+                    body: Your order shipped and will arrive tomorrow.
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              quick-reply:
+                summary: Two quick-reply buttons
+                value:
+                  content:
+                    type: interactive
+                    interactive_data:
+                      data:
+                        quick_reply:
+                          summary_text: Would you like to reschedule?
+                          items:
+                          - identifier: reschedule
+                            title: Reschedule
+                          - identifier: keep
+                            title: Keep as is
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              rich-link:
+                summary: A link with an image preview
+                value:
+                  content:
+                    type: rich_link
+                    rich_link_data:
+                      url: https://example.com/orders/123
+                      title: Your order
+                      assets:
+                        image:
+                          source_url: https://media.example.com/order.png
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              attachment:
+                summary: A PDF attachment
+                value:
+                  content:
+                    type: text
+                    body: 'Your receipt
+
+                      ￼'
+                    attachments:
+                    - source_url: https://media.example.com/receipt.pdf
+                      name: receipt.pdf
+                      mime_type: application/pdf
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              list-picker:
+                summary: A menu with multiple selections
+                value:
+                  content:
+                    type: interactive
+                    interactive_data:
+                      received_message:
+                        title: Browse topics
+                        style: large
+                      reply_message:
+                        title: Selected topics
+                        style: small
+                      data:
+                        list_picker:
+                          sections:
+                          - title: Topics
+                            multiple_selection: true
+                            items:
+                            - identifier: products
+                              title: Products
+                            - identifier: support
+                              title: Support
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              time-picker:
+                summary: Two appointment times
+                value:
+                  content:
+                    type: interactive
+                    interactive_data:
+                      data:
+                        event:
+                          timeslots:
+                          - identifier: morning
+                            start_at: '2026-09-10T09:00:00Z'
+                            duration_seconds: 1800
+                          - identifier: afternoon
+                            start_at: '2026-09-10T14:00:00Z'
+                            duration_seconds: 1800
+                          title: Choose an appointment
+                          location:
+                            title: Online consultation
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              form:
+                summary: A short satisfaction survey
+                value:
+                  content:
+                    type: interactive
+                    interactive_data:
+                      received_message:
+                        title: Tell us how we did
+                      reply_message:
+                        title: Feedback submitted
+                      data:
+                        dynamic:
+                          data:
+                            start_page_identifier: feedback
+                            show_summary: true
+                            pages:
+                            - type: select
+                              page_identifier: feedback
+                              subtitle: Was your question answered?
+                              submit_form: true
+                              items:
+                              - identifier: 'yes'
+                                title: 'Yes'
+                                value: 'yes'
+                              - identifier: 'no'
+                                title: 'No'
+                                value: 'no'
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+              imessage-app:
+                summary: Open a business's iMessage app
+                value:
+                  content:
+                    type: interactive
+                    interactive_data:
+                      received_message:
+                        title: View your order
+                      reply_message:
+                        title: Order selected
+                      app_id: '123456789'
+                      app_name: Acme Service
+                      bid: com.apple.messages.MSMessageExtensionBalloonPlugin:ABCDE12345:com.example.acme.messages
+                      url: ?order=123
+                      use_live_layout: true
+                      app_icon_source_url: https://media.example.com/app-icon.png
+                  from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+                  to: the-opaque-user-id-from-the-conversation
+      responses:
+        '202':
+          description: Message accepted for asynchronous delivery.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/messages/{message_id}:
+    parameters:
+    - name: message_id
+      in: path
+      required: true
+      description: Message identifier. Starts with `amb_`.
+      schema:
+        $ref: '#/components/schemas/AMBMessageID'
+    get:
+      operationId: getAMBMessage
+      x-snippet-key: amb.get
+      summary: Get a message
+      description: 'Returns a single Apple Messages for Business message: its current status, the content it carries, and failure detail when it failed. There is no delivery or read receipt on this channel, so an outbound message''s `status` advances only as far as `sent`. For the per-event timeline, use `listAMBMessageEvents` instead. Messages do not expire based on age.'
+      tags:
+      - amb-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      responses:
+        '200':
+          description: The message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/amb/messages/{message_id}/events:
+    parameters:
+    - name: message_id
+      in: path
+      required: true
+      description: Message identifier. Starts with `amb_`.
+      schema:
+        $ref: '#/components/schemas/AMBMessageID'
+    get:
+      operationId: listAMBMessageEvents
+      x-snippet-key: amb.list_events
+      summary: List events for a message
+      description: Returns a message's lifecycle events in chronological order, one entry per status transition (`amb.accepted`, `amb.sent`, `amb.send_failed`, `amb.received`). The timeline is bounded and returned in full, so this list is not paginated. Event history does not expire based on age.
+      tags:
+      - amb-messages
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - dashboard
+      - public
+      - command
+      parameters:
+      - name: type
+        in: query
+        required: false
+        description: 'Keep only events of this exact type (for example `amb.sent` or `amb.send_failed`). Omit for the full timeline.
+
+          '
+        schema:
+          $ref: '#/components/schemas/AMBMessageEventType'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Event timeline for this message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMBMessageEventList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    AMBRichLinkConstruct:
+      type: object
+      additionalProperties: false
+      required:
+      - url
+      properties:
+        url:
+          type: string
+          minLength: 1
+          description: The App Clip, Apple Music, or Apple Maps URL to build a preview for. An `http://` URL is refused with a `422` `AMBEndpointNotHTTPS`. A URL Apple cannot build a preview for is refused with a `422` `AMBConstructPayloadFailed`; send `rich_link` content with your own `title` and `image` instead.
+          example: https://apps.apple.com/app/id123456789?clip=1
+          x-sensitive: true
+        store_region:
+          $ref: '#/components/schemas/CountryCode'
+          description: App Store storefront used to build an App Clip preview. Defaults to `US` when omitted.
+      description: Asks Apple to build the rich link preview when the message is sent, rather than through a prior `POST /v1/amb/messages/construct-payload` call. No caller holds a signed reference until the send itself resolves one.
+    AMBNativeInboundQuickReply:
+      type: object
+      additionalProperties: false
+      required:
+      - selected_identifier
+      properties:
+        selected_identifier:
+          type: string
+          description: Identifier selected by the customer.
+          minLength: 1
+        selected_index:
+          type: integer
+          minimum: 0
+          description: Index reported by Apple.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBQuickReplyItem'
+          description: Items returned by the customer device.
+    AMBFormPickerPage:
+      allOf:
+      - $ref: '#/components/schemas/AMBFormPageCommon'
+      - type: object
+        required:
+        - type
+        - items
+        properties:
+          type:
+            type: string
+            minLength: 1
+            const: picker
+          picker_title:
+            type: string
+            description: Text beside the picker field. Omit to center the field without a label.
+          selected_item_index:
+            type: integer
+            minimum: 0
+            description: Zero-based index into `items`. Defaults to `0`. Must be less than the number of items; otherwise sending returns `422` `AMBFormPagesInvalid`.
+          items:
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/AMBFormPickerItem'
+      unevaluatedProperties: false
+    CurrencyCode:
+      type: string
+      minLength: 3
+      maxLength: 3
+      pattern: ^[A-Z]{3}$
+      description: ISO 4217 three-letter currency code.
+      example: EUR
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    AMBNativeInboundDynamic:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AMBNativeInboundFormData'
+    AMBNativeInboundInteractiveData:
+      type: object
+      additionalProperties: false
+      properties:
+        app_id:
+          type: string
+          description: Custom app identifier.
+        app_name:
+          type: string
+          description: Custom app name.
+        bid:
+          type: string
+          description: Apple extension identifier.
+        url:
+          type: string
+          description: Opaque custom app response URL.
+          x-sensitive: true
+        use_live_layout:
+          type: boolean
+          description: Whether the app uses live layout.
+        session_identifier:
+          type: string
+          description: Apple interaction session identifier.
+        reply_message:
+          $ref: '#/components/schemas/AMBMessageBubble'
+        received_message:
+          $ref: '#/components/schemas/AMBMessageBubble'
+        data:
+          $ref: '#/components/schemas/AMBNativeInboundPayload'
+        app_icon_url:
+          type: string
+          description: Relative Bird API URL for downloading the custom app icon with the same authentication and workspace as the message.
+          format: uri-reference
+    AMBMessageDirection:
+      type: string
+      minLength: 1
+      enum:
+      - outbound
+      - inbound
+      description: 'Whether a message was sent by the business or received from the customer:
+
+
+        - `outbound`: A reply the business sent into the conversation.
+
+        - `inbound`: A message the customer sent.
+
+        '
+    AMBNativeInteractiveData:
+      type: object
+      additionalProperties: false
+      properties:
+        app_id:
+          type: string
+          minLength: 1
+          description: App Store identifier of the iMessage app.
+        app_name:
+          type: string
+          minLength: 1
+          description: Name of the iMessage app.
+        bid:
+          type: string
+          minLength: 1
+          description: Identifier of the iMessage extension, in Apple's `com.apple.messages.MSMessageExtensionBalloonPlugin:team-id:extension-id` format.
+        url:
+          x-sensitive: true
+          type: string
+          minLength: 1
+          description: Opaque URL string that Messages passes to the iMessage app.
+          example: ?order=1234&view=detail
+        use_live_layout:
+          type: boolean
+          description: Whether Messages renders the received and reply bubbles using Live Layout.
+        session_identifier:
+          type: string
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          description: Session UUID to preserve across interactions. Apple creates one when omitted.
+        received_message:
+          $ref: '#/components/schemas/AMBMessageBubble'
+          description: Content Messages shows in the received message bubble.
+        reply_message:
+          $ref: '#/components/schemas/AMBMessageBubble'
+          description: Content Messages shows in the reply message bubble.
+        app_icon_source_url:
+          type: string
+          minLength: 1
+          description: Publicly accessible HTTPS URL of the app's PNG icon. The icon must be smaller than 15 kB. We fetch and include it in the request to Apple. A non-HTTPS URL is refused with a `422` `AMBEndpointNotHTTPS`. In a template it may contain `{{ }}` placeholders; the rendered value must be HTTPS.
+          x-sensitive: true
+        data:
+          $ref: '#/components/schemas/AMBNativeInteractivePayload'
+      description: A built-in interaction or custom iMessage app. Custom apps require the app metadata and both message bubbles.
+      oneOf:
+      - required:
+        - data
+        not:
+          anyOf:
+          - properties:
+              app_id: {}
+            required:
+            - app_id
+          - properties:
+              app_name: {}
+            required:
+            - app_name
+          - properties:
+              bid: {}
+            required:
+            - bid
+          - properties:
+              url: {}
+            required:
+            - url
+          - properties:
+              app_icon_source_url: {}
+            required:
+            - app_icon_source_url
+          - properties:
+              use_live_layout: {}
+            required:
+            - use_live_layout
+      - required:
+        - app_id
+        - app_name
+        - bid
+        - url
+        - app_icon_source_url
+        - use_live_layout
+        - received_message
+        - reply_message
+        not:
+          properties:
+            data: {}
+          required:
+          - data
+    AMBNativeInboundAuthentication:
+      type: object
+      additionalProperties: false
+      x-sensitive: true
+      properties:
+        status:
+          type: string
+          description: Authentication status reported by Apple. This does not establish an authenticated Bird session.
+    TemplateSlug:
+      type: string
+      minLength: 1
+      maxLength: 63
+      pattern: ^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$
+      description: 'A template''s slug: what you send it by, for example `welcome-email`. Email and SMS slugs stay fixed after creation. WhatsApp slugs can change only before the first submission. A slug can contain lowercase letters, numbers, hyphens, and underscores, has to start and end with a letter or a number, and can be up to 63 characters long.
+
+        '
+      example: welcome-email
+    AMBNativeInboundListPickerSection:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Heading shown above this section's rows.
+        order:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          description: Where this section sits relative to its siblings, ascending. Sections omitting it are laid out in list order, after any that specify one.
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AMBListPickerItem'
+          description: The rows in this section.
+        multiple_selection:
+          type: boolean
+          default: false
+          description: Whether the customer can select more than one row in this section.
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    AMBMessageStatus:
+      type: string
+      minLength: 1
+      enum:
+      - accepted
+      - sent
+      - send_failed
+      - rejected
+      - received
+      description: "Send status:\n\n- `accepted`: Accepted and queued for delivery to Apple.\n- `sent`: Handed to Apple. There is no delivery or read receipt on this\n  channel, so `sent` is the furthest an outbound message's status\n  advances.\n- `send_failed`: Sending stopped because of a business or conversation\n  restriction, a recipient opt-out, an Apple refusal, or exhausted attempts.\n  An earlier attempt may have reached Apple if its response or the local\n  record of success was lost. See `last_error` for why sending stopped.\n- `rejected`: Refused by Bird before any send attempt and never charged:\n  the destination has no price, the wallet could not fund the send, or the\n  content cannot be sent yet. See `last_error`.\n- `received`: Received as an inbound message.\n"
+    AMBMessageBubbleStyle:
+      type: string
+      enum:
+      - icon
+      - small
+      - large
+      description: Layout of an Apple interactive message bubble.
+    AMBFormInputPage:
+      allOf:
+      - $ref: '#/components/schemas/AMBFormPageCommon'
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            type: string
+            minLength: 1
+            const: input
+          hint_text:
+            type: string
+          options:
+            $ref: '#/components/schemas/AMBFormInputOptions'
+      unevaluatedProperties: false
+    AMBNativeImage:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - source_url
+      properties:
+        identifier:
+          type: string
+          description: Identifier referenced by a bubble, item, or event.
+          minLength: 1
+        source_url:
+          type: string
+          description: HTTPS URL of a PNG image up to 200 kB. Total interactive image data must not exceed 5 MB. A non-HTTPS URL is refused with a `422` `AMBEndpointNotHTTPS`. In a template it may contain `{{ }}` placeholders; the rendered value must be HTTPS.
+          minLength: 1
+          x-sensitive: true
+        description:
+          type: string
+          description: Accessibility description read by VoiceOver.
+          x-sensitive: true
+    AMBAuthenticationID:
+      type: string
+      minLength: 1
+      pattern: ^amauth_[0-9a-hjkmnp-tv-z]{26}$
+      example: amauth_01krdgeqcxet5s7t44vh8rt9mg
+    AMBLocation:
+      type: object
+      additionalProperties: false
+      dependentRequired:
+        latitude:
+        - longitude
+        longitude:
+        - latitude
+      properties:
+        title:
+          type: string
+          description: Name shown for the appointment location.
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: Latitude in degrees. Set together with `longitude`.
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          description: Longitude in degrees. Set together with `latitude`.
+        radius:
+          type: number
+          format: double
+          minimum: 0
+          description: Location radius in meters. Apple ignores it without coordinates.
+    AMBMessageBubble:
+      type: object
+      additionalProperties: false
+      required:
+      - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Text shown on the message bubble.
+        subtitle:
+          type: string
+          maxLength: 512
+          description: Secondary text shown below the title.
+        style:
+          $ref: '#/components/schemas/AMBMessageBubbleStyle'
+          description: Bubble layout. Apple defaults to `icon` when omitted and ignores it for custom iMessage apps.
+        image_identifier:
+          type: string
+          minLength: 1
+          description: Identifier of an image in interactive_data.data.images. Apple ignores it for custom iMessage apps.
+        image_title:
+          type: string
+          maxLength: 512
+          description: Title shown over an attached image in a custom iMessage app bubble.
+        image_subtitle:
+          type: string
+          maxLength: 512
+          description: Subtitle shown over an attached image in a custom iMessage app bubble.
+        secondary_subtitle:
+          type: string
+          maxLength: 512
+          description: Right-aligned title in a custom iMessage app bubble.
+        tertiary_subtitle:
+          type: string
+          maxLength: 512
+          description: Right-aligned subtitle in a custom iMessage app bubble.
+    AMBFormDatePickerPage:
+      allOf:
+      - $ref: '#/components/schemas/AMBFormPageCommon'
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            type: string
+            minLength: 1
+            const: date_picker
+          hint_text:
+            type: string
+          options:
+            $ref: '#/components/schemas/AMBFormDatePickerOptions'
+      unevaluatedProperties: false
+    AMBMessageList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: Page of Apple Messages for Business messages, newest first.
+            items:
+              $ref: '#/components/schemas/AMBMessage'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    AMBInboundFormSelection:
+      type: object
+      additionalProperties: false
+      required:
+      - page_identifier
+      - title
+      - subtitle
+      - items
+      properties:
+        page_identifier:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 0
+          description: Page title returned by Apple. Empty when the page has no title.
+        subtitle:
+          type: string
+          minLength: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBInboundFormItem'
+    AMBFormInputOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        regex:
+          type: string
+          minLength: 1
+          description: Pattern Apple uses to validate the input. Use JSON string escaping for backslashes.
+        placeholder:
+          type: string
+          description: Shown when the field is empty. Defaults to `Required` when `required` is true, otherwise `Optional`.
+        required:
+          type: boolean
+          default: false
+          description: Disables the next-page button until the customer enters a value.
+        input_type:
+          $ref: '#/components/schemas/AMBFormInputType'
+          description: Defaults to `singleline`.
+        label_text:
+          type: string
+          description: Label for `singleline` input only. Omit for no label.
+        prefix_text:
+          type: string
+          description: Text beside `singleline` input only, such as a currency symbol. Omit for no prefix.
+        maximum_character_count:
+          type: integer
+          minimum: 1
+          description: Defaults to 30 for `singleline` input and 300 for `multiline` input.
+        keyboard_type:
+          $ref: '#/components/schemas/AMBFormKeyboardType'
+          description: Keyboard to display. Defaults to `default`.
+        text_content_type:
+          $ref: '#/components/schemas/AMBFormTextContentType'
+          description: Content hint used for autofill.
+    LanguageTag:
+      type: string
+      minLength: 2
+      maxLength: 35
+      description: A language tag in BCP-47 form, for example `en` or `pt-BR`.
+      example: pt-BR
+    AMBNativeInboundPayment:
+      type: object
+      additionalProperties: false
+      x-sensitive: true
+      properties:
+        state:
+          type: string
+          description: Payment state reported by Apple. This does not confirm that a payment settled.
+    AMBQuickReplyItem:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - title
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: Opaque choice identifier returned in interactive_data.data.quick_reply.selected_identifier.
+        title:
+          type: string
+          minLength: 1
+          description: Label shown on the button.
+    AMBNativeRichLinkData:
+      type: object
+      additionalProperties: false
+      required:
+      - url
+      - title
+      - assets
+      properties:
+        url:
+          type: string
+          description: HTTPS URL opened by the preview. A non-HTTPS URL is refused with a `422` `AMBEndpointNotHTTPS`. In a template it may contain `{{ }}` placeholders; the rendered value must be HTTPS.
+          minLength: 1
+          x-sensitive: true
+        title:
+          type: string
+          description: Preview title.
+          minLength: 1
+        assets:
+          $ref: '#/components/schemas/AMBNativeRichLinkAssets'
+    AMBMessageSendRequest:
+      type: object
+      additionalProperties: false
+      description: 'A message to send. Supply exactly one of `content` (native content) or `template` (a stored template, whose category is derived). Supplying both, or neither, is rejected.
+
+        '
+      required:
+      - from
+      - to
+      anyOf:
+      - required:
+        - content
+      - required:
+        - template
+      not:
+        anyOf:
+        - required:
+          - content
+          - template
+          properties:
+            content: {}
+            template: {}
+        - required:
+          - template
+          - category
+          properties:
+            template: {}
+            category: {}
+      properties:
+        from:
+          type: string
+          minLength: 1
+          description: Apple business identifier of the brand sending the message. Read it from the business’s apple_business_id. The customer must have opened the conversation with this business.
+          example: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+        to:
+          example: opaque-customer-id
+          type: string
+          minLength: 1
+          description: Apple’s opaque customer identifier for this business, available as the conversation’s recipient.opaque_user_id. The conversation must exist and its native status must be open.
+        source:
+          $ref: '#/components/schemas/AMBMessageSource'
+          description: Who this message is sent as. A signed-in session may send as `operator` or `automation`; an API key may send as `api` or `automation`. Omit it to take the default for your credential. Naming a source your credential cannot use is refused with a `422` `AMBMessageSourceNotPermitted`.
+        content:
+          $ref: '#/components/schemas/AMBMessageContent'
+          description: Message content in Apple’s native text, rich_link, or interactive family. Required unless `template` is supplied (the two are mutually exclusive).
+          x-sensitive: true
+        template:
+          allOf:
+          - $ref: '#/components/schemas/AMBTemplateSend'
+          description: 'Send using a stored template instead of native content. The category is derived from the template, so `category` is rejected alongside it.
+
+            '
+        category:
+          type: string
+          maxLength: 64
+          description: Free-form reporting label; it does not change sending or suppression policy, for example `order_update`. Omit it to send with the default empty category. Rejected alongside `template`, where the category is derived from the template.
+          example: order_update
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Arbitrary JSON object for per-message context. Maximum 2 KB serialized. Top-level keys beginning with `__bird` are reserved. Returned in the send response, message reads and customer message webhooks.
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          maxItems: 20
+          description: Structured `{name, value}` labels for filtering. Maximum 20 tags per send.
+        group:
+          type: string
+          description: Department identifier for this message.
+        intent:
+          type: string
+          description: Purpose of this conversation.
+        locale:
+          type: string
+          description: Apple locale identifier, for example en_US. Defaults to the conversation locale.
+      example:
+        from: b52d6267-2b62-4f8a-8842-0533d0f1dc07
+        to: opaque-customer-id
+        content:
+          type: text
+          body: Your order is ready.
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    AMBFormSelectPage:
+      allOf:
+      - $ref: '#/components/schemas/AMBFormPageCommon'
+      - type: object
+        required:
+        - type
+        - items
+        properties:
+          type:
+            type: string
+            minLength: 1
+            const: select
+          multiple_selection:
+            type: boolean
+            default: false
+          items:
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/AMBFormSelectItem'
+        if:
+          required:
+          - multiple_selection
+          properties:
+            multiple_selection:
+              const: true
+        then:
+          properties:
+            items:
+              items:
+                properties:
+                  next_page_identifier:
+                    not: {}
+        else:
+          properties:
+            next_page_identifier:
+              not: {}
+      if:
+        required:
+        - submit_form
+        properties:
+          submit_form:
+            const: true
+      then:
+        properties:
+          items:
+            items:
+              properties:
+                next_page_identifier:
+                  not: {}
+      unevaluatedProperties: false
+    AMBNativeListPicker:
+      type: object
+      additionalProperties: false
+      required:
+      - sections
+      properties:
+        sections:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AMBListPickerSection'
+          description: The menu's sections, each with its own heading and rows.
+    AMBNativeQuickReply:
+      type: object
+      additionalProperties: false
+      required:
+      - summary_text
+      - items
+      properties:
+        summary_text:
+          type: string
+          minLength: 1
+          x-sensitive: true
+          description: Text used for the device notification and shown in the transcript after the customer chooses an item. Automatic introductions through the enclosing content.body depend on regional activation and the send retry mode; see content.body. For an introduction independent of activation, send a separate text message and omit content.body from the quick reply.
+        items:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/AMBQuickReplyItem'
+          description: The buttons offered to the customer. Apple requires between two and five; outside that range the request is refused with a `422` `AMBQuickReplyItemsInvalid`. For more choices, send `list_picker` content instead.
+    AMBFormPage:
+      oneOf:
+      - $ref: '#/components/schemas/AMBFormSelectPage'
+      - $ref: '#/components/schemas/AMBFormPickerPage'
+      - $ref: '#/components/schemas/AMBFormDatePickerPage'
+      - $ref: '#/components/schemas/AMBFormInputPage'
+      discriminator:
+        propertyName: type
+        mapping:
+          select: '#/components/schemas/AMBFormSelectPage'
+          picker: '#/components/schemas/AMBFormPickerPage'
+          date_picker: '#/components/schemas/AMBFormDatePickerPage'
+          input: '#/components/schemas/AMBFormInputPage'
+    AMBInboundContent:
+      description: Received text, attachments, and interactive replies, preserving Apple message structure.
+      oneOf:
+      - $ref: '#/components/schemas/AMBNativeTextContent'
+      - $ref: '#/components/schemas/AMBNativeInboundInteractiveContent'
+      discriminator:
+        propertyName: type
+        mapping:
+          text: '#/components/schemas/AMBNativeTextContent'
+          interactive: '#/components/schemas/AMBNativeInboundInteractiveContent'
+    AMBNativeRichLinkVideo:
+      type: object
+      additionalProperties: false
+      required:
+      - url
+      properties:
+        url:
+          type: string
+          description: HTTPS video URL fetched by Apple. A non-HTTPS URL is refused with a `422` `AMBEndpointNotHTTPS`. In a template it may contain `{{ }}` placeholders; the rendered value must be HTTPS.
+          minLength: 1
+          x-sensitive: true
+        mime_type:
+          type: string
+          description: Media type of the video. Defaults to video/mp4; supply the actual type for other formats.
+          default: video/mp4
+    AMBMessageSource:
+      type: string
+      minLength: 1
+      enum:
+      - operator
+      - automation
+      - api
+      description: "Who sent an outbound message:\n\n- `operator`: A person, through a signed-in dashboard session.\n- `automation`: A workflow or bot acting on the workspace's behalf,\n  through a signed-in session.\n- `api`: A direct API call, authenticated with an API key.\n\nA credential can send only the sources it is permitted; naming one\noutside that set is refused with a `422` `AMBMessageSourceNotPermitted`.\n\nThis is not `from`, which a send carries alongside it. That names\nthe brand the message goes out as; this names who composed it.\n"
+    AMBMessageID:
+      type: string
+      minLength: 1
+      pattern: ^amb_[0-9a-hjkmnp-tv-z]{26}$
+      example: amb_01krdgeqcxet5s7t44vh8rt9mg
+    AMBBusinessID:
+      type: string
+      minLength: 1
+      pattern: ^abz_[0-9a-hjkmnp-tv-z]{26}$
+      example: abz_01krdgeqcxet5s7t44vh8rt9mg
+    AMBFormTextContentType:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - name
+      - namePrefix
+      - givenName
+      - middleName
+      - familyName
+      - nameSuffix
+      - nickname
+      - jobTitle
+      - organizationName
+      - location
+      - fullStreetAddress
+      - streetAddressLine1
+      - streetAddressLine2
+      - addressCity
+      - addressState
+      - addressCityAndState
+      - sublocality
+      - countryName
+      - postalCode
+      - telephoneNumber
+      - emailAddress
+      - URL
+      - creditCardNumber
+      - username
+      - password
+      - newPassword
+      - oneTimeCode
+      description: Apple UIKit value, passed through without changing its spelling.
+    AMBMessageEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - occurred_at
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBEventID'
+          description: ID of the event, unique within the message's timeline.
+        type:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageEventType'
+        occurred_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When this event occurred.
+        error:
+          readOnly: true
+          $ref: '#/components/schemas/AMBError'
+          description: Failure detail, on an `amb.send_failed` or `amb.rejected` event. Null on every other event type.
+    AMBMessage:
+      type: object
+      additionalProperties: false
+      dependentRequired:
+        reply_message_id:
+        - replied_at
+        replied_at:
+        - reply_message_id
+      required:
+      - id
+      - conversation_id
+      - business_account_id
+      - direction
+      - status
+      - kind
+      - content
+      - created_at
+      - cost
+      - requested_language
+      - resolved_language
+      - template_id
+      - template_version_id
+      - template_content_hash
+      properties:
+        id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageID'
+          description: ID of the message, assigned when it is accepted or received. Pass it as `message_id` to the get-message and list-events endpoints.
+        conversation_id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBConversationID'
+          description: The conversation this message belongs to.
+        business_account_id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBBusinessID'
+          description: The business the message was sent from or received by.
+        from:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: Apple business identifier on outbound messages, or the customer's opaque Apple identifier on inbound messages. Omitted when that address is unavailable on a historical record.
+        to:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: Customer's opaque Apple identifier on outbound messages, or the Apple business identifier on inbound messages. Omitted when that address is unavailable on a historical record.
+        direction:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageDirection'
+        status:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageStatus'
+        kind:
+          readOnly: true
+          $ref: '#/components/schemas/AMBContentKind'
+          description: Derived content classification for filtering and statistics.
+        source:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageSource'
+          description: Who sent this message. Absent on an inbound message, which has no source to report.
+        content:
+          readOnly: true
+          description: Native message content. Outgoing interactions contain requests; incoming interactions contain replies.
+          anyOf:
+          - $ref: '#/components/schemas/AMBMessageContent'
+          - $ref: '#/components/schemas/AMBInboundContent'
+          x-sensitive: true
+        in_reply_to_message_id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageID'
+          description: Original message matched through Apple’s request identifier within the same workspace, business, and conversation. Omitted when no verified match exists, including when more than one sent message in the conversation uses the reply's request identifier.
+        reply_message_id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBMessageID'
+          example: amb_01krdgh7m2zq8w4x6y9b3c5d7e
+          description: Latest customer reply whose `in_reply_to_message_id` names this message. Omitted until a reply is matched, and in webhook payloads.
+        replied_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When Apple delivered the reply in `reply_message_id` to Bird. This can be slightly earlier than that reply's `created_at`, which records when Bird processed it. Omitted until a reply is matched, and in webhook payloads.
+          example: '2026-10-13T10:09:00Z'
+        locale:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          minLength: 1
+          description: Locale for this message, preserved in Apple’s format, for example en_US. Outbound messages use the request override, then the conversation locale, then the business default. Inbound messages preserve the locale in Apple’s callback. Null when unknown.
+          example: en_US
+        category:
+          type: string
+          readOnly: true
+          description: The category this message was sent with, for reporting only. It does not affect sending or suppression policy, or select an Apple department or purpose. Defaults to an empty string when a send names no category. Absent on an inbound message, which has no category to report.
+          example: order_update
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Arbitrary JSON object for per-message context. Maximum 2 KB serialized. Top-level keys beginning with `__bird` are reserved. Returned in the send response, message reads and customer message webhooks.
+          readOnly: true
+        tags:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Structured `{name, value}` filter labels applied to this message. Absent on an inbound message.
+        cost:
+          readOnly: true
+          $ref: '#/components/schemas/MessageCost'
+          description: Recorded per-message charge before MAC pricing. Null in the initial send response, while unpriced, and for MAC-covered replies. MAC fees belong to monthly contact usage, not individual messages. Historical charges have no priced passthrough component.
+        last_error:
+          readOnly: true
+          description: Failure detail on a message whose send failed or that Bird rejected before any send attempt. Omitted when there is no failure detail.
+          $ref: '#/components/schemas/AMBError'
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: The moment this message was accepted (outbound), or recorded by Bird after Apple delivered it (inbound). This is the timestamp the outbound statistics families bucket and attribute on; there is no separate `accepted_at` field.
+        sent_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When the selected sending outcome occurred. Null unless the current status is `sent` and the message is outbound. For older messages without a retained sending event, the stored record time is used.
+        data_ref:
+          $ref: '#/components/schemas/AMBRichLinkReference'
+          readOnly: true
+          description: Reusable encrypted content reference returned by Apple after a successful send. Absent until Apple returns one.
+        group:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: Apple department identifier carried by this message. Omitted when absent from the message or unavailable on a historical record.
+        intent:
+          type: string
+          readOnly: true
+          minLength: 1
+          description: Apple purpose identifier carried by this message. Omitted when absent from the message or unavailable on a historical record.
+        requested_language:
+          readOnly: true
+          description: 'The template language requested by the send, in canonical form. Null when the send named no language or used no template.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+        resolved_language:
+          readOnly: true
+          description: 'The template language whose text was rendered, in canonical form. Null when the send used no template. This can differ from `requested_language` when the template''s fallback policy selects another language.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          - type: 'null'
+        template_id:
+          readOnly: true
+          description: The template rendered for this message, or null for a message sent with native content.
+          oneOf:
+          - $ref: '#/components/schemas/AMBTemplateID'
+          - type: 'null'
+        template_version_id:
+          readOnly: true
+          description: 'The workspace published version or synthetic built-in version rendered at acceptance, or null for a message sent with native content. For a built-in template, `template_content_hash` identifies the exact catalogue source.
+
+            '
+          oneOf:
+          - $ref: '#/components/schemas/AMBTemplateVersionID'
+          - type: 'null'
+        template_content_hash:
+          readOnly: true
+          description: The rendered language's source fingerprint, or null for a message sent with native content.
+          oneOf:
+          - $ref: '#/components/schemas/AMBTemplateContentHash'
+          - type: 'null'
+    AMBPaymentID:
+      type: string
+      minLength: 1
+      pattern: ^apay_[0-9a-hjkmnp-tv-z]{26}$
+      example: apay_01krdgeqcxet5s7t44vh8rt9mg
+    AMBFormPickerItem:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - title
+      - value
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 0
+        value:
+          type: string
+          minLength: 0
+    AMBMessageContent:
+      description: Apple message families with Bird field naming and media URLs. Authentication and Apple Pay requests are created through their dedicated conversation endpoints.
+      oneOf:
+      - $ref: '#/components/schemas/AMBNativeTextContent'
+      - $ref: '#/components/schemas/AMBNativeRichLinkContent'
+      - $ref: '#/components/schemas/AMBNativeInteractiveContent'
+      discriminator:
+        propertyName: type
+        mapping:
+          text: '#/components/schemas/AMBNativeTextContent'
+          rich_link: '#/components/schemas/AMBNativeRichLinkContent'
+          interactive: '#/components/schemas/AMBNativeInteractiveContent'
+    AMBContentKind:
+      type: string
+      minLength: 1
+      enum:
+      - text
+      - attachment
+      - rich_link
+      - quick_reply
+      - list_picker
+      - time_picker
+      - form
+      - apple_pay
+      - authenticate
+      - imessage_app
+      - interactive
+      description: 'Derived message classification for filtering and statistics. Send requests use the native content.type families. Create Apple Pay and authentication requests through the conversation payment and authentication operations.
+
+
+        - text: Text, optionally with a subject.
+
+        - attachment: One or more files, images, audio clips, or videos.
+
+        - rich_link: A link with a preview card.
+
+        - quick_reply: Two to five reply choices.
+
+        - list_picker: A grouped menu of choices.
+
+        - time_picker: Appointment time slots; a reply may contain only a selected label.
+
+        - form: A multi-page form.
+
+        - imessage_app: A custom iMessage app interaction on a compatible device.
+
+        - interactive: An opaque interactive reference whose subtype is unknown.
+
+        - apple_pay: An Apple Pay request created through the conversation payment operations.
+
+        - authenticate: An identity verification request created through the conversation authentication operations.'
+    AMBFormKeyboardType:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - default
+      - asciiCapable
+      - numbersAndPunctuation
+      - URL
+      - numberPad
+      - phonePad
+      - namePhonePad
+      - emailAddress
+      - decimalPad
+      - webSearch
+      description: Apple UIKit value, passed through without changing its spelling.
+    AMBMessageEventList:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: 'The message''s events, oldest first. Not paginated: a message''s timeline is bounded and returned in full.
+
+            '
+          items:
+            $ref: '#/components/schemas/AMBMessageEvent'
+    AMBListPickerItem:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - title
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: Opaque item identifier returned in interactive_data.data.list_picker.sections.
+        title:
+          type: string
+          minLength: 1
+          description: Label shown on the row.
+        subtitle:
+          type:
+          - string
+          - 'null'
+          description: Secondary line shown under the title.
+        image_identifier:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          description: Identifier of an image in interactive_data.data.images, shown next to this row. A key with no matching entry in `images` is refused with a `422` `AMBInteractiveImageInvalid`.
+        order:
+          type: integer
+          minimum: 0
+          description: Position within the section, ascending. Defaults to the row's array position.
+    AMBNativeInboundFormData:
+      type: object
+      additionalProperties: false
+      required:
+      - selections
+      properties:
+        private:
+          type: boolean
+          default: false
+          description: Whether the sender asked the MSP to treat this form response as private.
+        selections:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBInboundFormSelection'
+    AMBEventID:
+      type: string
+      minLength: 1
+      pattern: ^aev_[0-9a-hjkmnp-tv-z]{26}$
+      example: aev_01krdgeqcxet5s7t44vh8rt9mg
+    AMBNativeFormData:
+      type: object
+      additionalProperties: false
+      required:
+      - start_page_identifier
+      - pages
+      properties:
+        start_page_identifier:
+          type: string
+          minLength: 1
+          maxLength: 19
+          description: Identifier of the first page to show.
+        private:
+          type: boolean
+          default: false
+          description: Whether Apple marks the submitted response as private.
+        show_summary:
+          type: boolean
+          default: false
+          description: Whether Apple shows a summary before the customer submits.
+        splash:
+          $ref: '#/components/schemas/AMBFormSplash'
+        pages:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AMBFormPage'
+          description: Form pages referenced by the start page and navigation identifiers.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    AMBNativePayment:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: Apple Pay request created through the conversation payment endpoint. Contains no payment token or provider credentials.
+      required:
+      - payment_id
+      properties:
+        payment_id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBPaymentID'
+    AMBTemplateContentHash:
+      type: string
+      minLength: 1
+      readOnly: true
+      description: 'A fingerprint of Apple Messages template content, prefixed with its algorithm. Compare it within this API version to identify the exact source without transferring it.
+
+        '
+      example: sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - value
+      description: 'Structured key/value label attached to a message or a call. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID); they surface in the list filter of whatever carries them.
+
+
+        On a message they also surface in the event log and in webhook payloads, and a message can carry `metadata` beside them for arbitrary per-send context that does not need to be filterable. A call has none of those three: its tags are set on the wire when the call is placed, and the call record is the one place you read them back.
+
+
+        Whatever carries the tags defines how many it may have. Tag names are unique: a send that repeats one is rejected, and on a call the first instance of a name wins.
+
+        '
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+
+            '
+          example: category
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[A-Za-z0-9_-]+$
+          description: 'Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+
+            '
+          example: welcome
+    AMBNativeInboundImage:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - download_url
+      properties:
+        identifier:
+          type: string
+          description: Identifier used by the received message.
+          minLength: 1
+        description:
+          type: string
+          description: Accessibility description supplied by Apple.
+          x-sensitive: true
+        download_url:
+          type: string
+          description: Relative Bird API URL for downloading the image with the same authentication and workspace as the message.
+          format: uri-reference
+          minLength: 1
+    AMBFormPageCommon:
+      type: object
+      required:
+      - page_identifier
+      - type
+      - subtitle
+      properties:
+        page_identifier:
+          type: string
+          minLength: 1
+          maxLength: 19
+          description: Unique identifier for this page.
+        type:
+          type: string
+          minLength: 1
+        title:
+          type: string
+        subtitle:
+          type: string
+          description: Question shown on this page.
+          minLength: 0
+        next_page_identifier:
+          type: string
+          minLength: 1
+          maxLength: 19
+          description: Next page to show. Omit to finish the form. Single-select pages route through their items instead.
+        submit_form:
+          type: boolean
+          default: false
+          description: Marks this page as an end page for the form. A page with no next page also finishes the form.
+      if:
+        required:
+        - submit_form
+        properties:
+          submit_form:
+            const: true
+      then:
+        properties:
+          next_page_identifier:
+            not: {}
+    AMBNativeInteractivePayload:
+      type: object
+      additionalProperties: false
+      description: Exactly one built-in interaction. Protocol versions are managed by Bird.
+      properties:
+        request_identifier:
+          type: string
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          description: Correlation identifier for this interaction. Bird generates one when omitted. Use a new value for each message. A reply is linked to its request only when no other sent message in the conversation uses the same identifier.
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeImage'
+          description: Images referenced by identifier.
+        quick_reply:
+          $ref: '#/components/schemas/AMBNativeQuickReply'
+        list_picker:
+          $ref: '#/components/schemas/AMBNativeListPicker'
+        event:
+          $ref: '#/components/schemas/AMBNativeEvent'
+        dynamic:
+          $ref: '#/components/schemas/AMBNativeDynamic'
+        authenticate:
+          $ref: '#/components/schemas/AMBNativeAuthentication'
+          readOnly: true
+        payment:
+          $ref: '#/components/schemas/AMBNativePayment'
+          readOnly: true
+      oneOf:
+      - required:
+        - quick_reply
+        not:
+          anyOf:
+          - properties:
+              list_picker: {}
+            required:
+            - list_picker
+          - properties:
+              event: {}
+            required:
+            - event
+          - properties:
+              dynamic: {}
+            required:
+            - dynamic
+          - properties:
+              authenticate: {}
+            required:
+            - authenticate
+          - properties:
+              payment: {}
+            required:
+            - payment
+      - required:
+        - list_picker
+        not:
+          anyOf:
+          - properties:
+              quick_reply: {}
+            required:
+            - quick_reply
+          - properties:
+              event: {}
+            required:
+            - event
+          - properties:
+              dynamic: {}
+            required:
+            - dynamic
+          - properties:
+              authenticate: {}
+            required:
+            - authenticate
+          - properties:
+              payment: {}
+            required:
+            - payment
+      - required:
+        - event
+        not:
+          anyOf:
+          - properties:
+              quick_reply: {}
+            required:
+            - quick_reply
+          - properties:
+              list_picker: {}
+            required:
+            - list_picker
+          - properties:
+              dynamic: {}
+            required:
+            - dynamic
+          - properties:
+              authenticate: {}
+            required:
+            - authenticate
+          - properties:
+              payment: {}
+            required:
+            - payment
+      - required:
+        - dynamic
+        not:
+          anyOf:
+          - properties:
+              quick_reply: {}
+            required:
+            - quick_reply
+          - properties:
+              list_picker: {}
+            required:
+            - list_picker
+          - properties:
+              event: {}
+            required:
+            - event
+          - properties:
+              authenticate: {}
+            required:
+            - authenticate
+          - properties:
+              payment: {}
+            required:
+            - payment
+      - required:
+        - authenticate
+        not:
+          anyOf:
+          - properties:
+              quick_reply: {}
+            required:
+            - quick_reply
+          - properties:
+              list_picker: {}
+            required:
+            - list_picker
+          - properties:
+              event: {}
+            required:
+            - event
+          - properties:
+              dynamic: {}
+            required:
+            - dynamic
+          - properties:
+              payment: {}
+            required:
+            - payment
+      - required:
+        - payment
+        not:
+          anyOf:
+          - properties:
+              quick_reply: {}
+            required:
+            - quick_reply
+          - properties:
+              list_picker: {}
+            required:
+            - list_picker
+          - properties:
+              event: {}
+            required:
+            - event
+          - properties:
+              dynamic: {}
+            required:
+            - dynamic
+          - properties:
+              authenticate: {}
+            required:
+            - authenticate
+    AMBNativeEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - timeslots
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: Your identifier for the event. Defaults to the message identifier.
+        location:
+          $ref: '#/components/schemas/AMBLocation'
+          description: Optional appointment location.
+        timezone_offset:
+          type: integer
+          description: Minutes from GMT at the event location. Omit to use the customer's time zone.
+        timeslots:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AMBTimeSlot'
+          description: Appointment times with RFC 3339 timestamps and duration in seconds.
+        image_identifier:
+          type: string
+          minLength: 1
+          description: Identifier of the event image in interactive_data.data.images.
+        title:
+          type: string
+          description: Event title. Also supplies the title of each omitted received or reply bubble, where the 512-character bubble text limit applies. Supply both bubbles explicitly to use a longer event title.
+    AMBTemplateSend:
+      type: object
+      additionalProperties: false
+      description: 'A send-by-template reference. Identify the template by `id` or `slug`. Supply exactly one reference, optionally select a language, and pass variable values in `parameters`.
+
+        '
+      oneOf:
+      - required:
+        - id
+      - required:
+        - slug
+      properties:
+        id:
+          description: The workspace or built-in template to send, by ID.
+          $ref: '#/components/schemas/AMBTemplateID'
+        slug:
+          allOf:
+          - $ref: '#/components/schemas/TemplateSlug'
+          description: 'The workspace or built-in template to send, by its immutable slug. Read the template''s live version to see its variables.
+
+            '
+          example: bird_order_update
+        language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageTag'
+          description: 'Which of the template''s languages to send. Omit it to send the template''s default language, unless the template sets `language_source_required`, in which case a send naming no language is rejected. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.
+
+            '
+          example: fr
+        parameters:
+          type: object
+          additionalProperties: true
+          description: 'Values for the template''s variables, keyed by variable name. Read the live version to see the accepted keys and formats. A missing key, an undeclared key, an invalid value, or a serialized object over 16 KiB returns `422`.
+
+            '
+          example:
+            name: Jamie
+    AMBFormSelectItem:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - title
+      - value
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 0
+        value:
+          type: string
+          minLength: 0
+        image_identifier:
+          type: string
+          minLength: 1
+        next_page_identifier:
+          type: string
+          minLength: 1
+          maxLength: 19
+    AMBMessageType:
+      type: string
+      minLength: 1
+      enum:
+      - text
+      - rich_link
+      - interactive
+      description: Apple message family.
+    AMBFormInputType:
+      type: string
+      minLength: 1
+      enum:
+      - singleline
+      - multiline
+    AMBNativeInboundEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: Event identifier returned by Apple, when provided.
+        location:
+          $ref: '#/components/schemas/AMBLocation'
+          description: Optional appointment location.
+        timezone_offset:
+          type: integer
+          description: Minutes from GMT at the event location. Omit to use the customer's time zone.
+        timeslots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBTimeSlot'
+          description: Time slots returned by Apple. May be empty when the device supplies only a selected label.
+        image_identifier:
+          type: string
+          minLength: 1
+          description: Identifier of the event image in interactive_data.data.images.
+        title:
+          type: string
+          description: Event title.
+    AMBNativeRichLinkImage:
+      type: object
+      additionalProperties: false
+      required:
+      - source_url
+      properties:
+        source_url:
+          type: string
+          description: HTTPS URL of a PNG preview image up to 200 kB. Bird fetches and encodes it when sending. A non-HTTPS URL is refused with a `422` `AMBEndpointNotHTTPS`. In a template it may contain `{{ }}` placeholders; the rendered value must be HTTPS.
+          minLength: 1
+          x-sensitive: true
+        mime_type:
+          type: string
+          description: PNG media type required by Apple. Defaults to image/png.
+          const: image/png
+          default: image/png
+    AMBNativeInboundInteractiveContent:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - interactive_data
+      properties:
+        type:
+          const: interactive
+          description: Always interactive.
+          $ref: '#/components/schemas/AMBMessageType'
+        body:
+          type: string
+          description: Message body supplied by Apple.
+          x-sensitive: true
+        subject:
+          type: string
+          description: Message subject supplied by Apple.
+          x-sensitive: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeAttachment'
+          description: Ordered attachments supplied by Apple.
+        interactive_data:
+          $ref: '#/components/schemas/AMBNativeInboundInteractiveData'
+    AMBNativeInboundListPicker:
+      type: object
+      additionalProperties: false
+      required:
+      - sections
+      properties:
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeInboundListPickerSection'
+          description: Sections returned by Apple. Sections can include unselected options; preserve their titles and item grouping.
+    AMBNativeInteractiveContent:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          const: interactive
+          description: Always interactive.
+          $ref: '#/components/schemas/AMBMessageType'
+        body:
+          type: string
+          description: Automatic introductions for inline quick replies are enabled regionally in stages. When enabled for a new send containing `interactive_data.data.quick_reply`, a nonblank body is sent as separate text before the choices. Messages using `interactive_data_ref` do not receive this automatic introduction, even after activation. All parts belong to one message, which becomes sent after Apple accepts all parts. For referenced interactions, before activation, and for retries retaining legacy behavior, body is included in the interactive request and is not guaranteed to appear on the device. To ensure an introduction without relying on activation, send a separate text message and omit body from the quick reply. Omit body to send choices only. For list pickers, time pickers and forms, use interactive_data.received_message for the visible introduction. Use one U+FFFC object replacement character per attachment to control placement.
+          x-sensitive: true
+        subject:
+          type: string
+          description: Subject displayed above the message body.
+          x-sensitive: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeAttachment'
+          description: Ordered attachments. Each object supplies a source URL or an encrypted Apple reference.
+        interactive_data:
+          $ref: '#/components/schemas/AMBNativeInteractiveData'
+        interactive_data_ref:
+          $ref: '#/components/schemas/AMBRichLinkReference'
+      oneOf:
+      - required:
+        - interactive_data
+        not:
+          properties:
+            interactive_data_ref: {}
+          required:
+          - interactive_data_ref
+      - required:
+        - interactive_data_ref
+        not:
+          properties:
+            interactive_data: {}
+          required:
+          - interactive_data
+    AMBNativeRichLinkContent:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          const: rich_link
+          description: Always rich_link.
+          $ref: '#/components/schemas/AMBMessageType'
+        body:
+          type: string
+          description: Automatic introductions for rich links are enabled regionally in stages. When enabled for a new send, a nonblank body is sent as a separate text before the link. All parts belong to one message, which becomes sent after Apple accepts all parts. Before activation, and for retries retaining legacy behavior, body is included in the rich link request and is not guaranteed to appear on the device. To ensure an introduction without relying on activation, send a separate text message and omit body from the rich link. Use one U+FFFC object replacement character per attachment to control placement.
+          x-sensitive: true
+        subject:
+          type: string
+          description: Subject displayed above the message body.
+          x-sensitive: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeAttachment'
+          description: Ordered attachments. Each object supplies a source URL or an encrypted Apple reference.
+        rich_link_data:
+          $ref: '#/components/schemas/AMBNativeRichLinkData'
+        rich_link_data_ref:
+          $ref: '#/components/schemas/AMBRichLinkReference'
+        rich_link_construct:
+          $ref: '#/components/schemas/AMBRichLinkConstruct'
+      oneOf:
+      - required:
+        - rich_link_data
+        not:
+          properties:
+            rich_link_data_ref: {}
+            rich_link_construct: {}
+          required:
+          - rich_link_data_ref
+          - rich_link_construct
+      - required:
+        - rich_link_data_ref
+        not:
+          properties:
+            rich_link_data: {}
+            rich_link_construct: {}
+          required:
+          - rich_link_data
+          - rich_link_construct
+      - required:
+        - rich_link_construct
+        not:
+          properties:
+            rich_link_data: {}
+            rich_link_data_ref: {}
+          required:
+          - rich_link_data
+          - rich_link_data_ref
+    AMBTemplateID:
+      type: string
+      minLength: 1
+      pattern: ^amt_[0-9a-hjkmnp-tv-z]{26}$
+      example: amt_01krdgeqcxet5s7t44vh8rt9mg
+    AMBConversationID:
+      type: string
+      minLength: 1
+      pattern: ^acv_[0-9a-hjkmnp-tv-z]{26}$
+      example: acv_01krdgeqcxet5s7t44vh8rt9mg
+    AMBStatsErrorCode:
+      type: string
+      minLength: 1
+      pattern: ^(bird:[a-z0-9_]+|apple:\d{3})$
+      description: 'Machine-readable reason a send failed, in one of two namespaces: `bird:` for a reason Bird''s own pipeline assigned (for example `bird:business_not_registered`), or `apple:` followed by the HTTP status Apple''s API returned for the send attempt (for example `apple:404`). This is an open, growing set in both namespaces; accept unrecognized values.
+
+        '
+      example: bird:business_not_registered
+    AMBNativeRichLinkAssets:
+      type: object
+      additionalProperties: false
+      required:
+      - image
+      properties:
+        image:
+          $ref: '#/components/schemas/AMBNativeRichLinkImage'
+        video:
+          $ref: '#/components/schemas/AMBNativeRichLinkVideo'
+    AMBTemplateVersionID:
+      type: string
+      minLength: 1
+      pattern: ^amv_[0-9a-hjkmnp-tv-z]{26}$
+      example: amv_01krdgeqcxet5s7t44vh8rt9mg
+    AMBNativeAttachment:
+      type: object
+      additionalProperties: false
+      description: Provide source_url or the complete encrypted reference, never both.
+      properties:
+        source_url:
+          type: string
+          minLength: 1
+          description: HTTPS URL Bird downloads and uploads to Apple. A non-HTTPS URL is refused with a `422` `AMBEndpointNotHTTPS`. In a template it may contain `{{ }}` placeholders; the rendered value must be HTTPS.
+          x-sensitive: true
+        name:
+          type: string
+          description: Display filename.
+        mime_type:
+          type: string
+          description: Media type of the attachment.
+        url:
+          type: string
+          format: uri
+          pattern: ^https://
+          minLength: 1
+          description: Encrypted attachment URL returned by Apple.
+        owner:
+          type: string
+          minLength: 1
+          description: Opaque owner value returned by Apple.
+        signature_base64:
+          type: string
+          minLength: 1
+          description: Attachment authorization signature returned by Apple.
+        key:
+          type: string
+          minLength: 66
+          maxLength: 66
+          pattern: ^00[0-9a-fA-F]{64}$
+          description: Attachment decryption key returned by Apple.
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Attachment size in bytes.
+          maximum: 99999999
+      oneOf:
+      - required:
+        - source_url
+        not:
+          anyOf:
+          - properties:
+              url: {}
+            required:
+            - url
+          - properties:
+              owner: {}
+            required:
+            - owner
+          - properties:
+              key: {}
+            required:
+            - key
+          - properties:
+              signature_base64: {}
+            required:
+            - signature_base64
+          - properties:
+              size: {}
+            required:
+            - size
+      - required:
+        - url
+        - owner
+        - key
+        - signature_base64
+        - size
+        not:
+          properties:
+            source_url: {}
+          required:
+          - source_url
+    AMBListPickerSection:
+      type: object
+      additionalProperties: false
+      required:
+      - title
+      - items
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Heading shown above this section's rows.
+        order:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          description: Where this section sits relative to its siblings, ascending. Sections omitting it are laid out in list order, after any that specify one.
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AMBListPickerItem'
+          description: The rows in this section.
+        multiple_selection:
+          type: boolean
+          default: false
+          description: Whether the customer can select more than one row in this section.
+    MessageCost:
+      type:
+      - object
+      - 'null'
+      additionalProperties: false
+      required:
+      - amount
+      - currency_code
+      - transaction_amount
+      - passthrough_amount
+      description: 'What was charged for a message, split into the components that make it up. `null` until at least one component has been priced.
+
+        '
+      properties:
+        amount:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'Total charged, as a decimal string: the sum of the components below. Net of tax, which applies to your wallet balance rather than to an individual charge.
+
+            '
+          example: '0.00990'
+        currency_code:
+          readOnly: true
+          $ref: '#/components/schemas/CurrencyCode'
+          description: ISO 4217 currency code. Every component is denominated in this currency.
+          example: USD
+        transaction_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'What we charged to carry the message, as a decimal string. `null` when this component was not priced; `"0.00000"` when it priced at zero.
+
+            '
+          example: '0.00790'
+        passthrough_amount:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Third-party fees we pass on, as a decimal string, such as US 10DLC carrier surcharges. `null` when this component was not priced; `"0.00000"` when it priced at zero.
+
+            '
+          example: '0.00200'
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    AMBFormPageType:
+      type: string
+      minLength: 1
+      enum:
+      - select
+      - picker
+      - date_picker
+      - input
+    AMBRichLinkReference:
+      type: object
+      additionalProperties: false
+      required:
+      - url
+      - owner
+      - signature_base64
+      - size
+      description: Reusable Apple content reference. Supply the decryption key, or the signed bid and data_ref_sig returned by Apple.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Title supplied by Apple for the preview.
+        bid:
+          type: string
+          minLength: 1
+          description: Messages extension identifier supplied by Apple, when present.
+        data_ref_sig:
+          type: string
+          minLength: 1
+          description: Signature binding the reference to the business, when supplied by Apple.
+        url:
+          type: string
+          format: uri
+          pattern: ^https://
+          minLength: 1
+          description: Location of the encrypted preview.
+        owner:
+          type: string
+          minLength: 1
+          description: Owner identifier supplied by Apple.
+        signature_base64:
+          type: string
+          minLength: 1
+          description: Signature supplied by Apple.
+        key:
+          type: string
+          minLength: 66
+          maxLength: 66
+          pattern: ^00[0-9a-fA-F]{64}$
+          description: Decryption key supplied by Apple.
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Size of the encrypted preview in bytes.
+      anyOf:
+      - required:
+        - key
+      - required:
+        - bid
+        - data_ref_sig
+      x-sensitive: true
+    AMBMessageEventType:
+      type: string
+      minLength: 1
+      description: 'Message timeline event type:
+
+
+        - `amb.accepted`: The API accepted the request.
+
+        - `amb.sent`: The message was handed to Apple.
+
+        - `amb.send_failed`: Apple refused the message, or its send attempts were exhausted.
+
+        - `amb.rejected`: Bird refused the message before any send attempt.
+
+        - `amb.received`: An inbound message arrived from the customer.
+
+
+        This is an open enum. Accept unrecognized values.
+
+        '
+      x-extensible-enum:
+      - amb.accepted
+      - amb.sent
+      - amb.send_failed
+      - amb.rejected
+      - amb.received
+      example: amb.sent
+    AMBNativeDynamic:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      description: Form content. Bird supplies Apple’s messageForms template and protocol version.
+      properties:
+        data:
+          $ref: '#/components/schemas/AMBNativeFormData'
+    AMBError:
+      type:
+      - object
+      - 'null'
+      additionalProperties: false
+      readOnly: true
+      required:
+      - code
+      - description
+      - occurred_at
+      description: Failure detail for a message or invitation that could not be sent or was rejected.
+      properties:
+        code:
+          $ref: '#/components/schemas/AMBStatsErrorCode'
+        description:
+          type: string
+          minLength: 1
+          description: The failure in words. Free-form, so branch on `code` and show this to a human.
+          example: Apple refused the message with HTTP status 404.
+        occurred_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When the failure occurred.
+    AMBInboundFormItem:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - type
+      - title
+      - value
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+        type:
+          $ref: '#/components/schemas/AMBFormPageType'
+        title:
+          type: string
+          minLength: 0
+          x-sensitive: true
+          description: Display value Apple returned, including any input prefix. May be empty for an optional input.
+        value:
+          type: string
+          minLength: 0
+          x-sensitive: true
+          description: Machine value Apple returned for the selection or input. May be empty for an optional input.
+    AMBFormDatePickerOptions:
+      type: object
+      additionalProperties: false
+      description: Apple defaults to UTC when interpreting these dates.
+      properties:
+        date_format:
+          type: string
+          minLength: 1
+          description: Format used to read the date values in these options. Defaults to `MM/dd/yyyy`.
+        start_date:
+          type: string
+          minLength: 1
+          description: Date initially shown by the picker, written in `date_format`. Defaults to the current date.
+        maximum_date:
+          type: string
+          minLength: 1
+          description: Latest date the picker shows, written in `date_format`. Defaults to the current date.
+        minimum_date:
+          type: string
+          minLength: 1
+          description: Earliest date the picker shows, written in `date_format`.
+        label_text:
+          type: string
+          description: Label beside the date field. Defaults to `Date`.
+    AMBFormSplash:
+      type: object
+      additionalProperties: false
+      required:
+      - button_title
+      properties:
+        header:
+          type: string
+        splash_text:
+          type: string
+        button_title:
+          type: string
+          minLength: 1
+        image_identifier:
+          type: string
+          minLength: 1
+    AMBNativeAuthentication:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      description: Authentication attempt created through the conversation authentication endpoint. Contains no authorization parameters or credentials.
+      required:
+      - authentication_id
+      properties:
+        authentication_id:
+          readOnly: true
+          $ref: '#/components/schemas/AMBAuthenticationID'
+    AMBTimeSlot:
+      type: object
+      additionalProperties: false
+      required:
+      - identifier
+      - start_at
+      - duration_seconds
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: Opaque slot identifier. Apple may instead return only a localized label in interactive_data.reply_message.title.
+        start_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When this slot begins. Seconds and fractional seconds must be zero, for example `2026-09-02T14:30:00Z`; otherwise sending returns `422` with error code `E01001`. The timestamp is converted to UTC for Apple while preserving the instant.
+        duration_seconds:
+          type: integer
+          minimum: 0
+          description: Duration in seconds. Zero indicates no duration.
+    AMBNativeInboundPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        request_identifier:
+          type: string
+          description: Correlation identifier reported by Apple.
+        quick_reply:
+          $ref: '#/components/schemas/AMBNativeInboundQuickReply'
+        list_picker:
+          $ref: '#/components/schemas/AMBNativeInboundListPicker'
+        event:
+          $ref: '#/components/schemas/AMBNativeInboundEvent'
+        dynamic:
+          $ref: '#/components/schemas/AMBNativeInboundDynamic'
+        payment:
+          $ref: '#/components/schemas/AMBNativeInboundPayment'
+        authenticate:
+          $ref: '#/components/schemas/AMBNativeInboundAuthentication'
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeInboundImage'
+          description: Images returned by Apple, with authenticated download URLs.
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+    AMBNativeTextContent:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          const: text
+          description: Always text.
+          $ref: '#/components/schemas/AMBMessageType'
+        body:
+          type: string
+          description: Text displayed in the message. Use one U+FFFC object replacement character per attachment to control placement.
+          x-sensitive: true
+        subject:
+          type: string
+          description: Subject displayed above the message body.
+          x-sensitive: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AMBNativeAttachment'
+          description: Ordered attachments. Each object supplies a source URL or an encrypted Apple reference.
+      anyOf:
+      - required:
+        - body
+      - required:
+        - attachments
+        properties:
+          attachments:
+            minItems: 1
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    CreatedAfter:
+      name: created_after
+      in: query
+      required: false
+      description: Limits the response to resources created at or after this timestamp. Combine it with `created_before` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-05-01T00:00:00Z'
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    CreatedBefore:
+      name: created_before
+      in: query
+      required: false
+      description: Limits the response to resources created before this timestamp. Combine it with `created_after` to select a time window. Use an RFC 3339 timestamp with a timezone offset.
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-01T00:00:00Z'
+    TagFilter:
+      name: tag
+      in: query
+      required: false
+      description: 'Filter by tag. Accepts `name` to match any record carrying that tag name, or `name:value` to match a specific tag pair (for example `category:welcome`). Repeat the parameter to add more tags. A record must match every tag listed to be returned.
+
+        '
+      schema:
+        type: array
+        items:
+          type: string
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  responses:
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

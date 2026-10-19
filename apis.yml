@@ -2711,6 +2711,994 @@ apis:
     url: https://developers.messagebird.com/api/balance/
   - type: Documentation
     url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-business-accounts-api
+  name: Bird Amb Business Accounts API
+  description: >-
+    The Apple Messages for Business brand record your workspace sends as, its approval state, and the
+    channel settings and landing page Apple requires.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-business-accounts
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-business-accounts-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-conversations-api
+  name: Bird Amb Conversations API
+  description: >-
+    The conversations customers opened with your business: their messages, who is working each one, and
+    the labels and read state an operator sets.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-conversations
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-conversations-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-messages-api
+  name: Bird Amb Messages API
+  description: >-
+    Send Apple Messages for Business messages into a conversation a customer opened, and read the messages
+    your workspace sent and received, including their status and lifecycle events.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-messages
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-messages-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-routing-rules-api
+  name: Bird Amb Routing Rules API
+  description: >-
+    Rules that put a new conversation in a queue, matched on the entry point's group and intent.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-routing-rules
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-routing-rules-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-stats-api
+  name: Bird Amb Stats API
+  description: >-
+    Apple Messages for Business analytics: outbound and inbound volume, conversation activity, processing
+    latency, and first response time.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-stats
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-stats-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-suppressions-api
+  name: Bird Amb Suppressions API
+  description: >-
+    Customers who have opted out of messages from one of your Apple Messages for Business brands.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-suppressions
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-suppressions-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-amb-templates-api
+  name: Bird Amb Templates API
+  description: >-
+    Create and publish multilingual workspace Apple Messages templates and browse built-in templates.
+    Published workspace versions preserve their language content; built-in versions reflect the current
+    catalogue.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - amb-templates
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-amb-templates-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-asset-folders-api
+  name: Bird Asset Folders API
+  description: >-
+    Organize the media library into folders. Folders are never part of an asset's URL, so rearranging
+    them never breaks a message that already embeds one.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - asset-folders
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-asset-folders-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-assets-api
+  name: Bird Assets API
+  description: Upload an image once and get a permanent public URL for it, ready to embed in email.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - assets
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-assets-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-esim-offers-api
+  name: Bird Esim Offers API
+  description: >-
+    Prepaid travel eSIM offers. Commercial terms (allowance, validity, pricing) over a coverage zone.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - esim-offers
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-esim-offers-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-esim-zones-api
+  name: Bird Esim Zones API
+  description: eSIM coverage zones. The country footprints offers sell, each maintained in one place.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - esim-zones
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-esim-zones-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-esims-api
+  name: Bird Esims API
+  description: >-
+    Prepaid travel eSIMs. Order, install, top up, and manage data connectivity for travelers.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - esims
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-esims-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-voice-destinations-api
+  name: Bird Voice Destinations API
+  description: >-
+    Manage the allowlist of destination countries your workspace may place Voice calls to. List every
+    supported country with its enabled setting, and enable or disable countries.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - voice-destinations
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-voice-destinations-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-voice-legs-api
+  name: Bird Voice Legs API
+  description: Call records (CDR) for the workspace, in flight and completed.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - voice-legs
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-voice-legs-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-voice-numbers-api
+  name: Bird Voice Numbers API
+  description: >-
+    Every phone number your workspace can use for voice, in one list: the voice-capable numbers you hold,
+    and the caller IDs you registered.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - voice-numbers
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-voice-numbers-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-voice-trunks-api
+  name: Bird Voice Trunks API
+  description: >-
+    SIP trunk management for trunks, IP allowlist entries, digest credentials, inbound gateways, and the
+    numbers a trunk answers.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - voice-trunks
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-voice-trunks-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-voice-verified-numbers-api
+  name: Bird Voice Verified Numbers API
+  description: >-
+    Register phone numbers and verify ownership before presenting them as the outbound caller ID.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - voice-verified-numbers
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-voice-verified-numbers-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-whatsapp-agent-notifications-api
+  name: Bird Whatsapp Agent Notifications API
+  description: >-
+    The notifications you send a WhatsApp agent about one contact: something that happened in your systems
+    that the agent may write to them about, and what came of each.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - whatsapp-agent-notifications
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-whatsapp-agent-notifications-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-whatsapp-groups-api
+  name: Bird Whatsapp Groups API
+  description: >-
+    WhatsApp groups your business creates and administers: their invite links, who is in them, and the
+    requests to join them.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - whatsapp-groups
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-whatsapp-groups-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
+- aid: bird:bird-whatsapp-suppressions-api
+  name: Bird Whatsapp Suppressions API
+  description: WhatsApp suppression list management.
+  humanURL: https://docs.bird.com/api
+  baseURL: https://api.bird.com
+  tags:
+  - whatsapp-suppressions
+  properties:
+  - type: OpenAPI
+    url: openapi/bird-whatsapp-suppressions-api-openapi.yml
+  - type: Documentation
+    url: https://docs.bird.com/api/channels-api/api-reference/messaging
+  - type: Documentation
+    url: https://bird.com/docs
+  - type: APIReference
+    url: https://bird.com/docs/api
+  - type: Webhooks
+    url: asyncapi/messagebird-bird-webhooks.yml
+  - type: ToolCrosswalk
+    url: mcp/messagebird-tool-crosswalk.yml
+  - type: DataModel
+    url: data-model/messagebird-data-model.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/sms-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-calling/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/voice-messaging/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/conversations/
+  - type: AsyncAPI
+    url: asyncapi/messagebird-conversations-asyncapi.yml
+  - type: Documentation
+    url: https://developers.messagebird.com/api/whatsapp
+  - type: Documentation
+    url: https://developers.messagebird.com/api/verify/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/lookup/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/hlr/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/contacts/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/numbers/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/balance/
+  - type: Documentation
+    url: https://developers.messagebird.com/api/integrations/
 - aid: bird:bird-language-detection-api
   name: Bird Language Detection API
   description: Language detection operations.

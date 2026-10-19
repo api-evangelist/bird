@@ -65,21 +65,6 @@ paths:
           description: Recording not found
 components:
   schemas:
-    Pagination:
-      type: object
-      properties:
-        totalCount:
-          type: integer
-          description: The total number of items available.
-        pageCount:
-          type: integer
-          description: The total number of pages.
-        currentPage:
-          type: integer
-          description: The current page number.
-        perPage:
-          type: integer
-          description: The number of items per page.
     TranscriptionList:
       type: object
       properties:
@@ -114,6 +99,21 @@ components:
           type: string
           format: date-time
           description: The date and time when the transcription was last updated.
+    Pagination:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+          description: The total number of items available.
+        pageCount:
+          type: integer
+          description: The total number of pages.
+        currentPage:
+          type: integer
+          description: The current page number.
+        perPage:
+          type: integer
+          description: The number of items per page.
     TranscriptionResponse:
       type: object
       properties:

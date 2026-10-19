@@ -74,6 +74,17 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
+    PredictLanguageResponse:
+      type: object
+      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
+
+        '
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
+
+            '
     LanguageList:
       type: object
       description: List of supported languages.
@@ -96,16 +107,6 @@ components:
           - iso6393Code: zho
             languageCode: ZHO
             name: Chinese
-    PredictLanguageRequest:
-      type: object
-      description: A request for predicting the language from a phrase.
-      required:
-      - phrase
-      properties:
-        phrase:
-          type: string
-          example: Dit is iets in het Nederlands
-          description: The phrase for which to predict the language.
     Language:
       type: object
       description: Language that was detected from the given phrase.
@@ -122,17 +123,6 @@ components:
           type: string
           example: NLD
           description: The ISO639-3 language code enum value.
-    PredictLanguageResponse:
-      type: object
-      description: 'A response that contains the predicted language. If the service could not determine any language, the language field will not be populated.
-
-        '
-      properties:
-        language:
-          $ref: '#/components/schemas/Language'
-          description: 'The predicted language for the given phrase. If no known language could be determined this will be LANGUAGE_UNDETERMINED.
-
-            '
     Error:
       type: object
       properties:
@@ -145,6 +135,16 @@ components:
           items:
             type: object
             additionalProperties: true
+    PredictLanguageRequest:
+      type: object
+      description: A request for predicting the language from a phrase.
+      required:
+      - phrase
+      properties:
+        phrase:
+          type: string
+          example: Dit is iets in het Nederlands
+          description: The phrase for which to predict the language.
   securitySchemes:
     AccessKey:
       type: apiKey

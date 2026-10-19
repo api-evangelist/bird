@@ -1,0 +1,858 @@
+openapi: 3.2.0
+info:
+  title: Bird Whatsapp Agent Notifications API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: whatsapp-agent-notifications
+  description: 'The notifications you send a WhatsApp agent about one contact: something that happened in your systems that the agent may write to them about, and what came of each.'
+paths:
+  /v1/whatsapp/agents/notifications:
+    get:
+      operationId: listWhatsAppAgentNotifications
+      x-snippet-key: whatsapp.agents.notifications.list
+      summary: List the notifications sent to your agents
+      description: 'Returns the notifications you have sent your agents, newest first, each with what came of it. Filter by `from` for the agent on one business number, by `status` to find the ones the agent skipped or WhatsApp refused, or by `to` to follow one contact. A notification still in flight to WhatsApp is not listed yet.
+
+
+        Page through the full set with the response cursors.'
+      tags:
+      - whatsapp-agent-notifications
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Return only notifications in this state.
+        schema:
+          $ref: '#/components/schemas/WhatsAppAgentNotificationStatus'
+      - name: from
+        in: query
+        required: false
+        description: Return only notifications sent to the agent on this business number, in E.164 format. A phone number is normalized before matching, so spacing does not matter.
+        schema:
+          type: string
+          minLength: 1
+          example: '+13124495648'
+      - name: to
+        in: query
+        required: false
+        description: Return only notifications about this contact, a phone number in E.164 format or a business-scoped user ID. A phone number is normalized before matching, so spacing does not matter.
+        schema:
+          type: string
+          minLength: 1
+          example: '+14155551234'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: A page of the notifications sent to your agents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppAgentNotificationList'
+              example:
+                data:
+                - id: waan_01krdgeqcxet5s7t44vh8rt9m7
+                  from: '+13124495648'
+                  to: '+14155551234'
+                  name: order_shipped
+                  description: Order 88213 left the warehouse and arrives on Thursday.
+                  payload: '{"order_id":"88213","carrier":"ACME Courier","eta":"2026-10-02"}'
+                  status: skipped
+                  skipped_reason: The contact's conversation is currently held by the business.
+                  created_at: '2026-10-01T08:00:00Z'
+                - id: waan_01krdgeqcxet5s7t44vh8rt9m6
+                  from: '+13124495648'
+                  to: '+14155559876'
+                  name: payment_received
+                  description: Payment of $42.00 for order 88190 was received.
+                  payload: '{"order_id":"88190","amount":"42.00","currency":"USD"}'
+                  status: success
+                  created_at: '2026-10-01T07:30:00Z'
+                next_cursor: null
+                prev_cursor: null
+                refresh_cursor: eyJ2IjoxLCJzIjoiXCIyMDI2LTEwLTAxVDA4OjAwOjAwWlwiIiwiaSI6IndhYW5fMDFrcmRnZXFjeGV0NXM3dDQ0dmg4cnQ5bTcifQ
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    post:
+      operationId: createWhatsAppAgentNotification
+      x-snippet-key: whatsapp.agents.notifications.create
+      summary: Send an agent a notification
+      description: 'Tells the agent on the `from` business number that something happened in your systems for one contact, such as a payment landing, an order shipping or an identity check passing. The agent decides whether and how to tell the contact, drawing on `description` and `payload`, and may write to them without waiting for their next message.
+
+
+        Bird takes the notification, hands it to WhatsApp in the background and keeps asking WhatsApp what became of it, so this answers `202` with the notification as you sent it at `status: accepted`. A read in the first moments after the `202` can answer `404` while the hand-off is still in flight. Read it back, or list the notifications, to see it settle: `success` when the agent acted on it, `skipped` with WhatsApp''s reason when the agent chose to say nothing, or `failed` with what went wrong. The notification records whether the agent acted on it, not what the agent said to the contact. A `from` number this workspace has not connected returns `422`, one without an agent returns `404`, and one whose agent WhatsApp is still preparing returns `409`.'
+      tags:
+      - whatsapp-agent-notifications
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsAppAgentNotificationCreate'
+            example:
+              from: '+13124495648'
+              to: '+14155551234'
+              name: order_shipped
+              description: Order 88213 left the warehouse and arrives on Thursday.
+              payload: '{"order_id":"88213","carrier":"ACME Courier","eta":"2026-10-02"}'
+      responses:
+        '202':
+          description: Bird accepted the notification and will hand it to WhatsApp. The notification reads `accepted` until WhatsApp has worked on it.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppAgentNotification'
+              example:
+                id: waan_01krdgeqcxet5s7t44vh8rt9m7
+                from: '+13124495648'
+                to: '+14155551234'
+                name: order_shipped
+                description: Order 88213 left the warehouse and arrives on Thursday.
+                payload: '{"order_id":"88213","carrier":"ACME Courier","eta":"2026-10-02"}'
+                status: accepted
+                created_at: '2026-10-01T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/whatsapp/agents/notifications/{notification_id}:
+    parameters:
+    - name: notification_id
+      in: path
+      required: true
+      description: ID of the notification (`waan_` prefix), as returned when it was sent.
+      schema:
+        $ref: '#/components/schemas/WhatsAppAgentNotificationID'
+    get:
+      operationId: getWhatsAppAgentNotification
+      x-snippet-key: whatsapp.agents.notifications.get
+      summary: Get a notification sent to an agent
+      description: 'Returns one notification you sent the agent, with what came of it: `accepted` while WhatsApp is still working on it, then `success`, `skipped` with WhatsApp''s reason, or `failed` with what went wrong. A notification still in flight to WhatsApp is not readable yet, and an id this workspace does not hold returns `404`. A notification stays readable after its agent is deleted.'
+      tags:
+      - whatsapp-agent-notifications
+      x-audiences:
+      - public
+      - dashboard
+      - command
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      responses:
+        '200':
+          description: The notification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatsAppAgentNotification'
+              example:
+                id: waan_01krdgeqcxet5s7t44vh8rt9m7
+                from: '+13124495648'
+                to: '+14155551234'
+                name: order_shipped
+                description: Order 88213 left the warehouse and arrives on Thursday.
+                payload: '{"order_id":"88213","carrier":"ACME Courier","eta":"2026-10-02"}'
+                status: skipped
+                skipped_reason: The contact's conversation is currently held by the business.
+                created_at: '2026-10-01T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    WhatsAppAgentNotificationList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            description: A page of the notifications sent to the agent.
+            items:
+              $ref: '#/components/schemas/WhatsAppAgentNotification'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    WhatsAppAgentNotificationStatus:
+      type: string
+      minLength: 1
+      enum:
+      - accepted
+      - success
+      - skipped
+      - failed
+      description: 'Where a notification you sent the agent stands. One state is transient and three are final.
+
+
+        - `accepted` means Bird holds the notification: it is on its way to WhatsApp, or WhatsApp is still working on it. Nothing is charged for a notification, unlike a message that reads `accepted`.
+
+        - `success` means the agent acted on it.
+
+        - `skipped` means the agent read it and chose to say nothing; `skipped_reason` says why.
+
+        - `failed` means WhatsApp refused it or reported a failure, or no outcome arrived within a day; `error` says why.
+
+        '
+      example: success
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    WhatsAppAgentNotificationID:
+      type: string
+      minLength: 1
+      pattern: ^waan_[0-9a-hjkmnp-tv-z]{26}$
+      example: waan_01krdgeqcxet5s7t44vh8rt9mg
+    WhatsAppAgentNotificationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - from
+      - to
+      - name
+      - description
+      - payload
+      properties:
+        from:
+          type: string
+          minLength: 1
+          description: 'The business phone number whose agent should act on the notification, in E.164 format (for example `+13124495648`), the same form a message''s `from` takes. It must be a number this workspace has connected and that runs an agent.
+
+            '
+          example: '+13124495648'
+        to:
+          type: string
+          minLength: 1
+          description: 'The contact the notification is about: a phone number in E.164 format (for example `+14155551234`), or the contact''s business-scoped user ID (for example `US.13491208655302741918`), the same forms a message''s `to` accepts. A phone number is normalized before the call reaches WhatsApp, so spacing does not matter. WhatsApp documents a phone number for this call; a business-scoped user ID is passed through as given.
+
+            '
+          example: '+14155551234'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: 'Your own name for what happened, such as `payment_received` or `order_shipped`. The agent reads it as the kind of thing that happened, so keep one name per kind. WhatsApp calls this the event type.
+
+            '
+          example: order_shipped
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: What happened, in a sentence the agent can tell the contact.
+          example: Order 88213 left the warehouse and arrives on Thursday.
+        payload:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          description: 'Details the agent may draw on when it writes to the contact, as one JSON string. WhatsApp passes it to the agent unchanged and does not read it itself.
+
+            '
+          example: '{"order_id":"88213","carrier":"ACME Courier","eta":"2026-10-02"}'
+      description: 'Something that happened in your systems that the agent should tell the contact about, such as a payment landing or an order shipping. WhatsApp processes it in the background, so read the notification back for what came of it.
+
+        '
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    WhatsAppAgentNotification:
+      type: object
+      additionalProperties: false
+      description: 'A notification you sent the agent about one contact, and what came of it. The agent decides whether to write to the contact about it; that message, if any, shows up on the contact''s conversation.
+
+        '
+      required:
+      - id
+      - from
+      - to
+      - name
+      - description
+      - payload
+      - status
+      - created_at
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppAgentNotificationID'
+          readOnly: true
+          description: Unique identifier for the notification.
+        from:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The business number whose agent the notification was sent to, in E.164 format.
+          example: '+13124495648'
+        to:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'The contact the notification was about, as you addressed it: a phone number in E.164 format, or a business-scoped user ID.
+
+            '
+          example: '+14155551234'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+          readOnly: true
+          description: Your own name for what happened, as you sent it.
+          example: order_shipped
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          readOnly: true
+          description: What happened, as you sent it.
+          example: Order 88213 left the warehouse and arrives on Thursday.
+        payload:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          readOnly: true
+          description: The data you attached, as you sent it.
+          example: '{"order_id":"88213","carrier":"ACME Courier"}'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppAgentNotificationStatus'
+          readOnly: true
+          description: 'Where the notification stands. `accepted` from the moment Bird takes it, then one of the three final states once WhatsApp has answered.
+
+            '
+        skipped_reason:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'WhatsApp''s own account of why the agent chose to say nothing, passed through. Present only when `status` is `skipped`. Show it to the person who sent the notification; never match on its text.
+
+            '
+          example: The contact's conversation is currently held by the business.
+        error:
+          allOf:
+          - $ref: '#/components/schemas/WhatsAppAgentNotificationError'
+          readOnly: true
+          description: Why the notification failed. Present only when `status` is `failed`.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: When Bird accepted the notification.
+          example: '2026-10-02T08:00:00Z'
+    WhatsAppAgentNotificationError:
+      type: object
+      additionalProperties: false
+      readOnly: true
+      required:
+      - description
+      - meta_error_code
+      description: Why a notification sent to the agent failed.
+      properties:
+        description:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: 'WhatsApp''s own explanation, passed through: what it said when it refused the notification, or its failure summary once it had worked on it. Show it to the person who sent the notification; never match on its text. Carries Bird''s own words instead when the failure was Bird''s verdict, such as no outcome arriving within a day.
+
+            '
+          example: Event payload exceeds the maximum size.
+        meta_error_code:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'WhatsApp''s most specific code when it refused the notification outright: its error subcode where it sent one, otherwise its top-level code. Treat it as an opaque string. Null when WhatsApp took the notification and reported the failure later, which carries no code, and when the failure was Bird''s own verdict.
+
+            '
+          example: '100'
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+  responses:
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

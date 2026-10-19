@@ -1,0 +1,1470 @@
+openapi: 3.2.0
+info:
+  title: Bird Voice Numbers API
+  version: 1.0.0
+  description: 'Build communications into your applications and AI workflows with the Bird API.
+
+    Explore endpoints for email, SMS, WhatsApp, verification, and realtime messaging.
+
+
+    Start with the developer documentation, browse the
+
+    API reference, or connect your agent through the
+
+    Bird MCP server.
+
+
+    Setting a `User-Agent` header is recommended but not required. Official Bird
+
+    SDKs set it automatically (format: `bird-/`). The header is
+
+    used for operational logging and customer-support diagnostics; the API never
+
+    rejects requests that omit it.
+
+
+    Rate limits are advertised on every response from a rate-limited endpoint as
+
+    IETF `RateLimit` and `RateLimit-Policy` headers (Structured Fields per RFC
+
+    9651; spec draft-ietf-httpapi-ratelimit-headers-11). On 429 responses, a
+
+    `Retry-After` header in seconds is also returned. Clients should pace
+
+    themselves against the `r` (remaining) and `t` (seconds until reset) params
+
+    in the `RateLimit` header rather than only reacting to 429s.
+
+
+    The deprecation policy explains how
+
+    the API marks a deprecated field, query parameter, or body shape, including
+
+    the `Deprecation` response header (RFC 9745).'
+servers:
+- url: https://{region}.platform.bird.com
+  description: 'Regional API endpoint. Use the host for the region your organization is hosted in. Official Bird SDKs and the CLI select it automatically from your API key, so you rarely need to set it by hand.
+
+    '
+  variables:
+    region:
+      default: us1
+      enum:
+      - us1
+      - eu1
+      description: The region your organization's data is hosted in.
+- url: https://platform.bird.com
+  description: Region-independent endpoint for authentication and account administration.
+- url: http://localhost:8080
+  description: Local development.
+security:
+- BearerAuth: []
+tags:
+- name: voice-numbers
+  description: 'Every phone number your workspace can use for voice, in one list: the voice-capable numbers you hold, and the caller IDs you registered.'
+paths:
+  /v1/voice/numbers:
+    get:
+      operationId: listVoiceNumbers
+      x-snippet-key: voice.numbers.list
+      summary: List the numbers you can use for voice
+      description: 'Lists the phone numbers your workspace can use for voice: the voice-capable
+
+        numbers we allocated to you, and the numbers from other carriers you
+
+        registered and verified. One list, ordered by number.
+
+
+        Each entry is one phone number, and provider says which of the two it is.
+
+
+        This is one cursor page, not the whole set. It returns 25 numbers unless you
+
+        ask for more with limit, so follow the cursor until it stops rather than
+
+        treating the first page as everything you have.'
+      tags:
+      - voice-numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - name: search
+        in: query
+        required: false
+        description: Matches part of the phone number or name, ignoring case. Characters such as `%` and `_` match literally.
+        schema:
+          type: string
+          maxLength: 200
+      - name: provider
+        in: query
+        required: false
+        description: Filter by number source. `allocation` selects numbers we allocated to your workspace. `verified_number` selects numbers from another carrier that you registered for use as caller IDs.
+        schema:
+          $ref: '#/components/schemas/VoiceNumberProviderType'
+      - name: route
+        in: query
+        required: false
+        description: 'Filter by the answer incoming calls get. A number without a route of its
+
+          own matches the route of your workspace''s default.
+
+
+          - `reject`: rejects incoming calls.
+
+          - `trunk`: delivers calls to a SIP trunk.
+
+          - `forward`: connects calls to the configured forwarding number.
+
+          - `sequence`: runs the selected voice sequence entry.
+
+
+          Numbers with an unsupported route are excluded when this filter is set.
+
+          '
+        schema:
+          $ref: '#/components/schemas/VoiceCallRouteType'
+      - name: sort
+        in: query
+        required: false
+        description: Field to sort by.
+        schema:
+          $ref: '#/components/schemas/VoiceNumberSortField'
+      - $ref: '#/components/parameters/OrderAsc'
+      - $ref: '#/components/parameters/PaginationLimit'
+      - $ref: '#/components/parameters/StartingAfter'
+      - $ref: '#/components/parameters/EndingBefore'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      responses:
+        '200':
+          description: Paginated list of the numbers the workspace can use for voice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceNumberList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/voice/numbers/{number_id}:
+    parameters:
+    - name: number_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/VoiceNumberID'
+      example: vnu_01krdgeqcxet5s7t44vh8rt9mg
+    get:
+      operationId: getVoiceNumber
+      x-snippet-key: voice.numbers.get
+      summary: Get a voice number
+      description: 'Returns one of the numbers your workspace can use for voice.
+
+
+        A number with no route of its own reads back with a null route and follows
+
+        your workspace''s default inbound route, which
+
+        Get the voice settings returns.'
+      tags:
+      - voice-numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: The number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceNumber'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateVoiceNumber
+      x-snippet-key: voice.numbers.update
+      summary: Update a voice number
+      description: 'Changes what you have said about this number: the label you gave it, and what
+
+        happens when a call arrives for it. Omit a field to leave it as it is.
+
+
+        The route replaces whatever was set before, because a number has exactly one
+
+        answer at a time. A null route returns the number to your workspace''s
+
+        default inbound route, set with
+
+        Update the voice settings.
+
+        Type "reject" refuses calls whatever the default is.
+
+        "trunk" needs a trunk_id: the trunk must be yours and must have inbound
+
+        calling enabled. "forward" needs a forward_to, which has to be one of your
+
+        verified caller IDs. That is checked when you set it, and again on every call
+
+        it forwards, so a caller ID you later remove stops forwarding rather than
+
+        carrying on.
+
+
+        Sequence management remains in the dashboard. A `sequence` route needs
+
+        `sequence_id` and `entry_node_id` from an existing active publication in your
+
+        workspace. Binding a sequence with recording commands or managed recording
+
+        transfers requires organization preview access. Sequence management endpoints
+
+        are not available through the public API; see the
+
+        call sequences guide.
+
+
+        Only a number whose calls arrive here can carry a route. A number from
+
+        another carrier is somewhere calls can be sent to, and that carrier routes
+
+        the calls made to it, so inbound_configuration is refused on it. The label
+
+        can be set on either.'
+      tags:
+      - voice-numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceNumberUpdate'
+            example:
+              inbound_configuration:
+                route:
+                  type: trunk
+                  trunk_id: spt_01krdgeqcxet5s7t44vh8rt9mg
+      responses:
+        '200':
+          description: The number as it now stands.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceNumber'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+  /v1/voice/settings:
+    get:
+      operationId: getVoiceSettings
+      x-snippet-key: voice.settings.get
+      summary: Get the voice settings
+      description: 'Returns the voice settings for your workspace.
+
+
+        `inbound_configuration.route` is what happens to calls for every Bird number that has no
+
+        inbound route of its own. Verified caller IDs receive no calls, so it never applies to them.
+
+        It is "reject" until you change it.
+
+
+        `daily_spend_limit` is the daily limit outbound calls are admitted against, what has been
+
+        used toward it today including calls in progress, and when it resets at midnight UTC.'
+      tags:
+      - voice-numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      responses:
+        '200':
+          description: The workspace's voice settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      parameters:
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+    patch:
+      operationId: updateVoiceSettings
+      x-snippet-key: voice.settings.update
+      summary: Update the voice settings
+      description: 'Changes your workspace''s voice settings. Omit a field to leave it as it is.
+
+
+        `inbound_configuration.route` applies to every Bird number that has no inbound route of its
+
+        own, from the next call it receives. A number with its own route keeps it, and verified
+
+        caller IDs receive no calls.
+
+        The route is checked the same way as a number''s: a trunk must be yours and
+
+        have inbound calling enabled, and a forward target must be one of your
+
+        verified caller IDs, otherwise the update returns 412. A trunk_id that is not
+
+        one of your trunks returns 404. Deleting the trunk, or
+
+        turning off its inbound calling, sets the default back to "reject".
+
+
+        `daily_spend_limit.workspace_limit` sets your workspace''s own daily spend limit. It can be
+
+        above or below `default_limit`, up to `max_limit`, and must be in your organization''s
+
+        wallet currency, otherwise the update returns 422. An organization without a wallet cannot
+
+        set a limit yet and gets 422 until it has one. Null removes it so the default applies.
+
+        Calls already in progress are never ended; the limit applies from the next call.'
+      tags:
+      - voice-numbers
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      x-audiences:
+      - public
+      - command
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/XWorkspaceId'
+      - $ref: '#/components/parameters/XOrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceSettingsUpdate'
+            example:
+              inbound_configuration:
+                route:
+                  type: trunk
+                  trunk_id: spt_01krdgeqcxet5s7t44vh8rt9mg
+      responses:
+        '200':
+          description: The workspace's voice settings after the update.
+          headers:
+            Idempotency-Replay:
+              $ref: '#/components/headers/IdempotencyReplay'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      x-surfaces:
+      - cli
+      - mcp
+      - sdk
+components:
+  schemas:
+    VoiceCallRouteForward:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - forward_to
+      - forward_as
+      properties:
+        type:
+          $ref: '#/components/schemas/VoiceCallRouteType'
+          const: forward
+          description: Places a call to another of your numbers and connects the two.
+        forward_to:
+          type: string
+          minLength: 1
+          description: 'The number calls are forwarded to, in E.164 format. It has to be one of your verified caller IDs. That is checked when you set it and again on every call it forwards, so a caller ID you later remove stops forwarding rather than carrying on.
+
+            '
+          example: '+14155551234'
+        forward_as:
+          $ref: '#/components/schemas/VoiceInboundForwardAs'
+          description: 'Which number the forwarded leg presents as its caller. Include the choice
+
+            on every write. Reads return the effective choice; older configurations
+
+            without a stored choice return `dialed_number`.
+
+            '
+    VoiceInboundForwardAs:
+      type: string
+      minLength: 1
+      enum:
+      - dialed_number
+      - calling_number
+      description: 'Which of a forwarded call''s two numbers it shows as the caller.
+
+
+        `dialed_number` presents the Bird number the caller dialed. Whoever answers
+
+        sees which of your numbers was called. Older configurations without a stored
+
+        choice use this value. Carrier screening can still affect delivery.
+
+
+        `calling_number` presents the caller''s own number, so the phone rings as though
+
+        they had dialed it directly and the call can be returned from the call log. Because
+
+        the number is not one you own, some carriers (most often in the US and parts of
+
+        Europe) mark such calls as unverified, replace the number, or screen them.
+
+        '
+      example: dialed_number
+    VoiceDailySpendLimit:
+      type: object
+      additionalProperties: false
+      required:
+      - currency_code
+      - limit
+      - used
+      - remaining
+      - resets_at
+      - default_limit
+      - max_limit
+      - workspace_limit
+      properties:
+        currency_code:
+          $ref: '#/components/schemas/CurrencyCode'
+          description: The organization's wallet currency, which every amount here is in.
+          example: EUR
+        limit:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: 'The daily limit calls are admitted against: the workspace limit when one is set, otherwise the default, and never more than `max_limit`. Null when there is no limit.
+
+            '
+        used:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: 'Used toward today''s limit, including calls in progress. A call counts its expected cost when it starts; the part it did not use returns when it is billed. Null when today''s usage cannot be read right now; the limit is still enforced.
+
+            '
+        remaining:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: What is left of the limit today, never below zero. Null when there is no limit or today's usage cannot be read.
+        resets_at:
+          type: string
+          format: date-time
+          minLength: 1
+          description: When usage resets to zero, at midnight UTC.
+        default_limit:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: The daily limit a workspace has until it sets its own. Null when there is no default limit.
+        max_limit:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: The highest daily limit this workspace can set. Null when there is no maximum.
+        workspace_limit:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: The daily limit this workspace set for itself. Null when it uses the default.
+    VoiceCallRouteType:
+      type: string
+      minLength: 1
+      enum:
+      - reject
+      - trunk
+      - forward
+      - sequence
+      description: 'Which answer a number carries.
+
+
+        - `reject`: refuses the call.
+
+        - `trunk`: delivers the call to one of your SIP trunks.
+
+        - `forward`: places a call to one of your verified caller IDs and connects the two.
+
+        - `sequence`: runs the configured sequence from its selected voice-call entry.
+
+
+        It selects the answer''s own shape, so a new way to answer a call arrives as a
+
+        new value alongside a new set of fields.
+
+        '
+      example: reject
+    VoiceCallRoute:
+      description: 'What happens to a call arriving for this number, as it is configured now. Its `type` selects the shape, and each answer carries its own fields. Setting a route is a separate shape, and it does not offer every variant reported here.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/VoiceCallRouteReject'
+      - $ref: '#/components/schemas/VoiceCallRouteTrunk'
+      - $ref: '#/components/schemas/VoiceCallRouteForward'
+      - $ref: '#/components/schemas/VoiceCallRouteSequence'
+      discriminator:
+        propertyName: type
+        mapping:
+          reject: '#/components/schemas/VoiceCallRouteReject'
+          trunk: '#/components/schemas/VoiceCallRouteTrunk'
+          forward: '#/components/schemas/VoiceCallRouteForward'
+          sequence: '#/components/schemas/VoiceCallRouteSequence'
+    VoiceNumberProvider:
+      description: 'Where this number came from, and the facts that belong to that answer. The type selects the shape. `allocation` is a number we allocated to your workspace, and it carries that allocation''s identifier. `verified_number` is a number from another carrier, and it carries how far proving control of it has got.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/VoiceNumberProviderAllocation'
+      - $ref: '#/components/schemas/VoiceNumberProviderVerifiedNumber'
+      discriminator:
+        propertyName: type
+        mapping:
+          allocation: '#/components/schemas/VoiceNumberProviderAllocation'
+          verified_number: '#/components/schemas/VoiceNumberProviderVerifiedNumber'
+    CurrencyCode:
+      type: string
+      minLength: 3
+      maxLength: 3
+      pattern: ^[A-Z]{3}$
+      description: ISO 4217 three-letter currency code.
+      example: EUR
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - message
+      - doc_url
+      - request_id
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Broad category for coarse client branching.
+          enum:
+          - auth_error
+          - bad_request_error
+          - billing_error
+          - client_closed_request_error
+          - conflict_error
+          - gone_error
+          - internal_error
+          - misdirected_error
+          - not_found_error
+          - not_implemented_error
+          - payload_too_large_error
+          - permission_error
+          - precondition_error
+          - rate_limit_error
+          - service_unavailable_error
+          - too_early_error
+          - validation_error
+        code:
+          type: string
+          minLength: 1
+          pattern: ^E\d{5}$
+          description: Opaque, stable, unique error identifier. Never reused.
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable slug for log readability. Paired with code, never replaces it.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable description. Not stable; clients must not parse it.
+        param:
+          type: string
+          minLength: 1
+          description: Identifies the offending field. Omitted when not applicable.
+        doc_url:
+          type: string
+          minLength: 1
+          format: uri
+          description: Stable link to the docs page for this error code.
+        request_id:
+          type: string
+          minLength: 1
+          description: Request correlation ID for support and troubleshooting. Also returned in the `X-Request-Id` response header.
+        vendor_code:
+          type: string
+          minLength: 1
+          description: 'Verbatim error code from an external system, such as an SMTP response code or a payment decline code. Present only when the code may help you resolve the error.
+
+            '
+        details:
+          type: array
+          description: Per-field validation errors. Present only on validation_error responses.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        remediation:
+          type: string
+          minLength: 1
+          description: A human-readable next step to resolve this error. Present when a recovery is known.
+        next:
+          type: array
+          description: 'The steps that resolve this error. Perform them in order, re-reading after each; a `wait` or `terminal` step is always last. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+
+            '
+          items:
+            $ref: '#/components/schemas/NextAction'
+    VoiceNumberProviderVerifiedNumber:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - status
+      - verified_at
+      properties:
+        type:
+          $ref: '#/components/schemas/VoiceNumberProviderType'
+          const: verified_number
+          description: 'A number from another carrier that you registered here. That carrier decides where calls to it go; we only present it on calls you place.
+
+            '
+        status:
+          $ref: '#/components/schemas/VoiceVerifiedNumberStatus'
+          readOnly: true
+          description: How far proving control of this number has got.
+        verified_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: When control of this number was last proven. Null until it is.
+    VoiceNumberID:
+      type: string
+      minLength: 1
+      pattern: ^vnu_[0-9a-hjkmnp-tv-z]{26}$
+      example: vnu_01krdgeqcxet5s7t44vh8rt9mg
+    VoiceCallRouteTrunk:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - trunk_id
+      properties:
+        type:
+          $ref: '#/components/schemas/VoiceCallRouteType'
+          const: trunk
+          description: Delivers the call to one of your SIP trunks.
+        trunk_id:
+          $ref: '#/components/schemas/SIPTrunkID'
+          description: 'The SIP trunk that answers these calls. It must be one of yours and must have inbound calling enabled. Turning that trunk''s inbound calling off, or deleting it, removes this route: a number returns to your workspace''s default inbound route, and a workspace default becomes "reject".
+
+            '
+    VoiceNumberProviderAllocation:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - number_id
+      properties:
+        type:
+          $ref: '#/components/schemas/VoiceNumberProviderType'
+          const: allocation
+          description: A number we allocated to your workspace.
+        number_id:
+          oneOf:
+          - $ref: '#/components/schemas/AllocatedNumberID'
+          - type: 'null'
+          readOnly: true
+          description: 'Identifier of this number''s allocation, to pass to the numbers operations. Null when the allocation behind this number cannot be resolved.
+
+            '
+    VoiceSettingsInboundConfigurationPut:
+      type: object
+      additionalProperties: false
+      description: 'The route for calls arriving on any of your Bird numbers that has no inbound route of its own; verified caller IDs receive no calls. It takes effect on the next call to each of those numbers. Numbers with their own route keep it.
+
+        '
+      required:
+      - route
+      properties:
+        route:
+          $ref: '#/components/schemas/VoiceCallRouteWritable'
+    VoiceCallRouteWritable:
+      description: 'What happens to a call arriving for this number. Its `type` selects the shape, and each answer carries its own fields; the variants below are the full set you can set.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/VoiceCallRouteReject'
+      - $ref: '#/components/schemas/VoiceCallRouteTrunk'
+      - $ref: '#/components/schemas/VoiceCallRouteForward'
+      discriminator:
+        propertyName: type
+        mapping:
+          reject: '#/components/schemas/VoiceCallRouteReject'
+          trunk: '#/components/schemas/VoiceCallRouteTrunk'
+          forward: '#/components/schemas/VoiceCallRouteForward'
+    VoiceCallRouteReject:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      properties:
+        type:
+          $ref: '#/components/schemas/VoiceCallRouteType'
+          const: reject
+          description: 'Refuses the call. Setting it is how you stop a number answering without giving it up. It is also the default inbound route of a new workspace.
+
+            '
+    SIPTrunkID:
+      type: string
+      minLength: 1
+      pattern: ^spt_[0-9a-hjkmnp-tv-z]{26}$
+      example: spt_01krdgeqcxet5s7t44vh8rt9mg
+    Money:
+      type: object
+      additionalProperties: false
+      required:
+      - amount
+      - currency_code
+      properties:
+        amount:
+          type: string
+          minLength: 1
+          description: Decimal amount as a string, in major currency units.
+          example: '0.00995'
+        currency_code:
+          $ref: '#/components/schemas/CurrencyCode'
+          description: ISO 4217 currency code.
+          example: USD
+    VoiceInboundConfiguration:
+      type: object
+      additionalProperties: false
+      required:
+      - route
+      properties:
+        route:
+          oneOf:
+          - $ref: '#/components/schemas/VoiceCallRoute'
+          - type: 'null'
+          description: 'Null when the number has no route of its own and follows your workspace''s default inbound route from the voice settings. Also null when the stored route type is unsupported, in which case configuration_error says so; inspect it before changing the route.
+
+            '
+        configuration_error:
+          $ref: '#/components/schemas/VoiceInboundConfigurationError'
+          readOnly: true
+        forward_as_options:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/VoiceInboundForwardAs'
+          description: 'Caller identities available when configuring a forward. Use these values to populate the choice in your editor. The current choices are `dialed_number` and `calling_number`.
+
+            '
+          example:
+          - dialed_number
+          - calling_number
+      if:
+        properties:
+          route:
+            not:
+              type: 'null'
+        required:
+        - route
+      then:
+        properties:
+          configuration_error:
+            not: {}
+    _ListEnvelope:
+      type: object
+      required:
+      - next_cursor
+      - prev_cursor
+      - refresh_cursor
+      properties:
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the next page. Pass back as `starting_after` to advance forward. `null` when no next page exists.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE0OjAzOjEwWlwiIiwiaSI6IjAxOTJmM2IxLTRjN2UtN2EyYi05ZDYxLThmM2E1YzJlN2I0MCJ9
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+          description: Cursor for the previous page. Pass back as `ending_before` to step backward. `null` when no previous page exists.
+          example: null
+        refresh_cursor:
+          type:
+          - string
+          - 'null'
+          description: Refresh anchor, the first row of this response. Pass back as `ending_before` to fetch what precedes it in the current sort order. On a newest-first sort those are the items that have appeared since; on any other sort they are the items that sort earlier, so refreshing such a list means re-fetching it instead. Non-`null` whenever `data` is non-empty; `null` only on an empty page. Distinct from `prev_cursor`.
+          example: eyJ2IjoxLCJzIjoiXCIyMDI2LTA1LTI1VDE2OjQyOjAxWlwiIiwiaSI6IjAxOTJmM2IxLTllMDQtN2NkMy1iODE3LTJhNmY0ZDFjOGUwOSJ9
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - param
+      - message
+      properties:
+        param:
+          type: string
+          minLength: 1
+          description: 'Dotted field path, such as `to[0].email`, `subject`, or `.`. When the request was rejected for a query parameter the endpoint does not declare, this carries that parameter''s name instead of a field path.
+
+            '
+        message:
+          type: string
+          minLength: 1
+          description: What is wrong with this field.
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    VoiceSequenceID:
+      type: string
+      minLength: 1
+      pattern: ^vsq_[0-9a-hjkmnp-tv-z]{26}$
+      example: vsq_01krdgeqcxet5s7t44vh8rt9mg
+    AllocatedNumberID:
+      type: string
+      minLength: 1
+      pattern: ^(nda|nal)_[0-9a-hjkmnp-tv-z]{26}$
+      example: nda_01krdgeqcxet5s7t44vh8rt9mg
+      description: Identifier of a number allocated to your workspace, as returned in the id field of `GET /v1/numbers`.
+    VoiceNumberSortField:
+      type: string
+      enum:
+      - phone_number
+      default: phone_number
+      description: Field used to sort the list.
+    VoiceVerifiedNumberStatus:
+      type: string
+      minLength: 1
+      x-extensible-enum:
+      - pending
+      - verified
+      - failed
+      description: "Verification state of the verified number.\n\n- `pending`: the number is registered but ownership has not yet been proven.\n- `verified`: the workspace proved ownership of the number. Check the\n  resource's activation or direction fields for outbound availability.\n- `failed`: terminal because the verification challenge expired or the attempt limit was exhausted.\n  Delete the verified number and register it again to retry.\n\nOpen enum: additional states may be added over time, so treat an unrecognized\nvalue as a future state rather than an error.\n"
+      example: pending
+    VoiceNumberUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+          description: 'Your own label for this number. Send null to remove the one it has. Omit the field to leave it alone.
+
+            '
+          example: Support line
+        inbound_configuration:
+          $ref: '#/components/schemas/VoiceInboundConfigurationPut'
+          description: 'What should happen to calls arriving for this number. The route replaces
+
+            whatever was set before, because a number has exactly one answer at a time.
+
+            Type "reject" stops it answering, and a null route returns it to your
+
+            workspace''s default inbound route. Omit the field to leave the answer alone.
+
+
+            Only a number that can receive calls carries a route, so it is refused on
+
+            one whose directions do not include inbound.
+
+            '
+    NextAction:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - description
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          x-extensible-enum:
+          - operation
+          - external
+          - wait
+          - terminal
+          description: "What you do about this step.\n\n- `operation`: call the operation named in `operation`, then\n  read again.\n- `external`: act somewhere this API does not reach, then read\n  again.\n- `wait`: nothing is asked of you, so read again later.\n- `terminal`: nothing you do resolves this, so stop retrying.\n\nTolerate a value you do not recognize: show the `description` and\noffer no action.\n"
+        description:
+          type: string
+          minLength: 1
+          description: A short, human-readable label for the step, suitable for display.
+        operation:
+          type: string
+          minLength: 1
+          description: 'The operationId to call. Present only when `kind` is `operation`. The operation''s own schema says how to call it; this says only which one, and what to address it with.
+
+            '
+        params:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          description: 'The parameters that address the operation, by name: `{"sender_id": "…"}` for an operation on `/v1/sms/senders/{sender_id}/requirements`. A parameter the operation takes in its query string is given the same way, so an operation addressed as `?subject_id=` carries `{"subject_id": "…"}`. Every parameter the call needs is here, whether its value came from the thing you were acting on or is fixed for this step, so you can make the call from this object alone. Present only when `kind` is `operation` and the operation names a subject. A request body, when the operation takes one, is described by the operation''s own schema and never appears here.
+
+            '
+        url:
+          type: string
+          format: uri
+          description: 'A URL to open. Present only when `kind` is `external`, and only when the step has one. An external step whose `description` says to go and do something with no URL to open is normal.
+
+            '
+    VoiceNumber:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - phone_number
+      - country_code
+      - name
+      - provider
+      - directions
+      - inbound_configuration
+      - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/VoiceNumberID'
+          readOnly: true
+          description: 'Identifier of this number, to pass to the operations that read and change it. A number you registered as a caller ID carries the same identifier there, with the caller-ID prefix.
+
+            '
+        phone_number:
+          type: string
+          minLength: 1
+          readOnly: true
+          description: The phone number in E.164 format.
+          example: '+14155551234'
+        country_code:
+          oneOf:
+          - $ref: '#/components/schemas/CountryCode'
+          - type: 'null'
+          readOnly: true
+          description: 'Country the number belongs to. Null when the number is not geographic or its country cannot be determined.
+
+            '
+        name:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+          readOnly: true
+          description: 'Your own label for this number, to tell several apart. Null when it has none. Only you see it, so it never affects what a caller sees.
+
+            '
+          example: Support line
+        provider:
+          $ref: '#/components/schemas/VoiceNumberProvider'
+          readOnly: true
+        directions:
+          $ref: '#/components/schemas/VoiceNumberDirections'
+          readOnly: true
+          description: 'Which directions this number can carry. Both follow from the number itself, so neither is yours to change. On a SIP trunk each direction is a setting you turn on; here it is a fact about the number.
+
+            '
+        inbound_configuration:
+          $ref: '#/components/schemas/VoiceInboundConfiguration'
+          readOnly: true
+          description: What happens to a call arriving for this number.
+        created_at:
+          type: string
+          format: date-time
+          minLength: 1
+          readOnly: true
+          description: 'When this number became usable for voice: when it was allocated to you, or when you first registered it, whichever this number is.
+
+            '
+    VoiceInboundConfigurationPut:
+      type: object
+      additionalProperties: false
+      required:
+      - route
+      properties:
+        route:
+          oneOf:
+          - $ref: '#/components/schemas/VoiceCallRouteWritable'
+          - type: 'null'
+          description: 'The number''s own route, or null to have it follow your workspace''s default inbound route from the voice settings.
+
+            '
+    VoiceInboundConfigurationError:
+      type: string
+      minLength: 1
+      enum:
+      - unsupported_route_type
+    VoiceSequenceNodeID:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: ^[a-z][a-z0-9_]{0,63}$
+      not:
+        enum:
+        - 'false'
+        - in
+        - 'null'
+        - 'true'
+      description: Stable identifier for a node within one sequence definition.
+    VoiceDailySpendLimitUpdate:
+      type: object
+      additionalProperties: false
+      required:
+      - workspace_limit
+      properties:
+        workspace_limit:
+          oneOf:
+          - $ref: '#/components/schemas/Money'
+          - type: 'null'
+          description: 'The workspace''s own daily limit, in the organization''s wallet currency from zero up to `max_limit`, with at most six decimal places; a negative or more precise amount is refused with 422. It can be above or below the default. Null removes it, so the default applies.
+
+            '
+    VoiceNumberList:
+      allOf:
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: array
+            items:
+              $ref: '#/components/schemas/VoiceNumber'
+      - $ref: '#/components/schemas/_ListEnvelope'
+    VoiceNumberDirections:
+      type: object
+      additionalProperties: false
+      required:
+      - inbound
+      - outbound
+      properties:
+        inbound:
+          type: boolean
+          readOnly: true
+          description: 'Whether calls to this number arrive here. False for a number from another carrier, whose calls that carrier routes, and for one allocated to you that cannot carry calls.
+
+            '
+        outbound:
+          type: boolean
+          readOnly: true
+          description: 'Whether this number can be presented on a call you place. Buying a number does not grant this on its own: proving control of it does.
+
+            '
+    VoiceSettingsInboundConfiguration:
+      type: object
+      additionalProperties: false
+      description: 'What happens to a call arriving for any of your Bird numbers that has no inbound route of its own.
+
+        '
+      required:
+      - route
+      properties:
+        route:
+          $ref: '#/components/schemas/VoiceCallRoute'
+          description: The workspace's default inbound route. Defaults to "reject".
+    VoiceSettings:
+      type: object
+      additionalProperties: false
+      description: 'The voice settings your workspace controls. Every field carries its effective value, whether or not the workspace has ever changed it.
+
+        '
+      required:
+      - inbound_configuration
+      - daily_spend_limit
+      properties:
+        inbound_configuration:
+          $ref: '#/components/schemas/VoiceSettingsInboundConfiguration'
+        daily_spend_limit:
+          oneOf:
+          - $ref: '#/components/schemas/VoiceDailySpendLimit'
+          - type: 'null'
+          description: 'The workspace''s daily Voice spend limit and today''s usage toward it. Null until your organization has a wallet, since amounts are in its currency.
+
+            '
+    VoiceSettingsUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: 'Changes to your workspace''s voice settings. Omit a field to leave it as it is.
+
+        '
+      properties:
+        inbound_configuration:
+          $ref: '#/components/schemas/VoiceSettingsInboundConfigurationPut'
+        daily_spend_limit:
+          $ref: '#/components/schemas/VoiceDailySpendLimitUpdate'
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+      description: Sort direction, ascending or descending.
+    VoiceCallRouteSequence:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - sequence_id
+      - entry_node_id
+      properties:
+        type:
+          $ref: '#/components/schemas/VoiceCallRouteType'
+          const: sequence
+          description: Runs the named sequence's active publication from the selected voice-call entry.
+        sequence_id:
+          $ref: '#/components/schemas/VoiceSequenceID'
+          description: Named sequence whose active publication handles the call.
+        entry_node_id:
+          $ref: '#/components/schemas/VoiceSequenceNodeID'
+          description: Voice-call entry in the sequence's active publication.
+    VoiceNumberProviderType:
+      type: string
+      minLength: 1
+      enum:
+      - allocation
+      - verified_number
+      description: 'Where a number came from. `allocation` is a number we allocated to your workspace, and the only kind whose calls reach us. `verified_number` is a number from another carrier that you registered and proved you control, so it can be presented on a call you place.
+
+        '
+      example: allocation
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: ^[A-Za-z]{2}$
+      description: ISO 3166-1 alpha-2 country code.
+      example: US
+  parameters:
+    EndingBefore:
+      name: ending_before
+      in: query
+      required: false
+      description: Cursor from the `prev_cursor` or `refresh_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order. `prev_cursor` returns the preceding page. `refresh_cursor` anchors at the first row of that response, which on a newest-first sort is how to fetch the items that have appeared since.
+      schema:
+        type: string
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Client-supplied key. On operations supporting request deduplication, a retained\nresponse is replayed for duplicate requests with the same key within the\nidempotency window (3 hours by default). This protection requires a workspace,\norganization, or staff-account scope. User-only and unscoped unauthenticated operations,\nstreams, and operations with a separate replay contract do not use this\nresponse replay.\n\nOn a supported operation, if idempotency protection is unavailable before execution, the API returns\n`503 IdempotencyUnavailable` (E01033) without executing this attempt. Retry with\nbackoff using the same key and request. An operation that takes effect before\nits response is retained can still execute again on retry.\n\nTwo distinct 409 errors signal misuse:\n\n- `request_in_progress` (E01004): The same key is currently being\n  processed by a concurrent request. Wait briefly and retry. The lock expires within 30 seconds.\n- `idempotency_key_reuse` (E01005): The same key has already completed\n  against a different request body or method. Generate a new key.\n\nRecommended key format is `<event-type>/<entity-id>` (for example `welcome-user/usr_abc123`).\n"
+      schema:
+        type: string
+        maxLength: 255
+    OrderAsc:
+      name: order
+      in: query
+      required: false
+      description: 'Sort direction. Defaults to `asc`, which sorts alphabetically or from oldest to newest, depending on the selected sort field.
+
+        '
+      schema:
+        $ref: '#/components/schemas/SortOrder'
+        default: asc
+    XWorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: false
+      description: Workspace context for the request. Required for dashboard authentication and master keys. Workspace keys and access tokens already identify their workspace; send that workspace or omit the header. A different one is rejected.
+      schema:
+        type: string
+        pattern: ^ws_[0-9a-hjkmnp-tv-z]{26}$
+    StartingAfter:
+      name: starting_after
+      in: query
+      required: false
+      description: Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+      schema:
+        type: string
+    XOrganizationId:
+      name: X-Organization-Id
+      in: header
+      required: false
+      description: Organization context for the request. Required for dashboard authentication. An API key or access token carries its own organization, so send either that organization or no header at all; a different one is rejected.
+      schema:
+        type: string
+        pattern: ^org_[0-9a-hjkmnp-tv-z]{26}$
+  headers:
+    RetryAfter:
+      description: 'Number of seconds to wait before retrying the request.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+      example: 35
+    IdempotencyReplay:
+      description: The API includes this header when it replays the response for an earlier request that used the same `Idempotency-Key`. The API does not process the request again.
+      schema:
+        type: string
+        enum:
+        - 'true'
+    RateLimit-Policy:
+      description: 'Effective quota for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";q=<quota>;w=<window_seconds>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";q=1000;w=60'
+    RateLimit:
+      description: 'Remaining capacity for the request''s rate-limit policy as an IETF Structured Field. Format: `"<policy>";r=<remaining>;t=<seconds_until_reset>`.
+
+        '
+      schema:
+        type: string
+      example: '"email_send";r=842;t=35'
+  responses:
+    ServiceUnavailable:
+      description: 'The service is temporarily unavailable. If `Retry-After` is present, wait for that delay before retrying; otherwise, retry with exponential backoff. Reuse the same idempotency key and request when retrying a mutation.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: 'The request has invalid field values, violates a business rule, or carries a query parameter the endpoint does not declare. Field validation errors use `type: validation_error` and include the affected fields in `details`. Business-rule errors identify the failed rule in `type`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PreconditionFailed:
+      description: Precondition failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimit-Policy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Pass the API key as a bearer token in the `Authorization` header. Workspace
+
+        keys use `bk_{region}_*`; organization master keys use `bm_{region}_*`.
+
+        The prefix identifies the region and selects the
+
+        API endpoint. Official Bird SDKs and the CLI derive the region from the key.
+
+        '
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: bird_session
+      description: 'Session cookie set after signing in to the Bird dashboard. The cookie
+
+        value is an opaque session token; no session data is stored in the cookie
+
+        itself.
+
+        '
+    RealtimeKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Key
+      description: 'The Realtime app key. Together with `X-Realtime-Secret`, it authenticates a
+
+        request to the Realtime API in addition to the workspace credential. Both
+
+        values come from the app''s credentials and must belong to the calling
+
+        workspace. Official Bird SDKs accept the pair as client configuration.
+
+        '
+    RealtimeSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Secret
+      description: 'The Realtime app secret paired with `X-Realtime-Key`. The API returns the
+
+        secret only when the key is created and does not store it. Create a new key
+
+        and revoke the current key if you lose the secret. Official Bird SDKs accept
+
+        the pair as client configuration.
+
+        '

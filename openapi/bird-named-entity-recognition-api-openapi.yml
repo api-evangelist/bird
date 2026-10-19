@@ -85,27 +85,6 @@ components:
           items:
             $ref: '#/components/schemas/Entity'
           description: The collection of recognized named entities.
-    ListSupportedLanguagesResponse:
-      type: object
-      description: A response containing the supported languages and their entity types.
-      properties:
-        languages:
-          type: array
-          items:
-            $ref: '#/components/schemas/SupportedLanguageEntry'
-          description: The collection of supported languages with their entity types.
-    EntityValue:
-      type: object
-      description: A structured value for a recognized entity.
-      properties:
-        type:
-          type: string
-          example: LOCATION
-          description: The entity type.
-        value:
-          type: object
-          additionalProperties: true
-          description: The structured value of the entity (varies by type).
     Entity:
       type: object
       description: A recognized named entity with one or more possible interpretations.
@@ -133,18 +112,39 @@ components:
           description: 'One or more possible interpretations of this entity. Most recognized entities will contain only one interpretation.
 
             '
-    Error:
+    EntityValue:
       type: object
+      description: A structured value for a recognized entity.
       properties:
-        code:
-          type: integer
-        message:
+        type:
           type: string
-        details:
+          example: LOCATION
+          description: The entity type.
+        value:
+          type: object
+          additionalProperties: true
+          description: The structured value of the entity (varies by type).
+    SupportedLanguageEntry:
+      type: object
+      description: A language and its supported entity types.
+      properties:
+        languageCode:
+          type: string
+          example: ENG
+          description: The ISO-639-3 language code.
+        languageName:
+          type: string
+          example: English
+          description: The English name of the language.
+        supportedEntityTypes:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            type: string
+          example:
+          - DATE_TIME
+          - LOCATION
+          - PERSON
+          description: The entity types supported for this language.
     PredictEntitiesRequest:
       type: object
       description: A request for extracting named entities from a phrase.
@@ -171,27 +171,27 @@ components:
           description: 'The entity types to extract. If not specified, all entity types will be extracted.
 
             '
-    SupportedLanguageEntry:
+    ListSupportedLanguagesResponse:
       type: object
-      description: A language and its supported entity types.
+      description: A response containing the supported languages and their entity types.
       properties:
-        languageCode:
-          type: string
-          example: ENG
-          description: The ISO-639-3 language code.
-        languageName:
-          type: string
-          example: English
-          description: The English name of the language.
-        supportedEntityTypes:
+        languages:
           type: array
           items:
-            type: string
-          example:
-          - DATE_TIME
-          - LOCATION
-          - PERSON
-          description: The entity types supported for this language.
+            $ref: '#/components/schemas/SupportedLanguageEntry'
+          description: The collection of supported languages with their entity types.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   securitySchemes:
     AccessKey:
       type: apiKey
