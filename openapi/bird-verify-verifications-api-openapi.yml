@@ -878,3 +878,9 @@ components:
         the pair as client configuration.
 
         '
+x-provenance:
+  method: harvested
+  publisher: Bird
+  source: https://bird.com/openapi.json
+  note: split by refine-openapis from the provider's own published document, verified by fetch (openapi/_original/*.fetch.json);
+    stamped by stamp-openapi-provenance.py (roadmap#793)
